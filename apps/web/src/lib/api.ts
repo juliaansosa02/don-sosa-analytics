@@ -1,4 +1,5 @@
 import type { Dataset } from '../types';
+import type { Locale } from './i18n';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://localhost:8787/api';
 const REQUEST_TIMEOUT_MS = 300000;
@@ -37,6 +38,7 @@ export async function collectProfile(
   tagLine: string,
   count = 100,
   options?: {
+    locale?: Locale;
     onProgress?: (progress: { stage: string; current: number; total: number; message: string }) => void;
     knownMatchIds?: string[];
   }
@@ -48,7 +50,7 @@ export async function collectProfile(
     const startResponse = await fetch(`${API_BASE}/analytics/collect/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameName, tagLine, count, knownMatchIds: options?.knownMatchIds ?? [] }),
+      body: JSON.stringify({ gameName, tagLine, count, knownMatchIds: options?.knownMatchIds ?? [], locale: options?.locale ?? 'es' }),
       signal: controller.signal
     });
 
@@ -83,7 +85,9 @@ export async function collectProfile(
     }
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') {
-      throw new Error('El análisis tardó demasiado. Probá con menos partidas o revisá si la API está levantada.');
+      throw new Error(options?.locale === 'en'
+        ? 'The analysis took too long. Try fewer matches or make sure the API is running.'
+        : 'El análisis tardó demasiado. Probá con menos partidas o revisá si la API está levantada.');
     }
 
     throw error;
@@ -92,8 +96,8 @@ export async function collectProfile(
   }
 }
 
-export async function fetchCachedProfile(gameName: string, tagLine: string): Promise<Dataset | null> {
-  const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`);
+export async function fetchCachedProfile(gameName: string, tagLine: string, locale: Locale = 'es'): Promise<Dataset | null> {
+  const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?locale=${locale}`);
   if (response.status === 404) {
     return null;
   }

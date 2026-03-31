@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { buildAggregateSummary, type ParticipantSnapshot } from '@don-sosa/core';
+import { buildAggregateSummary, type ParticipantSnapshot, type SummaryLocale } from '@don-sosa/core';
 import { env } from '../config/env.js';
 import { createParticipantSnapshot } from '../analysis/participantFactory.js';
 import { buildRuneIndex, getLatestDDragonVersion } from './dataDragon.js';
@@ -12,6 +12,7 @@ export interface CollectionParams {
   gameName: string;
   tagLine: string;
   count?: number;
+  locale?: SummaryLocale;
   knownMatchIds?: string[];
   outputDir?: string;
   onProgress?: (progress: { stage: string; current: number; total: number; message: string }) => void;
@@ -75,11 +76,12 @@ export async function collectPlayerSnapshot({
   gameName,
   tagLine,
   count = env.MATCH_COUNT,
+  locale = 'es',
   knownMatchIds = [],
   outputDir = defaultOutputDir,
   onProgress
 }: CollectionParams) {
-  onProgress?.({ stage: 'setup', current: 0, total: 1, message: 'Preparando analisis' });
+  onProgress?.({ stage: 'setup', current: 0, total: 1, message: locale === 'en' ? 'Preparing analysis' : 'Preparando análisis' });
   const [runeIndex, ddragonVersion] = await Promise.all([
     buildRuneIndex(),
     getLatestDDragonVersion()
@@ -116,12 +118,12 @@ export async function collectPlayerSnapshot({
     matchIds.push(...await riotClient.getMatchIdsByPuuid(account.puuid, count));
   }
 
-  onProgress?.({ stage: 'fetching', current: 0, total: matchIds.length, message: 'Descargando partidas' });
+  onProgress?.({ stage: 'fetching', current: 0, total: matchIds.length, message: locale === 'en' ? 'Downloading matches' : 'Descargando partidas' });
 
   const snapshots: ParticipantSnapshot[] = [];
 
   for (const [index, matchId] of matchIds.entries()) {
-    onProgress?.({ stage: 'fetching', current: index + 1, total: matchIds.length, message: `Descargando partida ${index + 1} de ${matchIds.length}` });
+    onProgress?.({ stage: 'fetching', current: index + 1, total: matchIds.length, message: locale === 'en' ? `Downloading match ${index + 1} of ${matchIds.length}` : `Descargando partida ${index + 1} de ${matchIds.length}` });
     const [match, timeline] = await Promise.all([
       riotClient.getMatch(matchId),
       riotClient.getTimeline(matchId)
@@ -135,7 +137,7 @@ export async function collectPlayerSnapshot({
 
   const eligibleSnapshots = snapshots.filter((snapshot) => !snapshot.isRemake);
   const remakesExcluded = snapshots.length - eligibleSnapshots.length;
-  onProgress?.({ stage: 'processing', current: eligibleSnapshots.length, total: eligibleSnapshots.length || 1, message: 'Procesando insights y resumiendo datos' });
+  onProgress?.({ stage: 'processing', current: eligibleSnapshots.length, total: eligibleSnapshots.length || 1, message: locale === 'en' ? 'Processing insights and building summary' : 'Procesando insights y resumiendo datos' });
   await updateBenchmarkStore(eligibleSnapshots, rank);
   const benchmarks = await buildBenchmarkCatalog(rank, Array.from(new Set(eligibleSnapshots.map((snapshot) => snapshot.championName))));
 
@@ -161,7 +163,8 @@ export async function collectPlayerSnapshot({
       account.tagLine,
       env.RIOT_REGION,
       env.RIOT_PLATFORM,
-      eligibleSnapshots
+      eligibleSnapshots,
+      locale
     )
   };
 

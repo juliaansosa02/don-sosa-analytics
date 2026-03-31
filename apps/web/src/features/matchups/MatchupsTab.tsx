@@ -3,11 +3,13 @@ import type { Dataset } from '../../types';
 import { useMemo, useState } from 'react';
 import { getChampionIconUrl, getRoleLabel } from '../../lib/lol';
 import { formatDecimal, formatInteger, formatPercent, formatSignedNumber } from '../../lib/format';
+import type { Locale } from '../../lib/i18n';
+import { translateRole } from '../../lib/i18n';
 
-function matchupDiffLabel(value: number, unit: string) {
-  if (value > 0) return `${formatSignedNumber(value, unit === 'lvl' ? 1 : 0)} a favor`;
-  if (value < 0) return `${formatSignedNumber(value, unit === 'lvl' ? 1 : 0)} en contra`;
-  return unit === 'lvl' ? '0,0 parejo' : '0 parejo';
+function matchupDiffLabel(value: number, unit: string, locale: Locale) {
+  if (value > 0) return locale === 'en' ? `${formatSignedNumber(value, unit === 'lvl' ? 1 : 0)} ahead` : `${formatSignedNumber(value, unit === 'lvl' ? 1 : 0)} a favor`;
+  if (value < 0) return locale === 'en' ? `${formatSignedNumber(value, unit === 'lvl' ? 1 : 0)} behind` : `${formatSignedNumber(value, unit === 'lvl' ? 1 : 0)} en contra`;
+  return locale === 'en' ? (unit === 'lvl' ? '0.0 even' : '0 even') : (unit === 'lvl' ? '0,0 parejo' : '0 parejo');
 }
 
 function aggregateMatchups(dataset: Dataset) {
@@ -64,7 +66,7 @@ function aggregateMatchups(dataset: Dataset) {
     .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
 }
 
-export function MatchupsTab({ dataset }: { dataset: Dataset }) {
+export function MatchupsTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?: Locale }) {
   const championOptions = useMemo(() => ['ALL', ...Array.from(new Set(dataset.matches.map((match) => match.championName))).sort()], [dataset.matches]);
   const [championFilter, setChampionFilter] = useState('ALL');
   const [sortKey, setSortKey] = useState<'games' | 'winRate' | 'avgGoldDiffAt15' | 'avgLevelDiffAt15' | 'performance'>('games');
@@ -86,28 +88,28 @@ export function MatchupsTab({ dataset }: { dataset: Dataset }) {
   }, [filteredDataset, sortKey]);
 
   return (
-    <Card title="Matchups" subtitle="Lectura por rival directo con una presentación más clara y comparativa">
+    <Card title="Matchups" subtitle={locale === 'en' ? 'Direct-opponent view with a clearer, more comparative presentation' : 'Lectura por rival directo con una presentación más clara y comparativa'}>
       <div style={{ display: 'grid', gap: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={{ color: '#8a95a8', fontSize: 13 }}>
             {championFilter === 'ALL'
-              ? 'Estás viendo todos tus picks mezclados.'
-              : `Estás viendo solo matchups cuando jugás ${championFilter}.`}
+              ? (locale === 'en' ? 'You are looking at all of your picks mixed together.' : 'Estás viendo todos tus picks mezclados.')
+              : (locale === 'en' ? `You are looking only at matchups when you play ${championFilter}.` : `Estás viendo solo matchups cuando jugás ${championFilter}.`)}
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <select value={championFilter} onChange={(event) => setChampionFilter(event.target.value)} style={filterSelectStyle}>
               {championOptions.map((champion) => (
                 <option key={champion} value={champion}>
-                  {champion === 'ALL' ? 'Todos tus campeones' : champion}
+                  {champion === 'ALL' ? (locale === 'en' ? 'All your champions' : 'Todos tus campeones') : champion}
                 </option>
               ))}
             </select>
             <select value={sortKey} onChange={(event) => setSortKey(event.target.value as typeof sortKey)} style={filterSelectStyle}>
-              <option value="games">Más partidas</option>
-              <option value="winRate">Mayor win rate</option>
-              <option value="performance">Mayor performance</option>
-              <option value="avgGoldDiffAt15">Mayor diff. de oro</option>
-              <option value="avgLevelDiffAt15">Mayor diff. de nivel</option>
+              <option value="games">{locale === 'en' ? 'Most games' : 'Más partidas'}</option>
+              <option value="winRate">{locale === 'en' ? 'Highest win rate' : 'Mayor win rate'}</option>
+              <option value="performance">{locale === 'en' ? 'Highest performance' : 'Mayor performance'}</option>
+              <option value="avgGoldDiffAt15">{locale === 'en' ? 'Highest gold diff' : 'Mayor diff. de oro'}</option>
+              <option value="avgLevelDiffAt15">{locale === 'en' ? 'Highest level diff' : 'Mayor diff. de nivel'}</option>
             </select>
           </div>
         </div>
@@ -121,23 +123,23 @@ export function MatchupsTab({ dataset }: { dataset: Dataset }) {
                   {iconUrl ? <img src={iconUrl} alt={matchup.opponent} width={52} height={52} style={iconStyle} /> : null}
                   <div style={{ display: 'grid', gap: 6 }}>
                     <div style={{ fontSize: 18, fontWeight: 700 }}>{matchup.opponent}</div>
-                    <div style={{ color: '#7d8696', fontSize: 13 }}>{getRoleLabel(matchup.role)}</div>
+                    <div style={{ color: '#7d8696', fontSize: 13 }}>{locale === 'en' ? translateRole(matchup.role, 'en') : getRoleLabel(matchup.role)}</div>
                   </div>
                 </div>
 
                 <Badge tone={matchup.winRate >= 55 ? 'low' : matchup.winRate < 45 ? 'high' : 'medium'}>
-                  {matchup.winRate >= 55 ? 'FAVORABLE' : matchup.winRate < 45 ? 'COMPLICADO' : 'PAREJO'}
+                  {matchup.winRate >= 55 ? (locale === 'en' ? 'FAVORABLE' : 'FAVORABLE') : matchup.winRate < 45 ? (locale === 'en' ? 'TOUGH' : 'COMPLICADO') : (locale === 'en' ? 'EVEN' : 'PAREJO')}
                 </Badge>
               </div>
 
               <div className="seven-col-grid" style={metricGridStyle}>
-                <MetricBlock label="Partidas" value={formatInteger(matchup.games)} info="Cantidad de veces que enfrentaste a este campeón en la muestra actual." />
-                <MetricBlock label="Win rate" value={formatPercent(matchup.winRate)} info="Tu porcentaje de victorias contra este rival." />
-                <MetricBlock label="Performance" value={formatDecimal(matchup.performance)} info="Promedio del índice interno de ejecución contra este matchup." />
-                <MetricBlock label="CS a los 15" value={formatDecimal(matchup.avgCsAt15)} info="Tu economía media a los 15 contra este rival." />
-                <MetricBlock label="Oro vs rival" value={matchupDiffLabel(matchup.avgGoldDiffAt15, 'gold')} info="Si el valor termina 'a favor', llegás con ventaja media de oro al 15. Si termina 'en contra', llegás por detrás frente al rival directo." />
-                <MetricBlock label="Nivel vs rival" value={matchupDiffLabel(matchup.avgLevelDiffAt15, 'lvl')} info="Si el valor termina 'a favor', tu nivel medio al 15 está por encima del rival. Si termina 'en contra', llegás con desventaja de experiencia." />
-                <MetricBlock label="Muertes pre 14" value={formatDecimal(matchup.avgDeathsPre14)} info="Cuántas veces te castigan temprano, en promedio, estos cruces." />
+                <MetricBlock label={locale === 'en' ? 'Games' : 'Partidas'} value={formatInteger(matchup.games)} info={locale === 'en' ? 'How many times you faced this champion inside the current sample.' : 'Cantidad de veces que enfrentaste a este campeón en la muestra actual.'} />
+                <MetricBlock label="Win rate" value={formatPercent(matchup.winRate)} info={locale === 'en' ? 'Your win rate against this opponent.' : 'Tu porcentaje de victorias contra este rival.'} />
+                <MetricBlock label="Performance" value={formatDecimal(matchup.performance)} info={locale === 'en' ? 'Average internal execution score against this matchup.' : 'Promedio del índice interno de ejecución contra este matchup.'} />
+                <MetricBlock label={locale === 'en' ? 'CS at 15' : 'CS a los 15'} value={formatDecimal(matchup.avgCsAt15)} info={locale === 'en' ? 'Your average economy at minute 15 against this opponent.' : 'Tu economía media a los 15 contra este rival.'} />
+                <MetricBlock label={locale === 'en' ? 'Gold vs opponent' : 'Oro vs rival'} value={matchupDiffLabel(matchup.avgGoldDiffAt15, 'gold', locale)} info={locale === 'en' ? "If the value ends in 'ahead', you reach minute 15 with an average gold lead. If it ends in 'behind', you are behind your direct lane or role opponent." : "Si el valor termina 'a favor', llegás con ventaja media de oro al 15. Si termina 'en contra', llegás por detrás frente al rival directo."} />
+                <MetricBlock label={locale === 'en' ? 'Level vs opponent' : 'Nivel vs rival'} value={matchupDiffLabel(matchup.avgLevelDiffAt15, 'lvl', locale)} info={locale === 'en' ? "If the value ends in 'ahead', your average level at 15 is above the opponent. If it ends in 'behind', you are trailing in experience." : "Si el valor termina 'a favor', tu nivel medio al 15 está por encima del rival. Si termina 'en contra', llegás con desventaja de experiencia."} />
+                <MetricBlock label={locale === 'en' ? 'Deaths pre 14' : 'Muertes pre 14'} value={formatDecimal(matchup.avgDeathsPre14)} info={locale === 'en' ? 'How often these matchups punish you early, on average.' : 'Cuántas veces te castigan temprano, en promedio, estos cruces.'} />
               </div>
             </div>
           );

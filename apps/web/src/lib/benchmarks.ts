@@ -16,6 +16,8 @@ export interface TierProgressionBenchmark {
   deltaToNext: number | null;
 }
 
+type Locale = 'es' | 'en';
+
 const tierOrder = ['IRON', 'BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER'] as const;
 
 const cs15Benchmarks: Record<string, Record<string, number>> = {
@@ -66,7 +68,7 @@ function buildTierProgression(role: string, tier: string | null | undefined, act
   } satisfies TierProgressionBenchmark;
 }
 
-export function buildCs15Benchmark(role: string, tier?: string | null, avgCsAt15?: number): BenchmarkResult | null {
+export function buildCs15Benchmark(role: string, tier?: string | null, avgCsAt15?: number, locale: Locale = 'es'): BenchmarkResult | null {
   const normalizedTier = normalizeTier(tier ?? undefined);
   if (!normalizedTier || typeof avgCsAt15 !== 'number') return null;
 
@@ -79,24 +81,30 @@ export function buildCs15Benchmark(role: string, tier?: string | null, avgCsAt15
   const delta = avgCsAt15 - target;
   if (delta >= 5) {
     return {
-      label: 'Referencia interna favorable',
+      label: locale === 'en' ? 'Internal reference favorable' : 'Referencia interna favorable',
       status: 'above',
-      message: `Tu CS está ${delta.toFixed(1)} por encima de nuestra referencia interna para ${normalizedTier} en ${role.toLowerCase()}.`
+      message: locale === 'en'
+        ? `Your CS is ${delta.toFixed(1)} above our current internal reference for ${normalizedTier} in ${role.toLowerCase()}.`
+        : `Tu CS está ${delta.toFixed(1)} por encima de nuestra referencia interna para ${normalizedTier} en ${role.toLowerCase()}.`
     };
   }
 
   if (delta <= -5) {
     return {
-      label: 'Referencia interna por trabajar',
+      label: locale === 'en' ? 'Internal reference to work on' : 'Referencia interna por trabajar',
       status: 'below',
-      message: `Tu CS está ${Math.abs(delta).toFixed(1)} por debajo de nuestra referencia interna para ${normalizedTier} en ${role.toLowerCase()}.`
+      message: locale === 'en'
+        ? `Your CS is ${Math.abs(delta).toFixed(1)} below our current internal reference for ${normalizedTier} in ${role.toLowerCase()}.`
+        : `Tu CS está ${Math.abs(delta).toFixed(1)} por debajo de nuestra referencia interna para ${normalizedTier} en ${role.toLowerCase()}.`
     };
   }
 
   return {
-    label: 'Cerca de la referencia interna',
+    label: locale === 'en' ? 'Near the internal reference' : 'Cerca de la referencia interna',
     status: 'normal',
-    message: `Tu farmeo está cerca de la referencia interna que hoy usamos para ${normalizedTier} en ${role.toLowerCase()}.`
+    message: locale === 'en'
+      ? `Your farming is close to the internal reference we currently use for ${normalizedTier} in ${role.toLowerCase()}.`
+      : `Tu farmeo está cerca de la referencia interna que hoy usamos para ${normalizedTier} en ${role.toLowerCase()}.`
   };
 }
 

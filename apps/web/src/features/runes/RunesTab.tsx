@@ -2,6 +2,7 @@ import { Card, Badge } from '../../components/ui';
 import type { Dataset } from '../../types';
 import { getChampionIconUrl, getRuneIconUrl } from '../../lib/lol';
 import { formatDecimal, formatInteger, formatPercent } from '../../lib/format';
+import type { Locale } from '../../lib/i18n';
 
 function aggregateRunes(dataset: Dataset) {
   const grouped = new Map<string, {
@@ -65,12 +66,12 @@ function aggregateRunes(dataset: Dataset) {
     .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
 }
 
-export function RunesTab({ dataset }: { dataset: Dataset }) {
+export function RunesTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?: Locale }) {
   const runes = aggregateRunes(dataset);
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <Card title="Runas" subtitle="Cada keystone se lee junto a los campeones con los que realmente la estás usando">
+      <Card title={locale === 'en' ? 'Runes' : 'Runas'} subtitle={locale === 'en' ? 'Each keystone is read together with the champions you are actually using it on' : 'Cada keystone se lee junto a los campeones con los que realmente la estás usando'}>
         <div style={{ display: 'grid', gap: 14 }}>
           {runes.map((rune) => {
             const iconUrl = getRuneIconUrl(rune.icon);
@@ -82,25 +83,25 @@ export function RunesTab({ dataset }: { dataset: Dataset }) {
                     {iconUrl ? <img src={iconUrl} alt={rune.name} width={46} height={46} style={runeIconStyle} /> : null}
                     <div>
                       <div style={{ fontSize: 18, fontWeight: 700 }}>{rune.name}</div>
-                      <div style={{ color: '#788291', fontSize: 13 }}>{rune.games} partidas analizadas</div>
+                      <div style={{ color: '#788291', fontSize: 13 }}>{locale === 'en' ? `${rune.games} analyzed matches` : `${rune.games} partidas analizadas`}</div>
                     </div>
                   </div>
 
                   <Badge tone={rune.winRate >= 55 ? 'low' : rune.winRate < 45 ? 'high' : 'medium'}>
-                    {rune.winRate >= 55 ? 'Rindiendo bien' : rune.winRate < 45 ? 'Por revisar' : 'Muestra pareja'}
+                    {rune.winRate >= 55 ? (locale === 'en' ? 'Performing well' : 'Rindiendo bien') : rune.winRate < 45 ? (locale === 'en' ? 'Needs review' : 'Por revisar') : (locale === 'en' ? 'Even sample' : 'Muestra pareja')}
                   </Badge>
                 </div>
 
                 <div style={runeMetricsGridStyle}>
                   <MetricBlock label="Win rate" value={formatPercent(rune.winRate)} />
-                  <MetricBlock label="Performance media" value={formatDecimal(rune.avgPerformance)} />
-                  <MetricBlock label="Daño medio" value={formatInteger(rune.avgDamage)} />
-                  <MetricBlock label="Curación media" value={formatInteger(rune.avgHealing)} />
-                  <MetricBlock label="Escudo medio" value={formatInteger(rune.avgShielding)} />
+                  <MetricBlock label={locale === 'en' ? 'Average performance' : 'Performance media'} value={formatDecimal(rune.avgPerformance)} />
+                  <MetricBlock label={locale === 'en' ? 'Average damage' : 'Daño medio'} value={formatInteger(rune.avgDamage)} />
+                  <MetricBlock label={locale === 'en' ? 'Average healing' : 'Curación media'} value={formatInteger(rune.avgHealing)} />
+                  <MetricBlock label={locale === 'en' ? 'Average shielding' : 'Escudo medio'} value={formatInteger(rune.avgShielding)} />
                 </div>
 
                 <div style={{ display: 'grid', gap: 10 }}>
-                  <div style={sectionLabelStyle}>Campeones con los que más la usás</div>
+                  <div style={sectionLabelStyle}>{locale === 'en' ? 'Champions you use it on the most' : 'Campeones con los que más la usás'}</div>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     {rune.champions.map((champion) => {
                       const championIcon = getChampionIconUrl(champion.championName, dataset.ddragonVersion);
@@ -111,7 +112,7 @@ export function RunesTab({ dataset }: { dataset: Dataset }) {
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 700 }}>{champion.championName}</div>
                             <div style={{ color: '#7a8494', fontSize: 12 }}>
-                              {champion.games} partidas · {formatPercent(champion.winRate)}
+                              {locale === 'en' ? `${champion.games} matches · ${formatPercent(champion.winRate)}` : `${champion.games} partidas · ${formatPercent(champion.winRate)}`}
                             </div>
                           </div>
                         </div>
@@ -125,7 +126,9 @@ export function RunesTab({ dataset }: { dataset: Dataset }) {
         </div>
       </Card>
       <p style={{ margin: 0, color: '#798395', fontSize: 13 }}>
-        “Performance media” es el promedio del score total de tus partidas con esa runa. Sirve para comparar ejecución entre configuraciones, no es una métrica oficial de Riot.
+        {locale === 'en'
+          ? '"Average performance" is the average of your total match score when using that rune. It helps compare execution between setups; it is not an official Riot metric.'
+          : '“Performance media” es el promedio del score total de tus partidas con esa runa. Sirve para comparar ejecución entre configuraciones, no es una métrica oficial de Riot.'}
       </p>
     </div>
   );

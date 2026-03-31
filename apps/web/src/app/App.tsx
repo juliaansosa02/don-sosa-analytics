@@ -9,6 +9,7 @@ import { MatchupsTab } from '../features/matchups/MatchupsTab';
 import { RunesTab } from '../features/runes/RunesTab';
 import { ChampionPoolTab } from '../features/champion-pool/ChampionPoolTab';
 import { MatchesTab } from '../features/matches/MatchesTab';
+import { detectLocale, translateRole, type Locale } from '../lib/i18n';
 import { getProfileIconUrl, getQueueBucket, getQueueLabel, getRankEmblemDataUrl, getRankPalette, getRoleLabel } from '../lib/lol';
 import { formatDecimal } from '../lib/format';
 import { buildCs15Benchmark } from '../lib/benchmarks';
@@ -46,7 +47,7 @@ function datasetStorageKey(gameName: string, tagLine: string) {
   return `don-sosa:dataset:${gameName}#${tagLine}`.toLowerCase();
 }
 
-function mergeDatasets(current: Dataset | null, incoming: Dataset): Dataset {
+function mergeDatasets(current: Dataset | null, incoming: Dataset, locale: Locale): Dataset {
   if (!current) return incoming;
 
   const matchMap = new Map<string, Dataset['matches'][number]>();
@@ -55,7 +56,7 @@ function mergeDatasets(current: Dataset | null, incoming: Dataset): Dataset {
   }
 
   const mergedMatches = Array.from(matchMap.values()).sort((a, b) => b.gameCreation - a.gameCreation);
-  const mergedSummary = buildAggregateSummary(incoming.player, incoming.tagLine, incoming.summary.region, incoming.summary.platform, mergedMatches);
+  const mergedSummary = buildAggregateSummary(incoming.player, incoming.tagLine, incoming.summary.region, incoming.summary.platform, mergedMatches, locale);
 
   return {
     ...incoming,
@@ -66,6 +67,7 @@ function mergeDatasets(current: Dataset | null, incoming: Dataset): Dataset {
 }
 
 export default function App() {
+  const [locale] = useState<Locale>(() => detectLocale());
   const [activeTab, setActiveTab] = useState<TabId>('coach');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [queueFilter, setQueueFilter] = useState<'ALL' | 'RANKED' | 'RANKED_SOLO' | 'RANKED_FLEX' | 'OTHER'>('ALL');
@@ -83,7 +85,7 @@ export default function App() {
 
   async function hydrateFromServer(gameNameValue: string, tagLineValue: string) {
     try {
-      const serverDataset = await fetchCachedProfile(gameNameValue, tagLineValue);
+      const serverDataset = await fetchCachedProfile(gameNameValue, tagLineValue, locale);
       if (!serverDataset) return false;
 
       setDataset(serverDataset);
@@ -95,7 +97,9 @@ export default function App() {
         matchCount
       }));
       persistSavedProfile(serverDataset, matchCount);
-      setSyncMessage('Recuperamos una versión guardada en el servidor para que no arranques de cero en este dispositivo.');
+      setSyncMessage(locale === 'en'
+        ? 'We recovered a saved version from the server so you do not have to start from zero on this device.'
+        : 'Recuperamos una versión guardada en el servidor para que no arranques de cero en este dispositivo.');
       return true;
     } catch {
       return false;
@@ -138,7 +142,7 @@ export default function App() {
     } catch {
       window.localStorage.removeItem('don-sosa:last-profile');
     }
-  }, []);
+  }, [locale, matchCount]);
 
   const availableRoles = useMemo(() => {
     if (!dataset) return ['ALL'];
@@ -176,38 +180,38 @@ export default function App() {
     if (windowFilter === 'LAST_20') filteredMatches = filteredMatches.slice(0, 20);
     if (windowFilter === 'LAST_8') filteredMatches = filteredMatches.slice(0, 8);
 
-    const filteredSummary = buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, filteredMatches);
+    const filteredSummary = buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, filteredMatches, locale);
 
     return {
       ...dataset,
       matches: filteredMatches,
       summary: filteredSummary
     };
-  }, [dataset, roleFilter, queueFilter, windowFilter]);
+  }, [dataset, roleFilter, queueFilter, windowFilter, locale]);
 
   const renderedTab = useMemo(() => {
     if (!viewDataset) return null;
 
     switch (activeTab) {
       case 'coach':
-        return <CoachingHome dataset={viewDataset} />;
+        return <CoachingHome dataset={viewDataset} locale={locale} />;
       case 'stats':
-        return <StatsTab dataset={viewDataset} />;
+        return <StatsTab dataset={viewDataset} locale={locale} />;
       case 'matchups':
-        return <MatchupsTab dataset={viewDataset} />;
+        return <MatchupsTab dataset={viewDataset} locale={locale} />;
       case 'runes':
-        return <RunesTab dataset={viewDataset} />;
+        return <RunesTab dataset={viewDataset} locale={locale} />;
       case 'champions':
-        return <ChampionPoolTab dataset={viewDataset} />;
+        return <ChampionPoolTab dataset={viewDataset} locale={locale} />;
       case 'matches':
-        return <MatchesTab dataset={viewDataset} />;
+        return <MatchesTab dataset={viewDataset} locale={locale} />;
     }
-  }, [activeTab, viewDataset]);
+  }, [activeTab, viewDataset, locale]);
 
   const csBenchmark = useMemo(() => {
     if (!viewDataset?.rank) return null;
-    return buildCs15Benchmark(roleFilter, viewDataset.rank.highest.tier, viewDataset.summary.avgCsAt15);
-  }, [roleFilter, viewDataset]);
+    return buildCs15Benchmark(roleFilter, viewDataset.rank.highest.tier, viewDataset.summary.avgCsAt15, locale);
+  }, [roleFilter, viewDataset, locale]);
 
   const preferredRoles = useMemo(() => {
     if (!availableRoles.length) return ['ALL'];
@@ -278,30 +282,39 @@ export default function App() {
     setLoading(true);
     setError(null);
     setSyncMessage(null);
-    setProgress({ stage: 'queued', current: 0, total: 1, message: 'Preparando analisis' });
+    setProgress({ stage: 'queued', current: 0, total: 1, message: locale === 'en' ? 'Preparing analysis' : 'Preparando análisis' });
 
     try {
       const cachedDataset = window.localStorage.getItem(datasetStorageKey(gameName, tagLine));
       const previousDataset = cachedDataset ? (JSON.parse(cachedDataset) as Dataset) : null;
       const shouldRefreshFullSample = !previousDataset || previousDataset.matches.length < matchCount;
       const result = await collectProfile(gameName, tagLine, matchCount, {
+        locale,
         onProgress: (nextProgress) => setProgress(nextProgress),
         knownMatchIds: shouldRefreshFullSample ? [] : previousDataset.matches.map((match) => match.matchId)
       });
       const mergedDataset = shouldRefreshFullSample
         ? result
-        : mergeDatasets(previousDataset, result);
+        : mergeDatasets(previousDataset, result, locale);
       setDataset(mergedDataset);
       setShowAccountControls(false);
       if (previousDataset && !shouldRefreshFullSample) {
         const addedMatches = mergedDataset.matches.length - previousDataset.matches.length;
         setSyncMessage(addedMatches > 0
-          ? `Se agregaron ${addedMatches} partidas nuevas. El análisis mantiene el historial previo y recalcula todo por fecha real.`
-          : 'No aparecieron partidas nuevas para sumar. El análisis mantiene tu histórico actual sin sobrescribirlo.');
+          ? (locale === 'en'
+            ? `${addedMatches} new matches were added. The analysis keeps your previous history and recalculates everything by real date.`
+            : `Se agregaron ${addedMatches} partidas nuevas. El análisis mantiene el historial previo y recalcula todo por fecha real.`)
+          : (locale === 'en'
+            ? 'No new matches were found to add. The analysis keeps your current history without overwriting it.'
+            : 'No aparecieron partidas nuevas para sumar. El análisis mantiene tu histórico actual sin sobrescribirlo.'));
       } else if (previousDataset && shouldRefreshFullSample) {
-        setSyncMessage(`Se reconstruyó la muestra hasta ${mergedDataset.summary.matches} partidas válidas para que el análisis no quede sesgado por una cache más chica.`);
+        setSyncMessage(locale === 'en'
+          ? `The sample was rebuilt to ${mergedDataset.summary.matches} valid matches so the analysis is not biased by a smaller cache.`
+          : `Se reconstruyó la muestra hasta ${mergedDataset.summary.matches} partidas válidas para que el análisis no quede sesgado por una cache más chica.`);
       } else {
-        setSyncMessage(`Se cargaron ${mergedDataset.summary.matches} partidas válidas para construir tu primera muestra.`);
+        setSyncMessage(locale === 'en'
+          ? `${mergedDataset.summary.matches} valid matches were loaded to build your first sample.`
+          : `Se cargaron ${mergedDataset.summary.matches} partidas válidas para construir tu primera muestra.`);
       }
       window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({ gameName, tagLine, matchCount }));
       window.localStorage.setItem(datasetStorageKey(gameName, tagLine), JSON.stringify(mergedDataset));
@@ -325,15 +338,21 @@ export default function App() {
         <section style={heroStyle}>
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>Don Sosa Coach</div>
-            <h1 style={{ margin: 0, fontSize: 46, letterSpacing: '-0.05em', maxWidth: 760 }}>Tu lectura competitiva para jugar mejor, no solo mirar stats</h1>
+            <h1 style={{ margin: 0, fontSize: 46, letterSpacing: '-0.05em', maxWidth: 760 }}>
+              {locale === 'en'
+                ? 'A competitive read of your play, not just another stats page'
+                : 'Tu lectura competitiva para jugar mejor, no solo mirar stats'}
+            </h1>
             <p style={{ margin: 0, color: '#9099aa', maxWidth: 760, lineHeight: 1.7 }}>
-              Diagnóstico claro, decisiones accionables y una vista ordenada de matchups, runas, campeones y review. Primero entendés qué corregir; después entrás al detalle.
+              {locale === 'en'
+                ? 'Clear diagnosis, actionable decisions and an organized view of matchups, runes, champions and review. First you understand what to fix, then you go deeper.'
+                : 'Diagnóstico claro, decisiones accionables y una vista ordenada de matchups, runas, campeones y review. Primero entendés qué corregir; después entrás al detalle.'}
             </p>
             {loading ? (
               <div style={{ color: '#d8fdf1', fontSize: 13, lineHeight: 1.6 }}>
                 {progress?.message ?? (matchCount >= 75
-                  ? 'Analizando una muestra grande. Esto puede tardar varios minutos por los límites de Riot.'
-                  : 'Analizando partidas. Esto puede tardar entre unos segundos y alrededor de un minuto.')}
+                  ? (locale === 'en' ? 'Analyzing a large sample. This can take several minutes because of Riot rate limits.' : 'Analizando una muestra grande. Esto puede tardar varios minutos por los límites de Riot.')
+                  : (locale === 'en' ? 'Analyzing matches. This can take anywhere from a few seconds to about a minute.' : 'Analizando partidas. Esto puede tardar entre unos segundos y alrededor de un minuto.'))}
               </div>
             ) : null}
             {loading && progress ? (
@@ -348,25 +367,30 @@ export default function App() {
               </div>
             ) : null}
             {viewDataset?.rank ? (
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <RankBadge rank={viewDataset.rank} compact />
-                <div style={heroMetaChipStyle}>
-                  <div style={heroMetaLabelStyle}>Win rate</div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <RankBadge rank={viewDataset.rank} compact locale={locale} />
+                  <div style={heroMetaChipStyle}>
+                  <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Win rate' : 'Win rate'}</div>
                   <div style={heroMetaValueStyle}>{`${viewDataset.rank.highest.winRate}%`}</div>
                   <div style={heroMetaSubtleStyle}>{`${viewDataset.rank.highest.wins}-${viewDataset.rank.highest.losses}`}</div>
                 </div>
                 {csBenchmark ? (
                   <div style={heroMetaChipStyle}>
-                    <div style={heroMetaLabelStyle}>Benchmark</div>
+                    <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Benchmark' : 'Benchmark'}</div>
                     <div style={{ ...heroMetaValueStyle, color: csBenchmark.status === 'above' ? '#9ff0cf' : csBenchmark.status === 'below' ? '#ffb3b3' : '#dce8fb' }}>{csBenchmark.label}</div>
-                    <div style={heroMetaSubtleStyle}>CS a los 15</div>
+                    <div style={heroMetaSubtleStyle}>{locale === 'en' ? 'CS at 15' : 'CS a los 15'}</div>
                   </div>
                 ) : null}
               </div>
             ) : null}
           </div>
 
-          <Card title={showAccountControls ? 'Analizar cuenta' : 'Cuenta activa'} subtitle={showAccountControls ? 'Ingresá el Riot ID y elegí cuántas partidas querés analizar.' : 'Tu cuenta queda lista para refrescar datos o cambiar de perfil cuando quieras.'}>
+          <Card
+            title={showAccountControls ? (locale === 'en' ? 'Analyze account' : 'Analizar cuenta') : (locale === 'en' ? 'Active account' : 'Cuenta activa')}
+            subtitle={showAccountControls
+              ? (locale === 'en' ? 'Enter a Riot ID and choose how many matches you want to analyze.' : 'Ingresá el Riot ID y elegí cuántas partidas querés analizar.')
+              : (locale === 'en' ? 'Your account is ready to refresh data or switch profiles whenever you want.' : 'Tu cuenta queda lista para refrescar datos o cambiar de perfil cuando quieras.')}
+          >
             {showAccountControls || !dataset ? (
               <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12 }}>
                 <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr .8fr .7fr', gap: 10 }}>
@@ -374,64 +398,74 @@ export default function App() {
                   <input value={tagLine} onChange={(e) => setTagLine(e.target.value)} placeholder="Tag Line" style={inputStyle} />
                   <select value={matchCount} onChange={(e) => setMatchCount(Number(e.target.value))} style={selectStyle}>
                     {[10, 20, 30, 40, 50, 75, 100].map((count) => (
-                      <option key={count} value={count}>{count} partidas</option>
+                      <option key={count} value={count}>{count} {locale === 'en' ? 'matches' : 'partidas'}</option>
                     ))}
                   </select>
                 </div>
 
                 <div style={{ color: '#7f8898', fontSize: 12, lineHeight: 1.5 }}>
                   {matchCount >= 75
-                    ? 'Con 75 o 100 partidas el análisis es más estable, pero puede tardar bastante por los límites de Riot.'
-                    : 'Menos partidas cargan más rápido. Más partidas dan una lectura más confiable.'}
+                    ? (locale === 'en' ? 'With 75 or 100 matches the analysis is more stable, but it can take a while because of Riot rate limits.' : 'Con 75 o 100 partidas el análisis es más estable, pero puede tardar bastante por los límites de Riot.')
+                    : (locale === 'en' ? 'Fewer matches load faster. More matches produce a more reliable read.' : 'Menos partidas cargan más rápido. Más partidas dan una lectura más confiable.')}
                 </div>
 
                 {!dataset && gameName && tagLine ? (
                   <div style={{ color: '#9ba6b8', fontSize: 12 }}>
-                    No hay un análisis guardado para esta cuenta en este navegador. Cargalo una vez y después quedará disponible.
+                    {locale === 'en'
+                      ? 'There is no saved analysis for this account in this browser yet. Load it once and it will be available afterwards.'
+                      : 'No hay un análisis guardado para esta cuenta en este navegador. Cargalo una vez y después quedará disponible.'}
                   </div>
                 ) : null}
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Badge tone="default">{`Filtro actual: ${getRoleLabel(roleFilter)}`}</Badge>
-                    {dataset?.remakesExcluded ? <Badge tone="medium">{`${dataset.remakesExcluded} remakes excluidos`}</Badge> : null}
+                    <Badge tone="default">{locale === 'en' ? `Current filter: ${translateRole(roleFilter, 'en')}` : `Filtro actual: ${getRoleLabel(roleFilter)}`}</Badge>
+                    {dataset?.remakesExcluded ? <Badge tone="medium">{locale === 'en' ? `${dataset.remakesExcluded} remakes excluded` : `${dataset.remakesExcluded} remakes excluidos`}</Badge> : null}
                   </div>
-                  <button type="submit" style={buttonStyle}>{loading ? 'Analizando...' : `${dataset ? 'Actualizar' : 'Cargar'} ${matchCount} partidas`}</button>
+                  <button type="submit" style={buttonStyle}>{loading ? (locale === 'en' ? 'Analyzing...' : 'Analizando...') : `${dataset ? (locale === 'en' ? 'Update' : 'Actualizar') : (locale === 'en' ? 'Load' : 'Cargar')} ${matchCount} ${locale === 'en' ? 'matches' : 'partidas'}`}</button>
                 </div>
               </form>
             ) : (
               <div style={{ display: 'grid', gap: 12 }}>
               <div style={{ color: '#e7eef8', lineHeight: 1.6 }}>
-                  {gameName && tagLine ? `${gameName}#${tagLine}` : 'Cuenta lista para analizar'}.
+                  {gameName && tagLine ? `${gameName}#${tagLine}` : (locale === 'en' ? 'Account ready to analyze' : 'Cuenta lista para analizar')}.
                 </div>
                 <div style={{ color: '#8a95a8', fontSize: 12, lineHeight: 1.5 }}>
                   {needsSampleBackfill
-                    ? `La muestra guardada tiene ${dataset.matches.length} partidas. Si pedís ${matchCount}, la app vuelve a construir la muestra completa para llegar a ese tamaño.`
-                    : 'Si ya hay partidas guardadas, actualizar busca partidas nuevas y las agrega sin pisar el historial anterior.'}
+                    ? (locale === 'en'
+                      ? `The saved sample has ${dataset.matches.length} matches. If you ask for ${matchCount}, the app rebuilds the full sample to reach that size.`
+                      : `La muestra guardada tiene ${dataset.matches.length} partidas. Si pedís ${matchCount}, la app vuelve a construir la muestra completa para llegar a ese tamaño.`)
+                    : (locale === 'en'
+                      ? 'If matches are already saved, update looks for new ones and adds them without overwriting the previous history.'
+                      : 'Si ya hay partidas guardadas, actualizar busca partidas nuevas y las agrega sin pisar el historial anterior.')}
                 </div>
                 {syncMessage ? <div style={syncMessageStyle}>{syncMessage}</div> : null}
                 <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ color: '#8d96a5', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Cantidad de partidas</div>
+                    <div style={{ color: '#8d96a5', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Match count' : 'Cantidad de partidas'}</div>
                     <select value={matchCount} onChange={(e) => setMatchCount(Number(e.target.value))} style={selectStyle}>
                       {[10, 20, 30, 40, 50, 75, 100].map((count) => (
-                        <option key={count} value={count}>{count} partidas</option>
+                        <option key={count} value={count}>{count} {locale === 'en' ? 'matches' : 'partidas'}</option>
                       ))}
                     </select>
                   </div>
                   <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ color: '#8d96a5', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Filtro de rol</div>
+                    <div style={{ color: '#8d96a5', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Role filter' : 'Filtro de rol'}</div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <Badge tone="default">{`Filtro actual: ${getRoleLabel(roleFilter)}`}</Badge>
-                      {dataset?.remakesExcluded ? <Badge tone="medium">{`${dataset.remakesExcluded} remakes excluidos`}</Badge> : null}
+                      <Badge tone="default">{locale === 'en' ? `Current filter: ${translateRole(roleFilter, 'en')}` : `Filtro actual: ${getRoleLabel(roleFilter)}`}</Badge>
+                      {dataset?.remakesExcluded ? <Badge tone="medium">{locale === 'en' ? `${dataset.remakesExcluded} remakes excluded` : `${dataset.remakesExcluded} remakes excluidos`}</Badge> : null}
                     </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <button type="button" style={buttonStyle} onClick={() => void runAnalysis()}>
-                    {loading ? 'Analizando...' : needsSampleBackfill ? `Completar a ${matchCount} partidas` : `Actualizar ${matchCount} partidas`}
+                    {loading
+                      ? (locale === 'en' ? 'Analyzing...' : 'Analizando...')
+                      : needsSampleBackfill
+                        ? (locale === 'en' ? `Backfill to ${matchCount} matches` : `Completar a ${matchCount} partidas`)
+                        : (locale === 'en' ? `Update ${matchCount} matches` : `Actualizar ${matchCount} partidas`)}
                   </button>
-                  <button type="button" style={secondaryButtonStyle} onClick={() => setShowAccountControls(true)}>Cambiar cuenta</button>
+                  <button type="button" style={secondaryButtonStyle} onClick={() => setShowAccountControls(true)}>{locale === 'en' ? 'Switch account' : 'Cambiar cuenta'}</button>
                 </div>
               </div>
             )}
@@ -441,8 +475,8 @@ export default function App() {
         {savedProfiles.length ? (
           <section style={savedProfilesSectionStyle}>
             <div style={{ display: 'grid', gap: 3 }}>
-              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Perfiles guardados</div>
-              <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>Volvé rápido a cuentas que ya analizaste</div>
+              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Saved profiles' : 'Perfiles guardados'}</div>
+              <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>{locale === 'en' ? 'Jump back into accounts you already analyzed' : 'Volvé rápido a cuentas que ya analizaste'}</div>
             </div>
             <div className="four-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
               {savedProfiles.map((profile) => {
@@ -460,12 +494,12 @@ export default function App() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
                       <div style={{ display: 'grid', gap: 4, textAlign: 'left' }}>
                         <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
-                        <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? 'Sin rango visible'}</div>
+                        <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible')}</div>
                       </div>
-                      <Badge tone={isActive ? 'low' : 'default'}>{profile.matches} partidas</Badge>
+                      <Badge tone={isActive ? 'low' : 'default'}>{locale === 'en' ? `${profile.matches} matches` : `${profile.matches} partidas`}</Badge>
                     </div>
                     <div style={{ color: '#748198', fontSize: 12, textAlign: 'left' }}>
-                      Última sync {new Date(profile.lastSyncedAt).toLocaleDateString('es-AR')}
+                      {locale === 'en' ? 'Last sync' : 'Última sync'} {new Date(profile.lastSyncedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
                     </div>
                   </button>
                 );
@@ -481,12 +515,12 @@ export default function App() {
                 {viewDataset.profile ? <img src={getProfileIconUrl(viewDataset.profile.profileIconId, viewDataset.ddragonVersion) ?? undefined} alt={viewDataset.player} width={56} height={56} style={profileIconStyle} /> : null}
                 <div style={{ display: 'grid', gap: 4 }}>
                   <div style={{ fontSize: 26, fontWeight: 800 }}>{viewDataset.player}<span style={{ color: '#7d8696', fontWeight: 600 }}>#{viewDataset.tagLine}</span></div>
-                  {viewDataset.profile ? <div style={{ color: '#8f99ac', fontSize: 13 }}>{`Nivel ${viewDataset.profile.summonerLevel}`}</div> : null}
+                  {viewDataset.profile ? <div style={{ color: '#8f99ac', fontSize: 13 }}>{locale === 'en' ? `Level ${viewDataset.profile.summonerLevel}` : `Nivel ${viewDataset.profile.summonerLevel}`}</div> : null}
                 </div>
               </div>
               <div style={accountMetaRowStyle}>
                 <div style={recordPillStyle}>
-                  <div style={{ color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Muestra</div>
+                  <div style={{ color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Record' : 'Muestra'}</div>
                   <div style={{ color: '#edf2ff', fontSize: 14, fontWeight: 800 }}>{`${viewDataset.summary.wins}-${viewDataset.summary.losses}`}</div>
                 </div>
                 <div style={recordPillStyle}>
@@ -494,17 +528,17 @@ export default function App() {
                   <div style={{ color: '#dff7eb', fontSize: 14, fontWeight: 800 }}>{`${viewDataset.summary.winRate}%`}</div>
                 </div>
                 <div style={recordPillStyle}>
-                  <div style={{ color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Partidas válidas</div>
+                  <div style={{ color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Valid matches' : 'Partidas válidas'}</div>
                   <div style={{ color: '#edf2ff', fontSize: 14, fontWeight: 800 }}>{viewDataset.summary.matches}</div>
                 </div>
               </div>
-              {viewDataset.rank ? <RankBadge rank={viewDataset.rank} /> : null}
+              {viewDataset.rank ? <RankBadge rank={viewDataset.rank} locale={locale} /> : null}
             </div>
             <div className="three-col-grid" style={topStatsPanelStyle}>
-              <TopStat label="Performance" value={formatDecimal(viewDataset.summary.avgPerformanceScore)} hint="Índice medio de ejecución" />
-              <TopStat label="CS a los 15" value={formatDecimal(viewDataset.summary.avgCsAt15)} hint="Economía temprana media" />
-              <TopStat label="Oro a los 15" value={Math.round(viewDataset.summary.avgGoldAt15).toLocaleString('es-AR')} hint="Valor generado antes del mid game" />
-              <TrendSparkline matches={viewDataset.matches} />
+              <TopStat label="Performance" value={formatDecimal(viewDataset.summary.avgPerformanceScore)} hint={locale === 'en' ? 'Average execution index' : 'Índice medio de ejecución'} />
+              <TopStat label={locale === 'en' ? 'CS at 15' : 'CS a los 15'} value={formatDecimal(viewDataset.summary.avgCsAt15)} hint={locale === 'en' ? 'Average early economy' : 'Economía temprana media'} />
+              <TopStat label={locale === 'en' ? 'Gold at 15' : 'Oro a los 15'} value={Math.round(viewDataset.summary.avgGoldAt15).toLocaleString(locale === 'en' ? 'en-US' : 'es-AR')} hint={locale === 'en' ? 'Value generated before mid game' : 'Valor generado antes del mid game'} />
+              <TrendSparkline matches={viewDataset.matches} locale={locale} />
             </div>
           </section>
         ) : null}
@@ -512,10 +546,10 @@ export default function App() {
         <section style={{ display: 'grid', gap: 12 }}>
           {viewDataset ? (
             <div style={roleFilterPanelStyle}>
-              <div style={{ display: 'grid', gap: 3 }}>
-                <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Contexto de análisis</div>
-                <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>Elegí el contexto exacto que querés revisar</div>
-                <div style={{ color: '#8793a8', fontSize: 13 }}>El coaching mejora mucho si separás rol, tipo de cola y ventana reciente en vez de mezclar todas tus partidas.</div>
+                <div style={{ display: 'grid', gap: 3 }}>
+                  <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Analysis context' : 'Contexto de análisis'}</div>
+                <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>{locale === 'en' ? 'Choose the exact context you want to review' : 'Elegí el contexto exacto que querés revisar'}</div>
+                <div style={{ color: '#8793a8', fontSize: 13 }}>{locale === 'en' ? 'Coaching gets much better when you separate role, queue type and recent window instead of mixing every match together.' : 'El coaching mejora mucho si separás rol, tipo de cola y ventana reciente en vez de mezclar todas tus partidas.'}</div>
               </div>
               <div className="role-pill-grid" style={rolePillGridStyle}>
                 {preferredRoles.map((role) => (
@@ -528,13 +562,13 @@ export default function App() {
                       ...(roleFilter === role ? activeRolePillStyle : {})
                     }}
                   >
-                    {getRoleLabel(role)}
+                    {locale === 'en' ? translateRole(role, 'en') : getRoleLabel(role)}
                   </button>
                 ))}
               </div>
               <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.1fr .9fr', gap: 10 }}>
                 <div style={contextGroupStyle}>
-                  <div style={contextLabelStyle}>Tipo de cola</div>
+                  <div style={contextLabelStyle}>{locale === 'en' ? 'Queue type' : 'Tipo de cola'}</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {availableQueueFilters.map((queue) => (
                       <button
@@ -547,25 +581,25 @@ export default function App() {
                         }}
                       >
                         {queue === 'ALL'
-                          ? 'Todas'
+                          ? (locale === 'en' ? 'All' : 'Todas')
                           : queue === 'RANKED'
-                            ? 'Rankeds'
+                            ? (locale === 'en' ? 'Ranked' : 'Rankeds')
                             : queue === 'RANKED_SOLO'
                               ? 'Solo/Duo'
                               : queue === 'RANKED_FLEX'
                                 ? 'Flex'
-                                : 'Otras'}
+                                : (locale === 'en' ? 'Other' : 'Otras')}
                       </button>
                     ))}
                   </div>
                 </div>
                 <div style={contextGroupStyle}>
-                  <div style={contextLabelStyle}>Ventana</div>
+                  <div style={contextLabelStyle}>{locale === 'en' ? 'Window' : 'Ventana'}</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {[
-                      { id: 'ALL', label: 'Todo' },
-                      { id: 'LAST_20', label: 'Últimas 20' },
-                      { id: 'LAST_8', label: 'Últimas 8' }
+                      { id: 'ALL', label: locale === 'en' ? 'All' : 'Todo' },
+                      { id: 'LAST_20', label: locale === 'en' ? 'Last 20' : 'Últimas 20' },
+                      { id: 'LAST_8', label: locale === 'en' ? 'Last 8' : 'Últimas 8' }
                     ].map((windowOption) => (
                       <button
                         key={windowOption.id}
@@ -582,12 +616,16 @@ export default function App() {
                   </div>
                 </div>
                 <div style={contextGroupStyle}>
-                  <div style={contextLabelStyle}>Lectura activa</div>
+                  <div style={contextLabelStyle}>{locale === 'en' ? 'Active read' : 'Lectura activa'}</div>
                   <div style={{ color: '#dce7f9', fontSize: 13, lineHeight: 1.5 }}>
-                    {`${getRoleLabel(roleFilter)} · ${queueFilter === 'ALL' ? 'todas las colas' : queueFilter === 'RANKED' ? 'rankeds' : queueFilter === 'RANKED_SOLO' ? 'solo/duo' : queueFilter === 'RANKED_FLEX' ? 'flex' : 'otras colas'}`}
+                    {locale === 'en'
+                      ? `${translateRole(roleFilter, 'en')} · ${queueFilter === 'ALL' ? 'all queues' : queueFilter === 'RANKED' ? 'ranked queues' : queueFilter === 'RANKED_SOLO' ? 'solo/duo' : queueFilter === 'RANKED_FLEX' ? 'flex' : 'other queues'}`
+                      : `${getRoleLabel(roleFilter)} · ${queueFilter === 'ALL' ? 'todas las colas' : queueFilter === 'RANKED' ? 'rankeds' : queueFilter === 'RANKED_SOLO' ? 'solo/duo' : queueFilter === 'RANKED_FLEX' ? 'flex' : 'otras colas'}`}
                   </div>
                   <div style={{ color: '#8390a6', fontSize: 12 }}>
-                    {windowFilter === 'ALL' ? `${viewDataset.summary.matches} partidas en muestra` : `${viewDataset.summary.matches} partidas recientes`}
+                    {locale === 'en'
+                      ? (windowFilter === 'ALL' ? `${viewDataset.summary.matches} matches in sample` : `${viewDataset.summary.matches} recent matches`)
+                      : (windowFilter === 'ALL' ? `${viewDataset.summary.matches} partidas en muestra` : `${viewDataset.summary.matches} partidas recientes`)}
                   </div>
                 </div>
               </div>
@@ -595,9 +633,9 @@ export default function App() {
           ) : null}
 
           <div style={navigationPanelStyle}>
-            <div style={{ display: 'grid', gap: 3 }}>
-              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Exploración</div>
-              <div style={{ color: '#eef4ff', fontSize: 15, fontWeight: 800 }}>Elegí qué capa querés abrir</div>
+              <div style={{ display: 'grid', gap: 3 }}>
+              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Explore' : 'Exploración'}</div>
+              <div style={{ color: '#eef4ff', fontSize: 15, fontWeight: 800 }}>{locale === 'en' ? 'Choose which layer to open' : 'Elegí qué capa querés abrir'}</div>
             </div>
             <div className="tab-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 8, flex: 1 }}>
               {tabs.map((tab) => (
@@ -615,32 +653,45 @@ export default function App() {
             </div>
             {viewDataset ? (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Badge>{`${viewDataset.summary.matches} partidas visibles`}</Badge>
+                <Badge>{locale === 'en' ? `${viewDataset.summary.matches} visible matches` : `${viewDataset.summary.matches} partidas visibles`}</Badge>
                 {viewDataset.matches[0] ? <Badge>{getQueueLabel(viewDataset.matches[0].queueId)}</Badge> : null}
-                <Badge tone="default">{getRoleLabel(roleFilter)}</Badge>
+                <Badge tone="default">{locale === 'en' ? translateRole(roleFilter, 'en') : getRoleLabel(roleFilter)}</Badge>
               </div>
             ) : null}
           </div>
         </section>
 
-        {error ? <Card title="Error">{error}</Card> : null}
+        {error ? <Card title={locale === 'en' ? 'Error' : 'Error'}>{error}</Card> : null}
 
         {viewDataset ? (
           renderedTab
         ) : (
-          <Card title="Esperando análisis" subtitle="La idea es que el producto se sienta más cuenta personal premium que panel técnico">
+          <Card title={locale === 'en' ? 'Waiting for analysis' : 'Esperando análisis'} subtitle={locale === 'en' ? 'The goal is for the product to feel more like a premium personal account than a technical dashboard' : 'La idea es que el producto se sienta más cuenta personal premium que panel técnico'}>
             <div style={{ display: 'grid', gap: 12, color: '#c7d4ea', lineHeight: 1.7 }}>
-              <div><strong>Coach:</strong> problema principal, evidencia, impacto y plan activo.</div>
-              <div><strong>Stats:</strong> métricas agregadas y evolución.</div>
-              <div><strong>Matchups:</strong> rendimiento real frente a rivales directos.</div>
-              <div><strong>Runes y champions:</strong> lectura táctica con más contexto visual.</div>
+              {locale === 'en' ? (
+                <>
+                  <div><strong>Coach:</strong> main blocker, evidence, impact and active plan.</div>
+                  <div><strong>Stats:</strong> aggregated metrics and recent evolution.</div>
+                  <div><strong>Matchups:</strong> real performance into direct opponents.</div>
+                  <div><strong>Runes and champions:</strong> tactical read with more visual context.</div>
+                </>
+              ) : (
+                <>
+                  <div><strong>Coach:</strong> problema principal, evidencia, impacto y plan activo.</div>
+                  <div><strong>Stats:</strong> métricas agregadas y evolución.</div>
+                  <div><strong>Matchups:</strong> rendimiento real frente a rivales directos.</div>
+                  <div><strong>Runes y champions:</strong> lectura táctica con más contexto visual.</div>
+                </>
+              )}
             </div>
           </Card>
         )}
 
         <footer style={footerStyle}>
           <div style={{ color: '#7f8ca1', fontSize: 13 }}>
-            Don Sosa Coach beta privada de coaching y análisis competitivo para League of Legends.
+            {locale === 'en'
+              ? 'Don Sosa Coach private beta for competitive coaching and review in League of Legends.'
+              : 'Don Sosa Coach beta privada de coaching y análisis competitivo para League of Legends.'}
           </div>
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
             <a href="/privacy.html" target="_blank" rel="noreferrer" style={footerLinkStyle}>Privacy Policy</a>
@@ -863,7 +914,7 @@ function TopStat({ label, value, hint }: { label: string; value: string; hint: s
   );
 }
 
-function RankBadge({ rank, compact = false }: { rank: NonNullable<Dataset['rank']>; compact?: boolean }) {
+function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonNullable<Dataset['rank']>; compact?: boolean; locale?: Locale }) {
   const emblem = getRankEmblemDataUrl(rank.highest.tier);
   const palette = getRankPalette(rank.highest.tier);
   const lpProgress = Math.max(0, Math.min(rank.highest.leaguePoints, 100));
@@ -895,7 +946,7 @@ function RankBadge({ rank, compact = false }: { rank: NonNullable<Dataset['rank'
         </div>
         {!compact ? (
           <div style={{ color: '#7e889b', fontSize: 11 }}>
-            Hover para ver Solo/Duo y Flex
+            {locale === 'en' ? 'Hover to view Solo/Duo and Flex' : 'Hover para ver Solo/Duo y Flex'}
           </div>
         ) : null}
       </div>
@@ -903,7 +954,7 @@ function RankBadge({ rank, compact = false }: { rank: NonNullable<Dataset['rank'
   );
 }
 
-function TrendSparkline({ matches }: { matches: Dataset['matches'] }) {
+function TrendSparkline({ matches, locale = 'es' }: { matches: Dataset['matches']; locale?: Locale }) {
   const sorted = [...matches].sort((a, b) => a.gameCreation - b.gameCreation).slice(-12);
   const values = sorted.map((match) => match.score.total);
   const min = Math.min(...values, 0);
@@ -916,13 +967,13 @@ function TrendSparkline({ matches }: { matches: Dataset['matches'] }) {
 
   return (
     <div style={sparklineCardStyle}>
-      <div style={{ color: '#7d889c', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Últimas partidas</div>
+      <div style={{ color: '#7d889c', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Latest matches' : 'Últimas partidas'}</div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 12 }}>
         <div style={{ display: 'grid', gap: 4 }}>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>Performance reciente</div>
-          <div style={{ color: '#8895aa', fontSize: 12 }}>Sparkline de las últimas 12 partidas válidas</div>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>{locale === 'en' ? 'Recent performance' : 'Performance reciente'}</div>
+          <div style={{ color: '#8895aa', fontSize: 12 }}>{locale === 'en' ? 'Sparkline from the last 12 valid matches' : 'Sparkline de las últimas 12 partidas válidas'}</div>
         </div>
-        <div style={{ color: '#dff7eb', fontSize: 12, fontWeight: 700 }}>{values.length ? `${Math.round(values.at(-1) ?? 0)} último score` : 'Sin datos'}</div>
+        <div style={{ color: '#dff7eb', fontSize: 12, fontWeight: 700 }}>{values.length ? (locale === 'en' ? `${Math.round(values.at(-1) ?? 0)} latest score` : `${Math.round(values.at(-1) ?? 0)} último score`) : (locale === 'en' ? 'No data' : 'Sin datos')}</div>
       </div>
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: 84, display: 'block' }}>
         <defs>

@@ -21,7 +21,7 @@ export async function collectProfile(gameName, tagLine, count = 100, options) {
         const startResponse = await fetch(`${API_BASE}/analytics/collect/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ gameName, tagLine, count, knownMatchIds: options?.knownMatchIds ?? [] }),
+            body: JSON.stringify({ gameName, tagLine, count, knownMatchIds: options?.knownMatchIds ?? [], locale: options?.locale ?? 'es' }),
             signal: controller.signal
         });
         if (!startResponse.ok) {
@@ -49,7 +49,9 @@ export async function collectProfile(gameName, tagLine, count = 100, options) {
     }
     catch (error) {
         if (error instanceof DOMException && error.name === 'AbortError') {
-            throw new Error('El análisis tardó demasiado. Probá con menos partidas o revisá si la API está levantada.');
+            throw new Error(options?.locale === 'en'
+                ? 'The analysis took too long. Try fewer matches or make sure the API is running.'
+                : 'El análisis tardó demasiado. Probá con menos partidas o revisá si la API está levantada.');
         }
         throw error;
     }
@@ -57,8 +59,8 @@ export async function collectProfile(gameName, tagLine, count = 100, options) {
         window.clearTimeout(timeout);
     }
 }
-export async function fetchCachedProfile(gameName, tagLine) {
-    const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`);
+export async function fetchCachedProfile(gameName, tagLine, locale = 'es') {
+    const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?locale=${locale}`);
     if (response.status === 404) {
         return null;
     }

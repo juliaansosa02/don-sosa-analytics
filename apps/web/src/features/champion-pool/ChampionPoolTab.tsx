@@ -3,6 +3,7 @@ import type { Dataset } from '../../types';
 import { useMemo, useState } from 'react';
 import { getChampionIconUrl } from '../../lib/lol';
 import { formatDecimal, formatInteger, formatPercent } from '../../lib/format';
+import type { Locale } from '../../lib/i18n';
 
 const classificationLabel: Record<string, string> = {
   CORE_PICK: 'PICK PRINCIPAL',
@@ -11,7 +12,14 @@ const classificationLabel: Record<string, string> = {
   UNSTABLE: 'INESTABLE'
 };
 
-export function ChampionPoolTab({ dataset }: { dataset: Dataset }) {
+const classificationLabelEn: Record<string, string> = {
+  CORE_PICK: 'CORE PICK',
+  COMFORT_TRAP: 'COMFORT TRAP',
+  POCKET_PICK: 'POCKET PICK',
+  UNSTABLE: 'UNSTABLE'
+};
+
+export function ChampionPoolTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?: Locale }) {
   const [sortKey, setSortKey] = useState<'games' | 'winRate' | 'avgScore' | 'avgCsAt15' | 'avgGoldAt15' | 'avgDeathsPre14'>('games');
   const sortedPool = useMemo(() => {
     const items = [...dataset.summary.championPool];
@@ -23,26 +31,26 @@ export function ChampionPoolTab({ dataset }: { dataset: Dataset }) {
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <Card title="Champion pool" subtitle="Qué campeones te dan una base confiable y cuáles necesitan más criterio de uso">
+      <Card title="Champion pool" subtitle={locale === 'en' ? 'Which champions give you a reliable baseline and which ones need more selective use' : 'Qué campeones te dan una base confiable y cuáles necesitan más criterio de uso'}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-          <div style={{ color: '#8894a7', fontSize: 13 }}>Ordená para leer tu pool según rendimiento, volumen o economía temprana.</div>
+          <div style={{ color: '#8894a7', fontSize: 13 }}>{locale === 'en' ? 'Sort your pool by results, volume or early-game economy.' : 'Ordená para leer tu pool según rendimiento, volumen o economía temprana.'}</div>
           <select value={sortKey} onChange={(event) => setSortKey(event.target.value as typeof sortKey)} style={sortSelectStyle}>
-            <option value="games">Más partidas</option>
-            <option value="winRate">Mayor win rate</option>
-            <option value="avgScore">Mayor performance</option>
-            <option value="avgCsAt15">Mayor CS a los 15</option>
-            <option value="avgGoldAt15">Mayor oro a los 15</option>
-            <option value="avgDeathsPre14">Menos muertes pre 14</option>
+            <option value="games">{locale === 'en' ? 'Most games' : 'Más partidas'}</option>
+            <option value="winRate">{locale === 'en' ? 'Highest win rate' : 'Mayor win rate'}</option>
+            <option value="avgScore">{locale === 'en' ? 'Highest performance' : 'Mayor performance'}</option>
+            <option value="avgCsAt15">{locale === 'en' ? 'Highest CS at 15' : 'Mayor CS a los 15'}</option>
+            <option value="avgGoldAt15">{locale === 'en' ? 'Highest gold at 15' : 'Mayor oro a los 15'}</option>
+            <option value="avgDeathsPre14">{locale === 'en' ? 'Fewest deaths pre 14' : 'Menos muertes pre 14'}</option>
           </select>
         </div>
         <div style={headerRowStyle}>
-          <HeaderLabel label="Campeón" info="Campeones ordenados por volumen dentro de la muestra actual." />
-          <HeaderLabel label="Partidas" info="Cantidad de partidas jugadas con ese campeón en la muestra filtrada." />
-          <HeaderLabel label="Win rate" info="Porcentaje de victorias con ese campeón." />
-          <HeaderLabel label="Performance" info="Promedio del índice interno de ejecución con ese campeón." />
-          <HeaderLabel label="CS a los 15 min" info="Economía media temprana con ese campeón." />
-          <HeaderLabel label="Oro a los 15 min" info="Valor económico medio conseguido antes del mid game." />
-          <HeaderLabel label="Muertes pre 14" info="Cantidad media de muertes tempranas con ese campeón." />
+          <HeaderLabel label={locale === 'en' ? 'Champion' : 'Campeón'} info={locale === 'en' ? 'Champions ordered by usage volume inside the current sample.' : 'Campeones ordenados por volumen dentro de la muestra actual.'} />
+          <HeaderLabel label={locale === 'en' ? 'Games' : 'Partidas'} info={locale === 'en' ? 'Number of matches played on that champion in the filtered sample.' : 'Cantidad de partidas jugadas con ese campeón en la muestra filtrada.'} />
+          <HeaderLabel label="Win rate" info={locale === 'en' ? 'Win rate on that champion.' : 'Porcentaje de victorias con ese campeón.'} />
+          <HeaderLabel label="Performance" info={locale === 'en' ? 'Average internal execution score on that champion.' : 'Promedio del índice interno de ejecución con ese campeón.'} />
+          <HeaderLabel label={locale === 'en' ? 'CS at 15' : 'CS a los 15 min'} info={locale === 'en' ? 'Average early economy on that champion.' : 'Economía media temprana con ese campeón.'} />
+          <HeaderLabel label={locale === 'en' ? 'Gold at 15' : 'Oro a los 15 min'} info={locale === 'en' ? 'Average economic value created before mid game.' : 'Valor económico medio conseguido antes del mid game.'} />
+          <HeaderLabel label={locale === 'en' ? 'Deaths pre 14' : 'Muertes pre 14'} info={locale === 'en' ? 'Average early deaths on that champion.' : 'Cantidad media de muertes tempranas con ese campeón.'} />
         </div>
 
         <div style={{ display: 'grid', gap: 12 }}>
@@ -56,18 +64,18 @@ export function ChampionPoolTab({ dataset }: { dataset: Dataset }) {
                   <div style={{ display: 'grid', gap: 6 }}>
                     <div style={{ fontSize: 18, fontWeight: 700 }}>{champion.championName}</div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <Badge tone={badgeTone(champion.classification)}>{classificationLabel[champion.classification] ?? champion.classification}</Badge>
+                      <Badge tone={badgeTone(champion.classification)}>{(locale === 'en' ? classificationLabelEn : classificationLabel)[champion.classification] ?? champion.classification}</Badge>
                     </div>
                   </div>
                 </div>
 
                 <div className="six-col-grid" style={metricGridStyle}>
-                  <MetricBlock label="Partidas" value={formatInteger(champion.games)} info="Volumen de uso del campeón en esta muestra." />
-                  <MetricBlock label="Win rate" value={formatPercent(champion.winRate)} info="Resultado competitivo del campeón dentro de tu muestra actual." />
-                  <MetricBlock label="Performance" value={formatDecimal(champion.avgScore)} info="Cómo se ve tu ejecución general cuando jugás este campeón." />
-                  <MetricBlock label="CS a los 15 min" value={formatDecimal(champion.avgCsAt15)} info="Farmeo temprano medio con este campeón." />
-                  <MetricBlock label="Oro a los 15 min" value={formatInteger(champion.avgGoldAt15)} info="Cuánto valor económico generás temprano con este campeón." />
-                  <MetricBlock label="Muertes pre 14" value={formatDecimal(champion.avgDeathsPre14)} info="Qué tan limpio o castigado suele ser tu early con este campeón." />
+                  <MetricBlock label={locale === 'en' ? 'Games' : 'Partidas'} value={formatInteger(champion.games)} info={locale === 'en' ? 'Champion usage volume inside this sample.' : 'Volumen de uso del campeón en esta muestra.'} />
+                  <MetricBlock label="Win rate" value={formatPercent(champion.winRate)} info={locale === 'en' ? 'Competitive outcome of the champion inside your current sample.' : 'Resultado competitivo del campeón dentro de tu muestra actual.'} />
+                  <MetricBlock label="Performance" value={formatDecimal(champion.avgScore)} info={locale === 'en' ? 'How your overall execution looks when you play this champion.' : 'Cómo se ve tu ejecución general cuando jugás este campeón.'} />
+                  <MetricBlock label={locale === 'en' ? 'CS at 15' : 'CS a los 15 min'} value={formatDecimal(champion.avgCsAt15)} info={locale === 'en' ? 'Average early farming on this champion.' : 'Farmeo temprano medio con este campeón.'} />
+                  <MetricBlock label={locale === 'en' ? 'Gold at 15' : 'Oro a los 15 min'} value={formatInteger(champion.avgGoldAt15)} info={locale === 'en' ? 'How much early economic value you generate on this champion.' : 'Cuánto valor económico generás temprano con este campeón.'} />
+                  <MetricBlock label={locale === 'en' ? 'Deaths pre 14' : 'Muertes pre 14'} value={formatDecimal(champion.avgDeathsPre14)} info={locale === 'en' ? 'How clean or punishable your early game usually looks on this champion.' : 'Qué tan limpio o castigado suele ser tu early con este campeón.'} />
                 </div>
               </div>
             );

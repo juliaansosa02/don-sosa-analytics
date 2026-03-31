@@ -1,3 +1,4 @@
+import { buildAggregateSummary, type SummaryLocale } from '@don-sosa/core';
 import { Router } from 'express';
 import { z } from 'zod';
 import { HttpError } from '../lib/http.js';
@@ -5,27 +6,36 @@ import { collectPlayerSnapshot } from '../services/collectionService.js';
 import { createJob, getJob, updateJob } from '../services/jobStore.js';
 import { loadProfileSnapshot } from '../services/profileStore.js';
 
+type CachedProfileDataset = Awaited<ReturnType<typeof collectPlayerSnapshot>>;
+
 const bodySchema = z.object({
   gameName: z.string().min(1),
   tagLine: z.string().min(1),
   count: z.number().int().positive().max(100).optional(),
-  knownMatchIds: z.array(z.string().min(1)).max(500).optional()
+  knownMatchIds: z.array(z.string().min(1)).max(500).optional(),
+  locale: z.enum(['es', 'en']).optional()
 });
 
 export const analyticsRouter = Router();
 
-function formatCollectionError(error: unknown) {
+function formatCollectionError(error: unknown, locale: SummaryLocale = 'es') {
   if (error instanceof HttpError) {
     if (error.status === 403) {
-      return 'La Riot API key del servidor no es válida o ya expiró. Actualizala en Render antes de seguir analizando.';
+      return locale === 'en'
+        ? 'The server Riot API key is not valid anymore or already expired. Update it in Render before analyzing again.'
+        : 'La Riot API key del servidor no es válida o ya expiró. Actualizala en Render antes de seguir analizando.';
     }
 
     if (error.status === 429) {
-      return 'Riot limitó temporalmente las requests. Esperá un poco y probá otra vez con menos partidas si hace falta.';
+      return locale === 'en'
+        ? 'Riot temporarily rate-limited the requests. Wait a bit and try again with fewer matches if needed.'
+        : 'Riot limitó temporalmente las requests. Esperá un poco y probá otra vez con menos partidas si hace falta.';
     }
 
     if (error.status === 404) {
-      return 'No pudimos encontrar esa cuenta o alguna de sus partidas. Revisá el Riot ID y volvé a intentar.';
+      return locale === 'en'
+        ? 'We could not find that account or one of its matches. Check the Riot ID and try again.'
+        : 'No pudimos encontrar esa cuenta o alguna de sus partidas. Revisá el Riot ID y volvé a intentar.';
     }
   }
 
@@ -38,7 +48,8 @@ analyticsRouter.post('/collect', async (req, res) => {
     const dataset = await collectPlayerSnapshot(input);
     res.json(dataset);
   } catch (error) {
-    res.status(400).json({ error: formatCollectionError(error) });
+    const locale = bodySchema.safeParse(req.body).success ? bodySchema.parse(req.body).locale ?? 'es' : 'es';
+    res.status(400).json({ error: formatCollectionError(error, locale) });
   }
 });
 
@@ -58,7 +69,7 @@ analyticsRouter.post('/collect/start', async (req, res) => {
             stage: 'completed',
             current: dataset.summary.matches,
             total: dataset.summary.matches || 1,
-            message: 'Analisis completado'
+            message: input.locale === 'en' ? 'Analysis completed' : 'Análisis completado'
           },
           result: dataset
         });
@@ -66,7 +77,7 @@ analyticsRouter.post('/collect/start', async (req, res) => {
       .catch((error) => {
         updateJob(job.id, {
           status: 'failed',
-          error: formatCollectionError(error)
+          error: formatCollectionError(error, input.locale ?? 'es')
         });
       });
 
@@ -76,7 +87,8 @@ analyticsRouter.post('/collect/start', async (req, res) => {
       progress: job.progress
     });
   } catch (error) {
-    res.status(400).json({ error: formatCollectionError(error) });
+    const locale = bodySchema.safeParse(req.body).success ? bodySchema.parse(req.body).locale ?? 'es' : 'es';
+    res.status(400).json({ error: formatCollectionError(error, locale) });
   }
 });
 
@@ -91,11 +103,15 @@ analyticsRouter.get('/collect/:jobId', (req, res) => {
 });
 
 analyticsRouter.get('/profile/:gameName/:tagLine', async (req, res) => {
-  const dataset = await loadProfileSnapshot(req.params.gameName, req.params.tagLine);
+  const dataset = await loadProfileSnapshot<CachedProfileDataset>(req.params.gameName, req.params.tagLine);
   if (!dataset) {
     res.status(404).json({ error: 'No cached profile found' });
     return;
   }
 
-  res.json(dataset);
+  const locale = req.query.locale === 'en' ? 'en' : 'es';
+  res.json({
+    ...dataset,
+    summary: buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, dataset.matches, locale)
+  });
 });

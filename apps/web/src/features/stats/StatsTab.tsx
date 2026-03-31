@@ -3,6 +3,7 @@ import type { BenchmarkAggregateRecord, Dataset } from '../../types';
 import { formatDecimal, formatSignedNumber } from '../../lib/format';
 import { buildCs15ProgressionBenchmark, buildLevel15ProgressionBenchmark, type TierProgressionBenchmark } from '../../lib/benchmarks';
 import { getQueueBucket, getRoleLabel } from '../../lib/lol';
+import { translateRole, type Locale } from '../../lib/i18n';
 
 const ROLE_BENCHMARK_MIN_SAMPLE = 30;
 const CHAMPION_BENCHMARK_MIN_SAMPLE = 15;
@@ -52,10 +53,10 @@ function nextTier(tier?: string | null) {
   return tierOrder[index + 1];
 }
 
-function queueLabel(queueBucket: string) {
+function queueLabel(queueBucket: string, locale: Locale) {
   if (queueBucket === 'RANKED_SOLO') return 'Solo/Duo';
   if (queueBucket === 'RANKED_FLEX') return 'Flex';
-  return 'otras colas';
+  return locale === 'en' ? 'other queues' : 'otras colas';
 }
 
 function findBenchmarkRecord(records: BenchmarkAggregateRecord[], options: {
@@ -73,7 +74,7 @@ function findBenchmarkRecord(records: BenchmarkAggregateRecord[], options: {
   ) ?? null;
 }
 
-function resolveBenchmarkContext(dataset: Dataset, primaryRole: string) {
+function resolveBenchmarkContext(dataset: Dataset, primaryRole: string, locale: Locale) {
   const primaryQueueBucket = detectPrimaryQueueBucket(dataset);
   const anchorChampion = detectAnchorChampion(dataset);
   const benchmarkTier = primaryQueueBucket === 'RANKED_SOLO'
@@ -116,7 +117,9 @@ function resolveBenchmarkContext(dataset: Dataset, primaryRole: string) {
       tier: benchmarkTier,
       current: championCurrent,
       next: championNext && championNext.sampleSize >= CHAMPION_BENCHMARK_MIN_SAMPLE ? championNext : null,
-      description: `Base propia real con ${championCurrent.sampleSize} partidas de ${championCurrent.championName} en ${getRoleLabel(primaryRole)} y ${queueLabel(primaryQueueBucket)}.`
+      description: locale === 'en'
+        ? `Real internal base with ${championCurrent.sampleSize} matches of ${championCurrent.championName} in ${translateRole(primaryRole, 'en')} and ${queueLabel(primaryQueueBucket, locale)}.`
+        : `Base propia real con ${championCurrent.sampleSize} partidas de ${championCurrent.championName} en ${getRoleLabel(primaryRole)} y ${queueLabel(primaryQueueBucket, locale)}.`
     };
   }
 
@@ -127,7 +130,9 @@ function resolveBenchmarkContext(dataset: Dataset, primaryRole: string) {
       tier: benchmarkTier,
       current: roleCurrent,
       next: roleNext && roleNext.sampleSize >= ROLE_BENCHMARK_MIN_SAMPLE ? roleNext : null,
-      description: `Base propia real con ${roleCurrent.sampleSize} partidas de ${getRoleLabel(primaryRole)} en ${queueLabel(primaryQueueBucket)} para ${roleCurrent.tier}.`
+      description: locale === 'en'
+        ? `Real internal base with ${roleCurrent.sampleSize} ${translateRole(primaryRole, 'en')} matches in ${queueLabel(primaryQueueBucket, locale)} for ${roleCurrent.tier}.`
+        : `Base propia real con ${roleCurrent.sampleSize} partidas de ${getRoleLabel(primaryRole)} en ${queueLabel(primaryQueueBucket, locale)} para ${roleCurrent.tier}.`
     };
   }
 
@@ -137,7 +142,9 @@ function resolveBenchmarkContext(dataset: Dataset, primaryRole: string) {
     tier: benchmarkTier,
     current: null,
     next: null,
-    description: 'Todavía no tenemos suficiente muestra propia para comparar con tu elo de forma fehaciente. Hasta tenerla, esta sección queda como referencia interna provisional.'
+    description: locale === 'en'
+      ? 'We do not have enough internal sample yet to compare against your rank context with confidence. Until we do, this section stays as a provisional internal reference.'
+      : 'Todavía no tenemos suficiente muestra propia para comparar con tu elo de forma fehaciente. Hasta tenerla, esta sección queda como referencia interna provisional.'
   };
 }
 
@@ -153,10 +160,10 @@ function buildRealBenchmark(actual: number, metric: keyof Pick<BenchmarkAggregat
   };
 }
 
-export function StatsTab({ dataset }: { dataset: Dataset }) {
+export function StatsTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?: Locale }) {
   const primaryRole = detectPrimaryRole(dataset);
   const averageLevel = averageLevelAt15(dataset);
-  const benchmarkContext = resolveBenchmarkContext(dataset, primaryRole);
+  const benchmarkContext = resolveBenchmarkContext(dataset, primaryRole, locale);
   const csBenchmark = benchmarkContext.current
     ? buildRealBenchmark(dataset.summary.avgCsAt15, 'avgCsAt15', benchmarkContext.current, benchmarkContext.next)
     : buildCs15ProgressionBenchmark(primaryRole, benchmarkContext.tier, dataset.summary.avgCsAt15);
@@ -165,15 +172,15 @@ export function StatsTab({ dataset }: { dataset: Dataset }) {
     : buildLevel15ProgressionBenchmark(primaryRole, benchmarkContext.tier, averageLevel);
 
   const strengths = [
-    { label: 'Performance', value: formatDecimal(dataset.summary.avgPerformanceScore), note: 'Ejecución media de la muestra.' },
-    { label: 'Visión', value: formatDecimal(dataset.summary.avgVisionScore), note: 'Control de mapa y seguridad.' },
-    { label: 'KP', value: `${formatDecimal(dataset.summary.avgKillParticipation)}%`, note: 'Participación en jugadas.' }
+    { label: 'Performance', value: formatDecimal(dataset.summary.avgPerformanceScore), note: locale === 'en' ? 'Average execution across the sample.' : 'Ejecución media de la muestra.' },
+    { label: locale === 'en' ? 'Vision' : 'Visión', value: formatDecimal(dataset.summary.avgVisionScore), note: locale === 'en' ? 'Map control and safety.' : 'Control de mapa y seguridad.' },
+    { label: 'KP', value: `${formatDecimal(dataset.summary.avgKillParticipation)}%`, note: locale === 'en' ? 'Participation in plays.' : 'Participación en jugadas.' }
   ].sort((a, b) => Number(b.value.replace(',', '.').replace('%', '')) - Number(a.value.replace(',', '.').replace('%', '')));
 
   const focusAreas = [
-    { label: 'Muertes pre 14', value: formatDecimal(dataset.summary.avgDeathsPre14), note: 'Más bajo suele ser mejor.' },
-    { label: 'CS a los 15', value: formatDecimal(dataset.summary.avgCsAt15), note: 'Tu base de economía temprana.' },
-    { label: 'Consistencia', value: formatDecimal(dataset.summary.consistencyIndex), note: 'Qué tan parejo es tu nivel.' }
+    { label: locale === 'en' ? 'Deaths pre 14' : 'Muertes pre 14', value: formatDecimal(dataset.summary.avgDeathsPre14), note: locale === 'en' ? 'Lower is usually better.' : 'Más bajo suele ser mejor.' },
+    { label: locale === 'en' ? 'CS at 15' : 'CS a los 15', value: formatDecimal(dataset.summary.avgCsAt15), note: locale === 'en' ? 'Your early economy baseline.' : 'Tu base de economía temprana.' },
+    { label: locale === 'en' ? 'Consistency' : 'Consistencia', value: formatDecimal(dataset.summary.consistencyIndex), note: locale === 'en' ? 'How even your level stays.' : 'Qué tan parejo es tu nivel.' }
   ];
 
   const recentMatches = [...dataset.matches].sort((a, b) => b.gameCreation - a.gameCreation).slice(0, 5);
@@ -181,7 +188,7 @@ export function StatsTab({ dataset }: { dataset: Dataset }) {
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.05fr 1.05fr .9fr', gap: 16 }}>
-        <Card title="Qué ya está sosteniendo tu nivel" subtitle="Señales que hoy te están dando base competitiva">
+        <Card title={locale === 'en' ? 'What is already holding your level up' : 'Qué ya está sosteniendo tu nivel'} subtitle={locale === 'en' ? 'Signals that are currently giving you competitive baseline' : 'Señales que hoy te están dando base competitiva'}>
           <div style={{ display: 'grid', gap: 10 }}>
             {strengths.map((entry) => (
               <InsightRow key={entry.label} label={entry.label} value={entry.value} note={entry.note} tone="positive" />
@@ -189,64 +196,68 @@ export function StatsTab({ dataset }: { dataset: Dataset }) {
           </div>
         </Card>
 
-        <Card title="Qué deberías vigilar" subtitle="Variables que más suelen definir si la partida queda jugable o no">
+        <Card title={locale === 'en' ? 'What you should monitor' : 'Qué deberías vigilar'} subtitle={locale === 'en' ? 'Variables that most often decide whether the game stays playable or not' : 'Variables que más suelen definir si la partida queda jugable o no'}>
           <div style={{ display: 'grid', gap: 10 }}>
             {focusAreas.map((entry) => (
-              <InsightRow key={entry.label} label={entry.label} value={entry.value} note={entry.note} tone={entry.label === 'Muertes pre 14' ? 'negative' : 'neutral'} />
+              <InsightRow key={entry.label} label={entry.label} value={entry.value} note={entry.note} tone={entry.label === 'Muertes pre 14' || entry.label === 'Deaths pre 14' ? 'negative' : 'neutral'} />
             ))}
           </div>
         </Card>
 
-        <Card title="Contexto" subtitle="La lectura cambia mucho según lo que estás filtrando">
+        <Card title={locale === 'en' ? 'Context' : 'Contexto'} subtitle={locale === 'en' ? 'The read changes a lot depending on what you are filtering' : 'La lectura cambia mucho según lo que estás filtrando'}>
           <div style={{ display: 'grid', gap: 10 }}>
-            <ContextChip label="Rol principal" value={getRoleLabel(primaryRole)} />
-            <ContextChip label="Muestra visible" value={`${dataset.summary.matches} partidas`} />
-            <ContextChip label="Rango" value={dataset.rank?.highest.label ?? 'Sin rango'} />
+            <ContextChip label={locale === 'en' ? 'Primary role' : 'Rol principal'} value={locale === 'en' ? translateRole(primaryRole, 'en') : getRoleLabel(primaryRole)} />
+            <ContextChip label={locale === 'en' ? 'Visible sample' : 'Muestra visible'} value={locale === 'en' ? `${dataset.summary.matches} matches` : `${dataset.summary.matches} partidas`} />
+            <ContextChip label={locale === 'en' ? 'Rank' : 'Rango'} value={dataset.rank?.highest.label ?? (locale === 'en' ? 'Unranked' : 'Sin rango')} />
           </div>
         </Card>
       </div>
 
       <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr .85fr', gap: 16 }}>
-        <Card title="Benchmark de economía" subtitle={benchmarkContext.description}>
+        <Card title={locale === 'en' ? 'Economy benchmark' : 'Benchmark de economía'} subtitle={benchmarkContext.description}>
           <div style={{ display: 'grid', gap: 12 }}>
             <BenchmarkLane
-              title="CS a los 15"
+              title={locale === 'en' ? 'CS at 15' : 'CS a los 15'}
               info={benchmarkContext.mode === 'provisional'
-                ? 'Todavía no hay suficiente base propia acumulada para comparar con tu elo real. Por ahora esta lectura solo ordena la conversación de coaching y no pretende validar una referencia externa.'
-                : 'Comparación contra la base propia acumulada por tier, rol y cola. Si el pick principal concentra suficiente muestra, priorizamos esa referencia antes que la general del rol.'}
+                ? (locale === 'en' ? 'There is not enough internal sample yet to compare against your real rank context. For now this section only structures the coaching conversation and does not claim to validate an external reference.' : 'Todavía no hay suficiente base propia acumulada para comparar con tu elo real. Por ahora esta lectura solo ordena la conversación de coaching y no pretende validar una referencia externa.')
+                : (locale === 'en' ? 'Comparison against the internal benchmark base accumulated by tier, role and queue. If the anchor pick has enough sample, we prioritize that reference before the broader role-level one.' : 'Comparación contra la base propia acumulada por tier, rol y cola. Si el pick principal concentra suficiente muestra, priorizamos esa referencia antes que la general del rol.')}
               actual={dataset.summary.avgCsAt15}
               benchmark={csBenchmark}
               mode={benchmarkContext.mode}
+              locale={locale}
             />
             <BenchmarkLane
-              title="Nivel al 15"
+              title={locale === 'en' ? 'Level at 15' : 'Nivel al 15'}
               info={benchmarkContext.mode === 'provisional'
-                ? 'Hasta que no juntamos una muestra propia suficiente, esta métrica no debería leerse como comparación exacta contra tu elo.'
-                : 'Compara tu ritmo de experiencia contra la base propia acumulada en el mismo contexto competitivo.'}
+                ? (locale === 'en' ? 'Until we accumulate enough internal sample, this metric should not be read as an exact comparison against your rank.' : 'Hasta que no juntamos una muestra propia suficiente, esta métrica no debería leerse como comparación exacta contra tu elo.')
+                : (locale === 'en' ? 'Compares your experience pacing against the internal benchmark base accumulated in the same competitive context.' : 'Compara tu ritmo de experiencia contra la base propia acumulada en el mismo contexto competitivo.')}
               actual={averageLevel}
               benchmark={levelBenchmark}
               mode={benchmarkContext.mode}
+              locale={locale}
             />
             {dataset.benchmarks ? (
               <div style={{ color: '#7f8ca1', fontSize: 12, lineHeight: 1.6 }}>
-                {dataset.benchmarks.note} Hoy la base acumulada lleva {dataset.benchmarks.totalTrackedEntries} registros procesados.
+                {locale === 'en'
+                  ? `Internal benchmark note: ${dataset.benchmarks.note} The accumulated base currently contains ${dataset.benchmarks.totalTrackedEntries} processed records.`
+                  : `${dataset.benchmarks.note} Hoy la base acumulada lleva ${dataset.benchmarks.totalTrackedEntries} registros procesados.`}
               </div>
             ) : null}
           </div>
         </Card>
 
-        <Card title="Tramo más reciente" subtitle="Las últimas partidas cuentan más si querés coaching aplicable hoy">
+        <Card title={locale === 'en' ? 'Most recent stretch' : 'Tramo más reciente'} subtitle={locale === 'en' ? 'The latest matches matter most if you want coaching you can apply today' : 'Las últimas partidas cuentan más si querés coaching aplicable hoy'}>
           <div style={{ display: 'grid', gap: 10 }}>
             {recentMatches.map((match) => (
               <div key={match.matchId} style={recentMatchRowStyle}>
                 <div style={{ display: 'grid', gap: 2 }}>
                   <div style={{ color: '#edf2ff', fontWeight: 700 }}>{match.championName}</div>
-                  <div style={{ color: '#8190a4', fontSize: 12 }}>{new Date(match.gameCreation).toLocaleDateString('es-AR')}</div>
+                  <div style={{ color: '#8190a4', fontSize: 12 }}>{new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}</div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'end' }}>
                   <Badge tone={match.win ? 'low' : 'high'}>{match.win ? 'Win' : 'Loss'}</Badge>
                   <Badge>{`${formatDecimal(match.timeline.csAt15)} CS@15`}</Badge>
-                  <Badge>{`${formatDecimal(match.timeline.levelAt15 ?? 0)} lvl@15`}</Badge>
+                  <Badge>{locale === 'en' ? `${formatDecimal(match.timeline.levelAt15 ?? 0)} lvl@15` : `${formatDecimal(match.timeline.levelAt15 ?? 0)} lvl@15`}</Badge>
                 </div>
               </div>
             ))}
@@ -289,13 +300,15 @@ function BenchmarkLane({
   info,
   actual,
   benchmark,
-  mode
+  mode,
+  locale
 }: {
   title: string;
   info: string;
   actual: number;
   benchmark: TierProgressionBenchmark | null;
   mode: 'champion' | 'role' | 'provisional';
+  locale: Locale;
 }) {
   const targets = benchmark
     ? [benchmark.currentTier.value, benchmark.nextTier?.value ?? benchmark.currentTier.value]
@@ -309,24 +322,28 @@ function BenchmarkLane({
         <InfoHint text={info} />
       </div>
       <div style={{ display: 'grid', gap: 10 }}>
-        <BenchmarkBar label="Tu muestra" value={actual} maxValue={maxTarget} tone="player" />
-        {benchmark ? <BenchmarkBar label={mode === 'provisional' ? `Referencia ${benchmark.currentTier.tier}` : `Base ${benchmark.currentTier.tier}`} value={benchmark.currentTier.value} maxValue={maxTarget} tone="current" /> : null}
-        {benchmark?.nextTier ? <BenchmarkBar label={mode === 'provisional' ? `Objetivo ${benchmark.nextTier.tier}` : `Escalón ${benchmark.nextTier.tier}`} value={benchmark.nextTier.value} maxValue={maxTarget} tone="next" /> : null}
+        <BenchmarkBar label={locale === 'en' ? 'Your sample' : 'Tu muestra'} value={actual} maxValue={maxTarget} tone="player" />
+        {benchmark ? <BenchmarkBar label={mode === 'provisional' ? (locale === 'en' ? `Reference ${benchmark.currentTier.tier}` : `Referencia ${benchmark.currentTier.tier}`) : (locale === 'en' ? `Base ${benchmark.currentTier.tier}` : `Base ${benchmark.currentTier.tier}`)} value={benchmark.currentTier.value} maxValue={maxTarget} tone="current" /> : null}
+        {benchmark?.nextTier ? <BenchmarkBar label={mode === 'provisional' ? (locale === 'en' ? `Target ${benchmark.nextTier.tier}` : `Objetivo ${benchmark.nextTier.tier}`) : (locale === 'en' ? `Step ${benchmark.nextTier.tier}` : `Escalón ${benchmark.nextTier.tier}`)} value={benchmark.nextTier.value} maxValue={maxTarget} tone="next" /> : null}
       </div>
       {benchmark ? (
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Badge tone={benchmark.deltaToCurrent >= 0 ? 'low' : mode === 'provisional' ? 'default' : 'high'}>
             {mode === 'provisional'
-              ? 'Referencia interna provisional'
+              ? (locale === 'en' ? 'Provisional internal reference' : 'Referencia interna provisional')
               : benchmark.deltaToCurrent >= 0
-                ? 'Sobre la base propia'
-                : 'Debajo de la base propia'} {formatSignedNumber(benchmark.deltaToCurrent)}
+                ? (locale === 'en' ? 'Above internal base' : 'Sobre la base propia')
+                : (locale === 'en' ? 'Below internal base' : 'Debajo de la base propia')} {formatSignedNumber(benchmark.deltaToCurrent)}
           </Badge>
           {benchmark.nextTier ? (
             <Badge tone={benchmark.deltaToNext !== null && benchmark.deltaToNext >= 0 ? 'low' : 'default'}>
               {mode === 'provisional'
-                ? (benchmark.deltaToNext !== null && benchmark.deltaToNext >= 0 ? 'Ya superás el siguiente objetivo interno' : `A ${formatSignedNumber(Math.abs(benchmark.deltaToNext ?? 0))} del siguiente objetivo interno`)
-                : (benchmark.deltaToNext !== null && benchmark.deltaToNext >= 0 ? 'Ya superás el siguiente escalón real' : `A ${formatSignedNumber(Math.abs(benchmark.deltaToNext ?? 0))} del siguiente escalón real`)}
+                ? (benchmark.deltaToNext !== null && benchmark.deltaToNext >= 0
+                    ? (locale === 'en' ? 'Already above the next internal target' : 'Ya superás el siguiente objetivo interno')
+                    : (locale === 'en' ? `${formatSignedNumber(Math.abs(benchmark.deltaToNext ?? 0))} away from the next internal target` : `A ${formatSignedNumber(Math.abs(benchmark.deltaToNext ?? 0))} del siguiente objetivo interno`))
+                : (benchmark.deltaToNext !== null && benchmark.deltaToNext >= 0
+                    ? (locale === 'en' ? 'Already above the next real step' : 'Ya superás el siguiente escalón real')
+                    : (locale === 'en' ? `${formatSignedNumber(Math.abs(benchmark.deltaToNext ?? 0))} away from the next real step` : `A ${formatSignedNumber(Math.abs(benchmark.deltaToNext ?? 0))} del siguiente escalón real`))}
             </Badge>
           ) : null}
         </div>
