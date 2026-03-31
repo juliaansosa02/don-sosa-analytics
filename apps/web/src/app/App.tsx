@@ -30,6 +30,18 @@ interface ProgressState {
   message: string;
 }
 
+interface SavedProfileRecord {
+  gameName: string;
+  tagLine: string;
+  matchCount: number;
+  lastSyncedAt: number;
+  matches: number;
+  profileIconId?: number;
+  rankLabel?: string;
+}
+
+const savedProfilesStorageKey = 'don-sosa:saved-profiles';
+
 function datasetStorageKey(gameName: string, tagLine: string) {
   return `don-sosa:dataset:${gameName}#${tagLine}`.toLowerCase();
 }
@@ -67,8 +79,18 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [dataset, setDataset] = useState<Dataset | null>(null);
+  const [savedProfiles, setSavedProfiles] = useState<SavedProfileRecord[]>([]);
 
   useEffect(() => {
+    const rawProfiles = window.localStorage.getItem(savedProfilesStorageKey);
+    if (rawProfiles) {
+      try {
+        setSavedProfiles(JSON.parse(rawProfiles) as SavedProfileRecord[]);
+      } catch {
+        window.localStorage.removeItem(savedProfilesStorageKey);
+      }
+    }
+
     const savedProfile = window.localStorage.getItem('don-sosa:last-profile');
     if (!savedProfile) return;
 
@@ -171,6 +193,53 @@ export default function App() {
     return [...availableRoles].sort((a, b) => priority.indexOf(a) - priority.indexOf(b));
   }, [availableRoles]);
 
+  function persistSavedProfile(nextDataset: Dataset, nextMatchCount: number) {
+    const nextRecord: SavedProfileRecord = {
+      gameName: nextDataset.player,
+      tagLine: nextDataset.tagLine,
+      matchCount: nextMatchCount,
+      lastSyncedAt: Date.now(),
+      matches: nextDataset.summary.matches,
+      profileIconId: nextDataset.profile?.profileIconId,
+      rankLabel: nextDataset.rank?.highest.label
+    };
+
+    const nextProfiles = [
+      nextRecord,
+      ...savedProfiles.filter((profile) => `${profile.gameName}#${profile.tagLine}`.toLowerCase() !== `${nextRecord.gameName}#${nextRecord.tagLine}`.toLowerCase())
+    ].slice(0, 8);
+
+    setSavedProfiles(nextProfiles);
+    window.localStorage.setItem(savedProfilesStorageKey, JSON.stringify(nextProfiles));
+  }
+
+  function loadSavedProfile(profile: SavedProfileRecord) {
+    setGameName(profile.gameName);
+    setTagLine(profile.tagLine);
+    setMatchCount(profile.matchCount);
+    setError(null);
+    setSyncMessage(null);
+
+    const cachedDataset = window.localStorage.getItem(datasetStorageKey(profile.gameName, profile.tagLine));
+    if (cachedDataset) {
+      try {
+        setDataset(JSON.parse(cachedDataset) as Dataset);
+        setShowAccountControls(false);
+        window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({
+          gameName: profile.gameName,
+          tagLine: profile.tagLine,
+          matchCount: profile.matchCount
+        }));
+        return;
+      } catch {
+        window.localStorage.removeItem(datasetStorageKey(profile.gameName, profile.tagLine));
+      }
+    }
+
+    setDataset(null);
+    setShowAccountControls(true);
+  }
+
   async function runAnalysis() {
     setLoading(true);
     setError(null);
@@ -197,6 +266,7 @@ export default function App() {
       }
       window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({ gameName, tagLine, matchCount }));
       window.localStorage.setItem(datasetStorageKey(gameName, tagLine), JSON.stringify(mergedDataset));
+      persistSavedProfile(mergedDataset, matchCount);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -326,6 +396,42 @@ export default function App() {
             )}
           </Card>
         </section>
+
+        {savedProfiles.length ? (
+          <section style={savedProfilesSectionStyle}>
+            <div style={{ display: 'grid', gap: 3 }}>
+              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Perfiles guardados</div>
+              <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>Volvé rápido a cuentas que ya analizaste</div>
+            </div>
+            <div className="four-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
+              {savedProfiles.map((profile) => {
+                const isActive = `${profile.gameName}#${profile.tagLine}`.toLowerCase() === `${gameName}#${tagLine}`.toLowerCase();
+                return (
+                  <button
+                    key={`${profile.gameName}#${profile.tagLine}`}
+                    type="button"
+                    onClick={() => loadSavedProfile(profile)}
+                    style={{
+                      ...savedProfileCardStyle,
+                      ...(isActive ? activeSavedProfileCardStyle : {})
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
+                      <div style={{ display: 'grid', gap: 4, textAlign: 'left' }}>
+                        <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
+                        <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? 'Sin rango visible'}</div>
+                      </div>
+                      <Badge tone={isActive ? 'low' : 'default'}>{profile.matches} partidas</Badge>
+                    </div>
+                    <div style={{ color: '#748198', fontSize: 12, textAlign: 'left' }}>
+                      Última sync {new Date(profile.lastSyncedAt).toLocaleDateString('es-AR')}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
         {viewDataset ? (
           <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.05fr 1.95fr', gap: 12 }}>
@@ -680,6 +786,30 @@ const navigationPanelStyle: CSSProperties = {
   borderRadius: 16,
   background: '#060a10',
   border: '1px solid rgba(255,255,255,0.06)'
+};
+
+const savedProfilesSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: '14px 16px',
+  borderRadius: 16,
+  background: '#060a10',
+  border: '1px solid rgba(255,255,255,0.06)'
+};
+
+const savedProfileCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: '14px 15px',
+  borderRadius: 14,
+  background: '#090e16',
+  border: '1px solid rgba(255,255,255,0.06)',
+  cursor: 'pointer'
+};
+
+const activeSavedProfileCardStyle: CSSProperties = {
+  background: 'linear-gradient(180deg, rgba(216,253,241,0.1), rgba(24,35,44,0.96))',
+  borderColor: 'rgba(216,253,241,0.2)'
 };
 
 function TopStat({ label, value, hint }: { label: string; value: string; hint: string }) {

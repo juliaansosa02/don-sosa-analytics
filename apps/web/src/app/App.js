@@ -20,6 +20,7 @@ const tabs = [
     { id: 'champions', label: 'Champions' },
     { id: 'matches', label: 'Matches' }
 ];
+const savedProfilesStorageKey = 'don-sosa:saved-profiles';
 function datasetStorageKey(gameName, tagLine) {
     return `don-sosa:dataset:${gameName}#${tagLine}`.toLowerCase();
 }
@@ -53,7 +54,17 @@ export default function App() {
     const [error, setError] = useState(null);
     const [syncMessage, setSyncMessage] = useState(null);
     const [dataset, setDataset] = useState(null);
+    const [savedProfiles, setSavedProfiles] = useState([]);
     useEffect(() => {
+        const rawProfiles = window.localStorage.getItem(savedProfilesStorageKey);
+        if (rawProfiles) {
+            try {
+                setSavedProfiles(JSON.parse(rawProfiles));
+            }
+            catch {
+                window.localStorage.removeItem(savedProfilesStorageKey);
+            }
+        }
         const savedProfile = window.localStorage.getItem('don-sosa:last-profile');
         if (!savedProfile)
             return;
@@ -164,6 +175,48 @@ export default function App() {
         const priority = ['ALL', 'JUNGLE', 'TOP', 'MIDDLE', 'BOTTOM', 'UTILITY', 'NONE'];
         return [...availableRoles].sort((a, b) => priority.indexOf(a) - priority.indexOf(b));
     }, [availableRoles]);
+    function persistSavedProfile(nextDataset, nextMatchCount) {
+        const nextRecord = {
+            gameName: nextDataset.player,
+            tagLine: nextDataset.tagLine,
+            matchCount: nextMatchCount,
+            lastSyncedAt: Date.now(),
+            matches: nextDataset.summary.matches,
+            profileIconId: nextDataset.profile?.profileIconId,
+            rankLabel: nextDataset.rank?.highest.label
+        };
+        const nextProfiles = [
+            nextRecord,
+            ...savedProfiles.filter((profile) => `${profile.gameName}#${profile.tagLine}`.toLowerCase() !== `${nextRecord.gameName}#${nextRecord.tagLine}`.toLowerCase())
+        ].slice(0, 8);
+        setSavedProfiles(nextProfiles);
+        window.localStorage.setItem(savedProfilesStorageKey, JSON.stringify(nextProfiles));
+    }
+    function loadSavedProfile(profile) {
+        setGameName(profile.gameName);
+        setTagLine(profile.tagLine);
+        setMatchCount(profile.matchCount);
+        setError(null);
+        setSyncMessage(null);
+        const cachedDataset = window.localStorage.getItem(datasetStorageKey(profile.gameName, profile.tagLine));
+        if (cachedDataset) {
+            try {
+                setDataset(JSON.parse(cachedDataset));
+                setShowAccountControls(false);
+                window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({
+                    gameName: profile.gameName,
+                    tagLine: profile.tagLine,
+                    matchCount: profile.matchCount
+                }));
+                return;
+            }
+            catch {
+                window.localStorage.removeItem(datasetStorageKey(profile.gameName, profile.tagLine));
+            }
+        }
+        setDataset(null);
+        setShowAccountControls(true);
+    }
     async function runAnalysis() {
         setLoading(true);
         setError(null);
@@ -190,6 +243,7 @@ export default function App() {
             }
             window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({ gameName, tagLine, matchCount }));
             window.localStorage.setItem(datasetStorageKey(gameName, tagLine), JSON.stringify(mergedDataset));
+            persistSavedProfile(mergedDataset, matchCount);
         }
         catch (err) {
             setError(err instanceof Error ? err.message : 'Unknown error');
@@ -207,7 +261,13 @@ export default function App() {
                                         ? 'Analizando una muestra grande. Esto puede tardar varios minutos por los límites de Riot.'
                                         : 'Analizando partidas. Esto puede tardar entre unos segundos y alrededor de un minuto.') })) : null, loading && progress ? (_jsxs("div", { style: { display: 'grid', gap: 8, maxWidth: 460 }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', color: '#9eb0c7', fontSize: 12 }, children: [_jsx("span", { children: progress.stage }), _jsx("span", { children: `${Math.min(progress.current, progress.total)} / ${progress.total}` })] }), _jsx("div", { style: { height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }, children: _jsx("div", { style: { width: `${Math.max(8, (progress.current / Math.max(progress.total, 1)) * 100)}%`, height: '100%', background: '#67d6a4' } }) })] })) : null, viewDataset?.rank ? (_jsxs("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' }, children: [_jsx(RankBadge, { rank: viewDataset.rank, compact: true }), _jsxs("div", { style: heroMetaChipStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: "Win rate" }), _jsx("div", { style: heroMetaValueStyle, children: `${viewDataset.rank.highest.winRate}%` }), _jsx("div", { style: heroMetaSubtleStyle, children: `${viewDataset.rank.highest.wins}-${viewDataset.rank.highest.losses}` })] }), csBenchmark ? (_jsxs("div", { style: heroMetaChipStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: "Benchmark" }), _jsx("div", { style: { ...heroMetaValueStyle, color: csBenchmark.status === 'above' ? '#9ff0cf' : csBenchmark.status === 'below' ? '#ffb3b3' : '#dce8fb' }, children: csBenchmark.label }), _jsx("div", { style: heroMetaSubtleStyle, children: "CS a los 15" })] })) : null] })) : null] }), _jsx(Card, { title: showAccountControls ? 'Analizar cuenta' : 'Cuenta activa', subtitle: showAccountControls ? 'Ingresá el Riot ID y elegí cuántas partidas querés analizar.' : 'Tu cuenta queda lista para refrescar datos o cambiar de perfil cuando quieras.', children: showAccountControls || !dataset ? (_jsxs("form", { onSubmit: handleSubmit, style: { display: 'grid', gap: 12 }, children: [_jsxs("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: '1.2fr .8fr .7fr', gap: 10 }, children: [_jsx("input", { value: gameName, onChange: (e) => setGameName(e.target.value), placeholder: "Riot Game Name", style: inputStyle }), _jsx("input", { value: tagLine, onChange: (e) => setTagLine(e.target.value), placeholder: "Tag Line", style: inputStyle }), _jsx("select", { value: matchCount, onChange: (e) => setMatchCount(Number(e.target.value)), style: selectStyle, children: [10, 20, 30, 40, 50, 75, 100].map((count) => (_jsxs("option", { value: count, children: [count, " partidas"] }, count))) })] }), _jsx("div", { style: { color: '#7f8898', fontSize: 12, lineHeight: 1.5 }, children: matchCount >= 75
                                             ? 'Con 75 o 100 partidas el análisis es más estable, pero puede tardar bastante por los límites de Riot.'
-                                            : 'Menos partidas cargan más rápido. Más partidas dan una lectura más confiable.' }), !dataset && gameName && tagLine ? (_jsx("div", { style: { color: '#9ba6b8', fontSize: 12 }, children: "No hay un an\u00E1lisis guardado para esta cuenta en este navegador. Cargalo una vez y despu\u00E9s quedar\u00E1 disponible." })) : null, _jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: `Filtro actual: ${getRoleLabel(roleFilter)}` }), dataset?.remakesExcluded ? _jsx(Badge, { tone: "medium", children: `${dataset.remakesExcluded} remakes excluidos` }) : null] }), _jsx("button", { type: "submit", style: buttonStyle, children: loading ? 'Analizando...' : `${dataset ? 'Actualizar' : 'Cargar'} ${matchCount} partidas` })] })] })) : (_jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsxs("div", { style: { color: '#e7eef8', lineHeight: 1.6 }, children: [gameName && tagLine ? `${gameName}#${tagLine}` : 'Cuenta lista para analizar', "."] }), _jsx("div", { style: { color: '#8a95a8', fontSize: 12, lineHeight: 1.5 }, children: "Si ya hay partidas guardadas, actualizar busca partidas nuevas y las agrega sin pisar el historial anterior." }), syncMessage ? _jsx("div", { style: syncMessageStyle, children: syncMessage }) : null, _jsxs("div", { className: "two-col-grid", style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }, children: [_jsxs("div", { style: { display: 'grid', gap: 6 }, children: [_jsx("div", { style: { color: '#8d96a5', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: "Cantidad de partidas" }), _jsx("select", { value: matchCount, onChange: (e) => setMatchCount(Number(e.target.value)), style: selectStyle, children: [10, 20, 30, 40, 50, 75, 100].map((count) => (_jsxs("option", { value: count, children: [count, " partidas"] }, count))) })] }), _jsxs("div", { style: { display: 'grid', gap: 6 }, children: [_jsx("div", { style: { color: '#8d96a5', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: "Filtro de rol" }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: `Filtro actual: ${getRoleLabel(roleFilter)}` }), dataset?.remakesExcluded ? _jsx(Badge, { tone: "medium", children: `${dataset.remakesExcluded} remakes excluidos` }) : null] })] })] }), _jsxs("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' }, children: [_jsx("button", { type: "button", style: buttonStyle, onClick: () => void runAnalysis(), children: loading ? 'Analizando...' : `Actualizar ${matchCount} partidas` }), _jsx("button", { type: "button", style: secondaryButtonStyle, onClick: () => setShowAccountControls(true), children: "Cambiar cuenta" })] })] })) })] }), viewDataset ? (_jsxs("section", { className: "two-col-grid", style: { display: 'grid', gridTemplateColumns: '1.05fr 1.95fr', gap: 12 }, children: [_jsxs("div", { style: accountCardStyle, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 14 }, children: [viewDataset.profile ? _jsx("img", { src: getProfileIconUrl(viewDataset.profile.profileIconId, viewDataset.ddragonVersion) ?? undefined, alt: viewDataset.player, width: 56, height: 56, style: profileIconStyle }) : null, _jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsxs("div", { style: { fontSize: 26, fontWeight: 800 }, children: [viewDataset.player, _jsxs("span", { style: { color: '#7d8696', fontWeight: 600 }, children: ["#", viewDataset.tagLine] })] }), viewDataset.profile ? _jsx("div", { style: { color: '#8f99ac', fontSize: 13 }, children: `Nivel ${viewDataset.profile.summonerLevel}` }) : null] })] }), _jsxs("div", { style: accountMetaRowStyle, children: [_jsxs("div", { style: recordPillStyle, children: [_jsx("div", { style: { color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: "Muestra" }), _jsx("div", { style: { color: '#edf2ff', fontSize: 14, fontWeight: 800 }, children: `${viewDataset.summary.wins}-${viewDataset.summary.losses}` })] }), _jsxs("div", { style: recordPillStyle, children: [_jsx("div", { style: { color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: "Win rate" }), _jsx("div", { style: { color: '#dff7eb', fontSize: 14, fontWeight: 800 }, children: `${viewDataset.summary.winRate}%` })] }), _jsxs("div", { style: recordPillStyle, children: [_jsx("div", { style: { color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: "Partidas v\u00E1lidas" }), _jsx("div", { style: { color: '#edf2ff', fontSize: 14, fontWeight: 800 }, children: viewDataset.summary.matches })] })] }), viewDataset.rank ? _jsx(RankBadge, { rank: viewDataset.rank }) : null] }), _jsxs("div", { className: "three-col-grid", style: topStatsPanelStyle, children: [_jsx(TopStat, { label: "Performance", value: formatDecimal(viewDataset.summary.avgPerformanceScore), hint: "\u00CDndice medio de ejecuci\u00F3n" }), _jsx(TopStat, { label: "CS a los 15", value: formatDecimal(viewDataset.summary.avgCsAt15), hint: "Econom\u00EDa temprana media" }), _jsx(TopStat, { label: "Oro a los 15", value: Math.round(viewDataset.summary.avgGoldAt15).toLocaleString('es-AR'), hint: "Valor generado antes del mid game" }), _jsx(TrendSparkline, { matches: viewDataset.matches })] })] })) : null, _jsxs("section", { style: { display: 'grid', gap: 12 }, children: [viewDataset ? (_jsxs("div", { style: roleFilterPanelStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: "Contexto de an\u00E1lisis" }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: "Eleg\u00ED el contexto exacto que quer\u00E9s revisar" }), _jsx("div", { style: { color: '#8793a8', fontSize: 13 }, children: "El coaching mejora mucho si separ\u00E1s rol, tipo de cola y ventana reciente en vez de mezclar todas tus partidas." })] }), _jsx("div", { className: "role-pill-grid", style: rolePillGridStyle, children: preferredRoles.map((role) => (_jsx("button", { type: "button", onClick: () => setRoleFilter(role), style: {
+                                            : 'Menos partidas cargan más rápido. Más partidas dan una lectura más confiable.' }), !dataset && gameName && tagLine ? (_jsx("div", { style: { color: '#9ba6b8', fontSize: 12 }, children: "No hay un an\u00E1lisis guardado para esta cuenta en este navegador. Cargalo una vez y despu\u00E9s quedar\u00E1 disponible." })) : null, _jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: `Filtro actual: ${getRoleLabel(roleFilter)}` }), dataset?.remakesExcluded ? _jsx(Badge, { tone: "medium", children: `${dataset.remakesExcluded} remakes excluidos` }) : null] }), _jsx("button", { type: "submit", style: buttonStyle, children: loading ? 'Analizando...' : `${dataset ? 'Actualizar' : 'Cargar'} ${matchCount} partidas` })] })] })) : (_jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsxs("div", { style: { color: '#e7eef8', lineHeight: 1.6 }, children: [gameName && tagLine ? `${gameName}#${tagLine}` : 'Cuenta lista para analizar', "."] }), _jsx("div", { style: { color: '#8a95a8', fontSize: 12, lineHeight: 1.5 }, children: "Si ya hay partidas guardadas, actualizar busca partidas nuevas y las agrega sin pisar el historial anterior." }), syncMessage ? _jsx("div", { style: syncMessageStyle, children: syncMessage }) : null, _jsxs("div", { className: "two-col-grid", style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }, children: [_jsxs("div", { style: { display: 'grid', gap: 6 }, children: [_jsx("div", { style: { color: '#8d96a5', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: "Cantidad de partidas" }), _jsx("select", { value: matchCount, onChange: (e) => setMatchCount(Number(e.target.value)), style: selectStyle, children: [10, 20, 30, 40, 50, 75, 100].map((count) => (_jsxs("option", { value: count, children: [count, " partidas"] }, count))) })] }), _jsxs("div", { style: { display: 'grid', gap: 6 }, children: [_jsx("div", { style: { color: '#8d96a5', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: "Filtro de rol" }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: `Filtro actual: ${getRoleLabel(roleFilter)}` }), dataset?.remakesExcluded ? _jsx(Badge, { tone: "medium", children: `${dataset.remakesExcluded} remakes excluidos` }) : null] })] })] }), _jsxs("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' }, children: [_jsx("button", { type: "button", style: buttonStyle, onClick: () => void runAnalysis(), children: loading ? 'Analizando...' : `Actualizar ${matchCount} partidas` }), _jsx("button", { type: "button", style: secondaryButtonStyle, onClick: () => setShowAccountControls(true), children: "Cambiar cuenta" })] })] })) })] }), savedProfiles.length ? (_jsxs("section", { style: savedProfilesSectionStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: "Perfiles guardados" }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: "Volv\u00E9 r\u00E1pido a cuentas que ya analizaste" })] }), _jsx("div", { className: "four-col-grid", style: { display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }, children: savedProfiles.map((profile) => {
+                                const isActive = `${profile.gameName}#${profile.tagLine}`.toLowerCase() === `${gameName}#${tagLine}`.toLowerCase();
+                                return (_jsxs("button", { type: "button", onClick: () => loadSavedProfile(profile), style: {
+                                        ...savedProfileCardStyle,
+                                        ...(isActive ? activeSavedProfileCardStyle : {})
+                                    }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }, children: [_jsxs("div", { style: { display: 'grid', gap: 4, textAlign: 'left' }, children: [_jsxs("div", { style: { color: '#edf2ff', fontWeight: 800 }, children: [profile.gameName, _jsxs("span", { style: { color: '#8592a8' }, children: ["#", profile.tagLine] })] }), _jsx("div", { style: { color: '#8390a6', fontSize: 12 }, children: profile.rankLabel ?? 'Sin rango visible' })] }), _jsxs(Badge, { tone: isActive ? 'low' : 'default', children: [profile.matches, " partidas"] })] }), _jsxs("div", { style: { color: '#748198', fontSize: 12, textAlign: 'left' }, children: ["\u00DAltima sync ", new Date(profile.lastSyncedAt).toLocaleDateString('es-AR')] })] }, `${profile.gameName}#${profile.tagLine}`));
+                            }) })] })) : null, viewDataset ? (_jsxs("section", { className: "two-col-grid", style: { display: 'grid', gridTemplateColumns: '1.05fr 1.95fr', gap: 12 }, children: [_jsxs("div", { style: accountCardStyle, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 14 }, children: [viewDataset.profile ? _jsx("img", { src: getProfileIconUrl(viewDataset.profile.profileIconId, viewDataset.ddragonVersion) ?? undefined, alt: viewDataset.player, width: 56, height: 56, style: profileIconStyle }) : null, _jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsxs("div", { style: { fontSize: 26, fontWeight: 800 }, children: [viewDataset.player, _jsxs("span", { style: { color: '#7d8696', fontWeight: 600 }, children: ["#", viewDataset.tagLine] })] }), viewDataset.profile ? _jsx("div", { style: { color: '#8f99ac', fontSize: 13 }, children: `Nivel ${viewDataset.profile.summonerLevel}` }) : null] })] }), _jsxs("div", { style: accountMetaRowStyle, children: [_jsxs("div", { style: recordPillStyle, children: [_jsx("div", { style: { color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: "Muestra" }), _jsx("div", { style: { color: '#edf2ff', fontSize: 14, fontWeight: 800 }, children: `${viewDataset.summary.wins}-${viewDataset.summary.losses}` })] }), _jsxs("div", { style: recordPillStyle, children: [_jsx("div", { style: { color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: "Win rate" }), _jsx("div", { style: { color: '#dff7eb', fontSize: 14, fontWeight: 800 }, children: `${viewDataset.summary.winRate}%` })] }), _jsxs("div", { style: recordPillStyle, children: [_jsx("div", { style: { color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: "Partidas v\u00E1lidas" }), _jsx("div", { style: { color: '#edf2ff', fontSize: 14, fontWeight: 800 }, children: viewDataset.summary.matches })] })] }), viewDataset.rank ? _jsx(RankBadge, { rank: viewDataset.rank }) : null] }), _jsxs("div", { className: "three-col-grid", style: topStatsPanelStyle, children: [_jsx(TopStat, { label: "Performance", value: formatDecimal(viewDataset.summary.avgPerformanceScore), hint: "\u00CDndice medio de ejecuci\u00F3n" }), _jsx(TopStat, { label: "CS a los 15", value: formatDecimal(viewDataset.summary.avgCsAt15), hint: "Econom\u00EDa temprana media" }), _jsx(TopStat, { label: "Oro a los 15", value: Math.round(viewDataset.summary.avgGoldAt15).toLocaleString('es-AR'), hint: "Valor generado antes del mid game" }), _jsx(TrendSparkline, { matches: viewDataset.matches })] })] })) : null, _jsxs("section", { style: { display: 'grid', gap: 12 }, children: [viewDataset ? (_jsxs("div", { style: roleFilterPanelStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: "Contexto de an\u00E1lisis" }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: "Eleg\u00ED el contexto exacto que quer\u00E9s revisar" }), _jsx("div", { style: { color: '#8793a8', fontSize: 13 }, children: "El coaching mejora mucho si separ\u00E1s rol, tipo de cola y ventana reciente en vez de mezclar todas tus partidas." })] }), _jsx("div", { className: "role-pill-grid", style: rolePillGridStyle, children: preferredRoles.map((role) => (_jsx("button", { type: "button", onClick: () => setRoleFilter(role), style: {
                                             ...rolePillStyle,
                                             ...(roleFilter === role ? activeRolePillStyle : {})
                                         }, children: getRoleLabel(role) }, role))) }), _jsxs("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: '1.4fr 1.1fr .9fr', gap: 10 }, children: [_jsxs("div", { style: contextGroupStyle, children: [_jsx("div", { style: contextLabelStyle, children: "Tipo de cola" }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: availableQueueFilters.map((queue) => (_jsx("button", { type: "button", onClick: () => setQueueFilter(queue), style: {
@@ -388,6 +448,27 @@ const navigationPanelStyle = {
     borderRadius: 16,
     background: '#060a10',
     border: '1px solid rgba(255,255,255,0.06)'
+};
+const savedProfilesSectionStyle = {
+    display: 'grid',
+    gap: 12,
+    padding: '14px 16px',
+    borderRadius: 16,
+    background: '#060a10',
+    border: '1px solid rgba(255,255,255,0.06)'
+};
+const savedProfileCardStyle = {
+    display: 'grid',
+    gap: 12,
+    padding: '14px 15px',
+    borderRadius: 14,
+    background: '#090e16',
+    border: '1px solid rgba(255,255,255,0.06)',
+    cursor: 'pointer'
+};
+const activeSavedProfileCardStyle = {
+    background: 'linear-gradient(180deg, rgba(216,253,241,0.1), rgba(24,35,44,0.96))',
+    borderColor: 'rgba(216,253,241,0.2)'
 };
 function TopStat({ label, value, hint }) {
     return (_jsxs("div", { style: topStatStyle, children: [_jsx("div", { style: { color: '#768091', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: label }), _jsx("div", { style: { fontSize: 21, fontWeight: 800, lineHeight: 1.05 }, children: value }), _jsx("div", { style: { color: '#8692a7', fontSize: 12 }, children: hint })] }));

@@ -14,12 +14,69 @@ function formatDelta(value: number, suffix = '') {
   return `${rounded >= 0 ? '+' : ''}${rounded}${suffix}`;
 }
 
+function buildReviewCue(dataset: Dataset, match: Dataset['matches'][number]) {
+  if (match.timeline.deathsPre14 >= 3) {
+    return 'Revisá la primera muerte que te saca del mapa. Ahí suele empezar a romperse la partida.';
+  }
+
+  if (match.timeline.csAt15 < dataset.summary.avgCsAt15 - 12) {
+    return 'La economía temprana se quedó corta. Mirá el primer reset o desvío que te corta el ingreso.';
+  }
+
+  if (match.timeline.objectiveFightDeaths > 0) {
+    return 'La review clave está en la ventana de objetivo: setup, reset y quién llega primero.';
+  }
+
+  return 'Usala como partida espejo para comparar tempo, resets y calidad de decisiones contra tu bloque actual.';
+}
+
+function buildPatternCard(dataset: Dataset) {
+  const championAnchor = dataset.summary.championPool[0];
+  const stableMatches = dataset.matches.filter((match) => match.timeline.deathsPre14 <= dataset.summary.avgDeathsPre14 && match.timeline.csAt15 >= dataset.summary.avgCsAt15);
+  const stableWinRate = stableMatches.length ? (stableMatches.filter((match) => match.win).length / stableMatches.length) * 100 : null;
+
+  return {
+    championAnchor,
+    stableMatches,
+    stableWinRate
+  };
+}
+
+function buildReviewQueue(dataset: Dataset) {
+  return [...dataset.matches]
+    .sort((a, b) => b.gameCreation - a.gameCreation)
+    .filter((match) => !match.win || match.timeline.deathsPre14 >= 2 || match.timeline.objectiveFightDeaths > 0)
+    .slice(0, 3);
+}
+
+function buildPositiveLanes(dataset: Dataset) {
+  const positives = dataset.summary.insights.filter((insight) => insight.category === 'positive').slice(0, 2);
+  if (positives.length) return positives;
+
+  const topChampion = dataset.summary.championPool[0];
+  if (!topChampion) return [];
+
+  return [{
+    id: 'fallback-positive',
+    problem: `${topChampion.championName} sigue siendo tu referencia más clara`,
+    title: `Concentrás ${topChampion.games} partidas y ${topChampion.winRate}% WR en tu pick más jugado.`,
+    actions: [
+      `Usá tus mejores partidas de ${topChampion.championName} como material de review cuando quieras fijar hábitos.`,
+      'Compará tus partidas sólidas contra tus derrotas del mismo pick antes de abrir más variables.'
+    ]
+  }];
+}
+
 export function CoachingHome({ dataset }: { dataset: Dataset }) {
   const { summary } = dataset;
   const topProblems = summary.coaching.topProblems;
   const activePlan = summary.coaching.activePlan;
   const trend = summary.coaching.trend;
   const championAnchor = summary.championPool[0];
+  const reviewQueue = buildReviewQueue(dataset);
+  const positiveLanes = buildPositiveLanes(dataset);
+  const patternCard = buildPatternCard(dataset);
+  const matchupAlert = summary.insights.find((insight) => insight.focusMetric === 'matchup_review');
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
@@ -30,53 +87,126 @@ export function CoachingHome({ dataset }: { dataset: Dataset }) {
               label="Win rate"
               value={`${summary.winRate}%`}
               hint={`${summary.wins}-${summary.losses} en ${summary.matches} partidas`}
-              info="Porcentaje de victorias dentro de la muestra filtrada que estás viendo. Si cambiás de rol, esta cifra se recalcula."
+              info="Porcentaje de victorias dentro de la muestra filtrada que estás viendo. Si cambiás de rol, cola o ventana, esta cifra se recalcula."
             />
             <KPI
               label="Performance"
               value={formatDecimal(summary.avgPerformanceScore)}
-              hint={`Índice de consistencia ${formatDecimal(summary.consistencyIndex)}`}
+              hint={`Consistencia ${formatDecimal(summary.consistencyIndex)}`}
               info="Índice interno que resume economía, peleas, macro y estabilidad. No es una métrica oficial de Riot: sirve para comparar la calidad general de tu ejecución entre partidas."
             />
             <KPI
               label="CS a los 15"
               value={formatDecimal(summary.avgCsAt15)}
-              hint="Tu métrica principal de farmeo"
-              info="Elegimos el minuto 15 porque captura mejor tu economía real después de las primeras decisiones, resets y rotaciones."
+              hint="Base actual de economía"
+              info="Elegimos el minuto 15 porque captura mejor tus resets, primeras rotaciones y el estado real de tu economía antes del mid game."
             />
             <KPI
               label="Pick ancla"
               value={championAnchor?.championName ?? 'N/A'}
               hint={championAnchor ? `${championAnchor.winRate}% WR` : 'Sin muestra suficiente'}
-              info="El campeón más jugado dentro del filtro actual. Sirve como referencia para detectar si tu muestra tiene un patrón claro por pick."
+              info="El campeón que más pesa dentro del filtro actual. Si tu muestra se apoya mucho en un pick, la lectura de coaching tiene que respetar eso."
             />
           </div>
         </Card>
 
-        <Card title="Lectura rápida" subtitle="La capa premium del coaching está en separar lo urgente de lo accesorio">
+        <Card title="Radar del bloque actual" subtitle="Tres lecturas rápidas para saber dónde mirar primero">
           <div style={{ display: 'grid', gap: 12 }}>
-            <MetricHeadline
-              label="Performance"
-              info="Resume tu score total de partida. Combina lane, economía, fighting, macro y consistencia en una lectura única."
-              value={formatDecimal(summary.avgPerformanceScore)}
+            <SpotlightMetric
+              label="Patrón estable"
+              info="Busca la versión de vos mismo que ya está funcionando, para no construir todo el plan desde cero."
+              value={patternCard.stableWinRate !== null ? `${formatDecimal(patternCard.stableWinRate)}% WR` : 'Sin señal clara'}
+              caption={patternCard.stableMatches.length
+                ? `${patternCard.stableMatches.length} partidas con economía y disciplina mejores que tu media`
+                : 'Todavía no hay suficientes partidas limpias en el filtro actual'}
             />
-            <MetricHeadline
-              label="CS a los 15"
-              info="Preferimos el minuto 15 porque captura mejor tu patrón de farmeo y tus decisiones tras la fase inicial."
-              value={formatDecimal(summary.avgCsAt15)}
+            <SpotlightMetric
+              label="Matchup a vigilar"
+              info="Si un matchup se repite con malos resultados, deja de ser un accidente y pasa a ser material de preparación."
+              value={matchupAlert ? 'Sí' : 'Sin alerta'}
+              caption={matchupAlert ? matchupAlert.problem : 'No aparece un cruce recurrente lo bastante fuerte dentro de esta muestra'}
             />
-            <MetricHeadline
-              label="Oro a los 15"
-              info="Es una señal rápida de cuánto valor real estás generando antes de entrar al mid game."
-              value={Math.round(summary.avgGoldAt15).toLocaleString('es-AR')}
+            <SpotlightMetric
+              label="Plan de hoy"
+              info="La prioridad real del bloque actual. Esto es lo que más conviene sostener en tus próximas partidas."
+              value={activePlan ? activePlan.objective : 'Seguir acumulando muestra'}
+              caption={activePlan ? activePlan.successLabel : 'Filtrá por el rol que quieras trabajar si querés una lectura más fina'}
             />
+          </div>
+        </Card>
+      </section>
+
+      <section className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr 1fr', gap: 16 }}>
+        <Card title="Qué ya te está dando nivel" subtitle="No todo es corregir: también hay que repetir lo que sí funciona">
+          <div style={{ display: 'grid', gap: 10 }}>
+            {positiveLanes.map((insight) => (
+              <div key={insight.id} style={signalCardStyle}>
+                <div style={{ display: 'grid', gap: 5 }}>
+                  <div style={{ color: '#edf2ff', fontSize: 18, fontWeight: 800 }}>{insight.problem}</div>
+                  <div style={{ color: '#9aa5b7', lineHeight: 1.6 }}>{insight.title}</div>
+                </div>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {insight.actions.map((action) => (
+                    <div key={action} style={signalActionStyle}>{action}</div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="Sesión de review" subtitle="Tres partidas para mirar antes de volver a queuear">
+          <div style={{ display: 'grid', gap: 10 }}>
+            {reviewQueue.length ? reviewQueue.map((match) => (
+              <div key={match.matchId} style={reviewMatchStyle}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'grid', gap: 4 }}>
+                    <div style={{ color: '#edf2ff', fontWeight: 800 }}>{match.championName}</div>
+                    <div style={{ color: '#8190a4', fontSize: 12 }}>{new Date(match.gameCreation).toLocaleDateString('es-AR')}</div>
+                  </div>
+                  <Badge tone={match.win ? 'low' : 'high'}>{match.win ? 'Win' : 'Loss'}</Badge>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Badge>{`${formatDecimal(match.timeline.csAt15)} CS@15`}</Badge>
+                  <Badge>{`${formatDecimal(match.timeline.deathsPre14)} muertes pre14`}</Badge>
+                  {match.opponentChampionName ? <Badge>{`vs ${match.opponentChampionName}`}</Badge> : null}
+                </div>
+                <div style={{ color: '#9aa5b7', lineHeight: 1.6 }}>
+                  {buildReviewCue(dataset, match)}
+                </div>
+              </div>
+            )) : (
+              <div style={{ color: '#c7d4ea' }}>No hay una cola de review clara todavía. Sumá más partidas o abrí una ventana reciente más grande.</div>
+            )}
+          </div>
+        </Card>
+
+        <Card title="Mapa del pick ancla" subtitle="Cómo leer el campeón que hoy más pesa en tu muestra">
+          <div style={{ display: 'grid', gap: 12 }}>
+            {championAnchor ? (
+              <>
+                <InfoCard title="Pick principal" info="El campeón que más condiciona la lectura actual de coaching.">
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ fontSize: 22, fontWeight: 800 }}>{championAnchor.championName}</div>
+                    <div style={{ color: '#9aa5b7' }}>{championAnchor.games} partidas · {championAnchor.winRate}% WR · {formatDecimal(championAnchor.avgCsAt15)} CS@15</div>
+                  </div>
+                </InfoCard>
+                <InfoCard title="Qué mirar" info="La idea es separar si tu pick principal ya te ordena bien la partida o si está ocultando un problema.">
+                  {matchupAlert
+                    ? `Tu siguiente mejora con ${championAnchor.championName} probablemente no pasa por jugarlo más, sino por entender mejor el cruce que hoy más te castiga.`
+                    : `Usalo como línea base para revisar recalls, primeras rotaciones y cuándo tu early realmente entra limpio al mid game.`}
+                </InfoCard>
+              </>
+            ) : (
+              <div style={{ color: '#c7d4ea' }}>Todavía no hay suficiente muestra para leer un pick ancla claro dentro del filtro actual.</div>
+            )}
           </div>
         </Card>
       </section>
 
       <section style={{ display: 'grid', gap: 14 }}>
         <div>
-          <h2 style={{ margin: 0, fontSize: 24 }}>Prioridades de Coaching</h2>
+          <h2 style={{ margin: 0, fontSize: 24 }}>Prioridades de coaching</h2>
           <p style={{ margin: '6px 0 0', color: '#8994a8' }}>Lo que más te está costando hoy, con evidencia, impacto y acciones concretas.</p>
         </div>
 
@@ -85,7 +215,7 @@ export function CoachingHome({ dataset }: { dataset: Dataset }) {
             <div key={problem.id} style={{ ...problemCardStyle, borderColor: borderForPriority(problem.priority) }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start', flexWrap: 'wrap' }}>
                 <div style={{ display: 'grid', gap: 8 }}>
-                  <div style={{ color: '#7f8999', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Prioridad {index + 1}</div>
+                  <div style={{ color: '#7f8999', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Bloque {index + 1}</div>
                   <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.03em' }}>{problem.problem}</div>
                   <div style={{ color: '#97a2b3', maxWidth: 780 }}>{problem.title}</div>
                 </div>
@@ -184,14 +314,15 @@ export function CoachingHome({ dataset }: { dataset: Dataset }) {
   );
 }
 
-function MetricHeadline({ label, value, info }: { label: string; value: string; info: string }) {
+function SpotlightMetric({ label, value, caption, info }: { label: string; value: string; caption: string; info: string }) {
   return (
     <div style={headlineMetricStyle}>
       <div style={{ display: 'flex', alignItems: 'center', color: '#8b96aa', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
         {label}
         <InfoHint text={info} />
       </div>
-      <div style={{ fontSize: 28, fontWeight: 800 }}>{value}</div>
+      <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.2 }}>{value}</div>
+      <div style={{ color: '#8f9aad', fontSize: 13, lineHeight: 1.6 }}>{caption}</div>
     </div>
   );
 }
@@ -244,4 +375,31 @@ const headlineMetricStyle = {
   border: '1px solid rgba(255,255,255,0.05)',
   display: 'grid',
   gap: 8
+} as const;
+
+const signalCardStyle = {
+  display: 'grid',
+  gap: 12,
+  padding: '14px 15px',
+  borderRadius: 16,
+  background: '#090e16',
+  border: '1px solid rgba(255,255,255,0.05)'
+} as const;
+
+const signalActionStyle = {
+  padding: '10px 11px',
+  borderRadius: 12,
+  background: 'rgba(103,214,164,0.08)',
+  border: '1px solid rgba(103,214,164,0.12)',
+  color: '#dff7eb',
+  lineHeight: 1.6
+} as const;
+
+const reviewMatchStyle = {
+  display: 'grid',
+  gap: 10,
+  padding: '14px 15px',
+  borderRadius: 16,
+  background: '#090e16',
+  border: '1px solid rgba(255,255,255,0.05)'
 } as const;
