@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
+import { HttpError } from '../lib/http.js';
 import { collectPlayerSnapshot } from '../services/collectionService.js';
 import { createJob, getJob, updateJob } from '../services/jobStore.js';
 
@@ -12,13 +13,31 @@ const bodySchema = z.object({
 
 export const analyticsRouter = Router();
 
+function formatCollectionError(error: unknown) {
+  if (error instanceof HttpError) {
+    if (error.status === 403) {
+      return 'La Riot API key del servidor no es válida o ya expiró. Actualizala en Render antes de seguir analizando.';
+    }
+
+    if (error.status === 429) {
+      return 'Riot limitó temporalmente las requests. Esperá un poco y probá otra vez con menos partidas si hace falta.';
+    }
+
+    if (error.status === 404) {
+      return 'No pudimos encontrar esa cuenta o alguna de sus partidas. Revisá el Riot ID y volvé a intentar.';
+    }
+  }
+
+  return error instanceof Error ? error.message : 'Unknown error';
+}
+
 analyticsRouter.post('/collect', async (req, res) => {
   try {
     const input = bodySchema.parse(req.body);
     const dataset = await collectPlayerSnapshot(input);
     res.json(dataset);
   } catch (error) {
-    res.status(400).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+    res.status(400).json({ error: formatCollectionError(error) });
   }
 });
 
@@ -46,7 +65,7 @@ analyticsRouter.post('/collect/start', async (req, res) => {
       .catch((error) => {
         updateJob(job.id, {
           status: 'failed',
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: formatCollectionError(error)
         });
       });
 
@@ -56,7 +75,7 @@ analyticsRouter.post('/collect/start', async (req, res) => {
       progress: job.progress
     });
   } catch (error) {
-    res.status(400).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+    res.status(400).json({ error: formatCollectionError(error) });
   }
 });
 

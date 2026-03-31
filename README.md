@@ -365,6 +365,7 @@ En `don-sosa`:
 - `RIOT_REGION`
 - `CORS_ORIGIN`
 - `VITE_API_BASE_URL`
+- `BETA_ACCESS_CODE` (opcional)
 
 ### CORS
 
@@ -385,6 +386,7 @@ Si querés un dominio gratis propio, podés más adelante apuntar algo tipo Duck
 - Para una beta chica entre amigos, podés centralizar tu development key en el backend.
 - No corresponde pedirles a ellos que peguen su key en la web.
 - Para un producto realmente público, abierto a cualquiera, vas a necesitar una production key aprobada por Riot.
+- Si querés dejarlo como beta privada mientras esperás una key mejor, definí `BETA_ACCESS_CODE` y la app va a pedir un código antes de entrar.
 
 ---
 

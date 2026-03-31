@@ -21,6 +21,17 @@ function delay(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+async function readErrorMessage(response: Response) {
+  const text = await response.text();
+
+  try {
+    const parsed = JSON.parse(text) as { error?: string };
+    return parsed.error ?? text;
+  } catch {
+    return text;
+  }
+}
+
 export async function collectProfile(
   gameName: string,
   tagLine: string,
@@ -42,7 +53,7 @@ export async function collectProfile(
     });
 
     if (!startResponse.ok) {
-      throw new Error(await startResponse.text());
+      throw new Error(await readErrorMessage(startResponse));
     }
 
     const startJob = (await startResponse.json()) as CollectionJobResponse;
@@ -56,7 +67,7 @@ export async function collectProfile(
       });
 
       if (!jobResponse.ok) {
-        throw new Error(await jobResponse.text());
+        throw new Error(await readErrorMessage(jobResponse));
       }
 
       const job = (await jobResponse.json()) as CollectionJobResponse;

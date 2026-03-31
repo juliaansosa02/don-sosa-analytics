@@ -490,6 +490,16 @@ export default function App() {
             </div>
           </Card>
         )}
+
+        <footer style={footerStyle}>
+          <div style={{ color: '#7f8ca1', fontSize: 13 }}>
+            Don Sosa Coach beta privada de coaching y análisis competitivo para League of Legends.
+          </div>
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
+            <a href="/privacy.html" target="_blank" rel="noreferrer" style={footerLinkStyle}>Privacy Policy</a>
+            <a href="/terms.html" target="_blank" rel="noreferrer" style={footerLinkStyle}>Terms of Service</a>
+          </div>
+        </footer>
       </div>
     </Shell>
   );
@@ -810,4 +820,18 @@ const heroMetaValueStyle: CSSProperties = {
 const heroMetaSubtleStyle: CSSProperties = {
   color: '#8d98ad',
   fontSize: 12
+};
+
+const footerStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 12,
+  padding: '4px 4px 18px'
+};
+
+const footerLinkStyle: CSSProperties = {
+  color: '#b8c7de',
+  textDecoration: 'none',
+  fontSize: 13
 };

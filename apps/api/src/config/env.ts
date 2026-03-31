@@ -7,6 +7,7 @@ const envSchema = z.object({
   RIOT_REGION: z.string().default('americas'),
   PORT: z.coerce.number().default(8787),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  BETA_ACCESS_CODE: z.string().optional(),
   DEFAULT_GAME_NAME: z.string().optional(),
   DEFAULT_TAG_LINE: z.string().optional(),
   MATCH_COUNT: z.coerce.number().default(100),

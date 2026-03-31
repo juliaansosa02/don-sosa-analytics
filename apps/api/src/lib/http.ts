@@ -1,5 +1,19 @@
 const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
 
+export class HttpError extends Error {
+  status: number;
+  url: string;
+  responseText: string;
+
+  constructor(status: number, url: string, responseText: string) {
+    super(`HTTP ${status} for ${url}: ${responseText}`);
+    this.name = 'HttpError';
+    this.status = status;
+    this.url = url;
+    this.responseText = responseText;
+  }
+}
+
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -37,7 +51,7 @@ export async function httpJson<T>(
     const shouldRetry = RETRYABLE_STATUS.has(response.status) && attempt < retries;
 
     if (!shouldRetry) {
-      throw new Error(`HTTP ${response.status} for ${url}: ${message}`);
+      throw new HttpError(response.status, url, message);
     }
 
     const retryAfterMs = parseRetryAfterMs(response.headers.get('retry-after'));

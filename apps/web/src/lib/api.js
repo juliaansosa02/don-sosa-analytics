@@ -4,6 +4,16 @@ const POLL_INTERVAL_MS = 1200;
 function delay(ms) {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
+async function readErrorMessage(response) {
+    const text = await response.text();
+    try {
+        const parsed = JSON.parse(text);
+        return parsed.error ?? text;
+    }
+    catch {
+        return text;
+    }
+}
 export async function collectProfile(gameName, tagLine, count = 100, options) {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -15,7 +25,7 @@ export async function collectProfile(gameName, tagLine, count = 100, options) {
             signal: controller.signal
         });
         if (!startResponse.ok) {
-            throw new Error(await startResponse.text());
+            throw new Error(await readErrorMessage(startResponse));
         }
         const startJob = (await startResponse.json());
         options?.onProgress?.(startJob.progress);
@@ -25,7 +35,7 @@ export async function collectProfile(gameName, tagLine, count = 100, options) {
                 signal: controller.signal
             });
             if (!jobResponse.ok) {
-                throw new Error(await jobResponse.text());
+                throw new Error(await readErrorMessage(jobResponse));
             }
             const job = (await jobResponse.json());
             options?.onProgress?.(job.progress);
