@@ -193,6 +193,17 @@ export default function App() {
     return [...availableRoles].sort((a, b) => priority.indexOf(a) - priority.indexOf(b));
   }, [availableRoles]);
 
+  const needsSampleBackfill = useMemo(() => {
+    if (!dataset) return false;
+    return dataset.matches.length < matchCount;
+  }, [dataset, matchCount]);
+
+  useEffect(() => {
+    if (!availableRoles.includes(roleFilter)) {
+      setRoleFilter('ALL');
+    }
+  }, [availableRoles, roleFilter]);
+
   function persistSavedProfile(nextDataset: Dataset, nextMatchCount: number) {
     const nextRecord: SavedProfileRecord = {
       gameName: nextDataset.player,
@@ -249,18 +260,23 @@ export default function App() {
     try {
       const cachedDataset = window.localStorage.getItem(datasetStorageKey(gameName, tagLine));
       const previousDataset = cachedDataset ? (JSON.parse(cachedDataset) as Dataset) : null;
+      const shouldRefreshFullSample = !previousDataset || previousDataset.matches.length < matchCount;
       const result = await collectProfile(gameName, tagLine, matchCount, {
         onProgress: (nextProgress) => setProgress(nextProgress),
-        knownMatchIds: previousDataset?.matches.map((match) => match.matchId) ?? []
+        knownMatchIds: shouldRefreshFullSample ? [] : previousDataset.matches.map((match) => match.matchId)
       });
-      const mergedDataset = mergeDatasets(previousDataset, result);
+      const mergedDataset = shouldRefreshFullSample
+        ? result
+        : mergeDatasets(previousDataset, result);
       setDataset(mergedDataset);
       setShowAccountControls(false);
-      if (previousDataset) {
+      if (previousDataset && !shouldRefreshFullSample) {
         const addedMatches = mergedDataset.matches.length - previousDataset.matches.length;
         setSyncMessage(addedMatches > 0
           ? `Se agregaron ${addedMatches} partidas nuevas. El análisis mantiene el historial previo y recalcula todo por fecha real.`
           : 'No aparecieron partidas nuevas para sumar. El análisis mantiene tu histórico actual sin sobrescribirlo.');
+      } else if (previousDataset && shouldRefreshFullSample) {
+        setSyncMessage(`Se reconstruyó la muestra hasta ${mergedDataset.summary.matches} partidas válidas para que el análisis no quede sesgado por una cache más chica.`);
       } else {
         setSyncMessage(`Se cargaron ${mergedDataset.summary.matches} partidas válidas para construir tu primera muestra.`);
       }
@@ -366,7 +382,9 @@ export default function App() {
                   {gameName && tagLine ? `${gameName}#${tagLine}` : 'Cuenta lista para analizar'}.
                 </div>
                 <div style={{ color: '#8a95a8', fontSize: 12, lineHeight: 1.5 }}>
-                  Si ya hay partidas guardadas, actualizar busca partidas nuevas y las agrega sin pisar el historial anterior.
+                  {needsSampleBackfill
+                    ? `La muestra guardada tiene ${dataset.matches.length} partidas. Si pedís ${matchCount}, la app vuelve a construir la muestra completa para llegar a ese tamaño.`
+                    : 'Si ya hay partidas guardadas, actualizar busca partidas nuevas y las agrega sin pisar el historial anterior.'}
                 </div>
                 {syncMessage ? <div style={syncMessageStyle}>{syncMessage}</div> : null}
                 <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -388,7 +406,7 @@ export default function App() {
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <button type="button" style={buttonStyle} onClick={() => void runAnalysis()}>
-                    {loading ? 'Analizando...' : `Actualizar ${matchCount} partidas`}
+                    {loading ? 'Analizando...' : needsSampleBackfill ? `Completar a ${matchCount} partidas` : `Actualizar ${matchCount} partidas`}
                   </button>
                   <button type="button" style={secondaryButtonStyle} onClick={() => setShowAccountControls(true)}>Cambiar cuenta</button>
                 </div>
