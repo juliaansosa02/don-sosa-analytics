@@ -1,6 +1,6 @@
 import { buildAggregateSummary } from '@don-sosa/core';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { collectProfile } from '../lib/api';
+import { collectProfile, fetchCachedProfile } from '../lib/api';
 import type { Dataset } from '../types';
 import { Shell, Card, Badge } from '../components/ui';
 import { CoachingHome } from '../features/coach/CoachingHome';
@@ -81,6 +81,27 @@ export default function App() {
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [savedProfiles, setSavedProfiles] = useState<SavedProfileRecord[]>([]);
 
+  async function hydrateFromServer(gameNameValue: string, tagLineValue: string) {
+    try {
+      const serverDataset = await fetchCachedProfile(gameNameValue, tagLineValue);
+      if (!serverDataset) return false;
+
+      setDataset(serverDataset);
+      setShowAccountControls(false);
+      window.localStorage.setItem(datasetStorageKey(gameNameValue, tagLineValue), JSON.stringify(serverDataset));
+      window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({
+        gameName: gameNameValue,
+        tagLine: tagLineValue,
+        matchCount
+      }));
+      persistSavedProfile(serverDataset, matchCount);
+      setSyncMessage('Recuperamos una versión guardada en el servidor para que no arranques de cero en este dispositivo.');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   useEffect(() => {
     const rawProfiles = window.localStorage.getItem(savedProfilesStorageKey);
     if (rawProfiles) {
@@ -111,6 +132,7 @@ export default function App() {
           }
         } else {
           setShowAccountControls(true);
+          void hydrateFromServer(parsed.gameName, parsed.tagLine);
         }
       }
     } catch {
@@ -249,6 +271,7 @@ export default function App() {
 
     setDataset(null);
     setShowAccountControls(true);
+    void hydrateFromServer(profile.gameName, profile.tagLine);
   }
 
   async function runAnalysis() {

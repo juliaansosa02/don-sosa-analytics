@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { buildAggregateSummary } from '@don-sosa/core';
 import { useEffect, useMemo, useState } from 'react';
-import { collectProfile } from '../lib/api';
+import { collectProfile, fetchCachedProfile } from '../lib/api';
 import { Shell, Card, Badge } from '../components/ui';
 import { CoachingHome } from '../features/coach/CoachingHome';
 import { StatsTab } from '../features/stats/StatsTab';
@@ -55,6 +55,27 @@ export default function App() {
     const [syncMessage, setSyncMessage] = useState(null);
     const [dataset, setDataset] = useState(null);
     const [savedProfiles, setSavedProfiles] = useState([]);
+    async function hydrateFromServer(gameNameValue, tagLineValue) {
+        try {
+            const serverDataset = await fetchCachedProfile(gameNameValue, tagLineValue);
+            if (!serverDataset)
+                return false;
+            setDataset(serverDataset);
+            setShowAccountControls(false);
+            window.localStorage.setItem(datasetStorageKey(gameNameValue, tagLineValue), JSON.stringify(serverDataset));
+            window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({
+                gameName: gameNameValue,
+                tagLine: tagLineValue,
+                matchCount
+            }));
+            persistSavedProfile(serverDataset, matchCount);
+            setSyncMessage('Recuperamos una versión guardada en el servidor para que no arranques de cero en este dispositivo.');
+            return true;
+        }
+        catch {
+            return false;
+        }
+    }
     useEffect(() => {
         const rawProfiles = window.localStorage.getItem(savedProfilesStorageKey);
         if (rawProfiles) {
@@ -90,6 +111,7 @@ export default function App() {
                 }
                 else {
                     setShowAccountControls(true);
+                    void hydrateFromServer(parsed.gameName, parsed.tagLine);
                 }
             }
         }
@@ -226,6 +248,7 @@ export default function App() {
         }
         setDataset(null);
         setShowAccountControls(true);
+        void hydrateFromServer(profile.gameName, profile.tagLine);
     }
     async function runAnalysis() {
         setLoading(true);

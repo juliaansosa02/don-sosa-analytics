@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { HttpError } from '../lib/http.js';
 import { collectPlayerSnapshot } from '../services/collectionService.js';
 import { createJob, getJob, updateJob } from '../services/jobStore.js';
+import { loadProfileSnapshot } from '../services/profileStore.js';
 
 const bodySchema = z.object({
   gameName: z.string().min(1),
@@ -87,4 +88,14 @@ analyticsRouter.get('/collect/:jobId', (req, res) => {
   }
 
   res.json(job);
+});
+
+analyticsRouter.get('/profile/:gameName/:tagLine', async (req, res) => {
+  const dataset = await loadProfileSnapshot(req.params.gameName, req.params.tagLine);
+  if (!dataset) {
+    res.status(404).json({ error: 'No cached profile found' });
+    return;
+  }
+
+  res.json(dataset);
 });

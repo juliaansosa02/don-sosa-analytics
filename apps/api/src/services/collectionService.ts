@@ -5,6 +5,7 @@ import { createParticipantSnapshot } from '../analysis/participantFactory.js';
 import { buildRuneIndex, getLatestDDragonVersion } from './dataDragon.js';
 import { buildBenchmarkCatalog, updateBenchmarkStore } from './benchmarkStore.js';
 import { exportSnapshot } from './exporter.js';
+import { saveProfileSnapshot } from './profileStore.js';
 import { riotClient } from './riotClient.js';
 
 export interface CollectionParams {
@@ -147,7 +148,7 @@ export async function collectPlayerSnapshot({
     eligibleSnapshots
   );
 
-  return {
+  const result = {
     ...exported,
     ddragonVersion,
     rawMatchesFetched: snapshots.length,
@@ -163,4 +164,7 @@ export async function collectPlayerSnapshot({
       eligibleSnapshots
     )
   };
+
+  await saveProfileSnapshot(result);
+  return result;
 }

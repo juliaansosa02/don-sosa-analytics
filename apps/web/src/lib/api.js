@@ -57,3 +57,13 @@ export async function collectProfile(gameName, tagLine, count = 100, options) {
         window.clearTimeout(timeout);
     }
 }
+export async function fetchCachedProfile(gameName, tagLine) {
+    const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}`);
+    if (response.status === 404) {
+        return null;
+    }
+    if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+    }
+    return response.json();
+}
