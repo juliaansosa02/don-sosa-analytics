@@ -34,6 +34,7 @@ Con:
 - `MATCH_COUNT=100`
 - `RIOT_REQUEST_DELAY_MS=700`
 - `RIOT_MAX_RETRIES=4`
+- `DATABASE_URL` (opcional al principio, recomendado para persistencia real)
 
 ## Variables de URL
 
@@ -47,6 +48,16 @@ Si tu dominio final fuera otro, actualizá:
 - La Riot key va solo en Render, nunca en el frontend.
 - La development key vence rápido, así que esta beta pública te va a durar mientras esa key siga viva.
 - Para algo estable, después hay que pasar a una personal key o production key aprobada por Riot.
+
+## Persistencia real con Postgres
+
+Si querés que los análisis queden guardados aunque cambie el navegador o Render reinicie el servicio:
+
+1. En Render creá un `Postgres` database.
+2. Copiá su `External Database URL`.
+3. Pegala como `DATABASE_URL` en el servicio `don-sosa`.
+
+Cuando `DATABASE_URL` existe, la app guarda snapshots de perfiles en Postgres. Si no existe, cae a almacenamiento por archivo, que sirve como fallback pero no es tan durable.
 
 ## Si falla al abrir la web
 
