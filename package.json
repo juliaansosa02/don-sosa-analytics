@@ -1,0 +1,18 @@
+{
+  "name": "don-sosa-analytics",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @don-sosa/api & npm run dev -w @don-sosa/web",
+    "postinstall": "npm run build -w @don-sosa/core",
+    "dev:api": "npm run build -w @don-sosa/core && npm run dev -w @don-sosa/api",
+    "dev:web": "npm run build -w @don-sosa/core && npm run dev -w @don-sosa/web",
+    "build": "npm run build -w @don-sosa/core && npm run build -w @don-sosa/api && npm run build -w @don-sosa/web",
+    "collect": "npm run collect -w @don-sosa/api",
+    "start": "npm run start -w @don-sosa/api"
+  }
+}

@@ -1,0 +1,7 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { Card, KPI } from '../../components/ui';
+export function MacroTab({ dataset }) {
+    const avgObjectiveDeaths = dataset.matches.reduce((sum, match) => sum + match.timeline.objectiveFightDeaths, 0) / Math.max(dataset.matches.length, 1);
+    const avgMacro = dataset.matches.reduce((sum, match) => sum + match.score.macro, 0) / Math.max(dataset.matches.length, 1);
+    return (_jsxs("div", { style: { display: 'grid', gap: 18 }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }, children: [_jsx(KPI, { label: "Macro score", value: avgMacro.toFixed(1), hint: "Conversi\u00F3n de mapa" }), _jsx(KPI, { label: "Deaths near objectives", value: avgObjectiveDeaths.toFixed(1), hint: "Costo previo a drag/heraldo/bar\u00F3n" }), _jsx(KPI, { label: "Vision", value: dataset.summary.avgVisionScore.toFixed(1), hint: "Setup y seguridad" })] }), _jsx(Card, { title: "Qu\u00E9 mirar en esta secci\u00F3n", subtitle: "Esta vista est\u00E1 dise\u00F1ada para el salto de elo desde decisiones de mapa", children: _jsxs("ul", { style: { margin: 0, paddingLeft: 18, color: '#c7d4ea', lineHeight: 1.8 }, children: [_jsx("li", { children: "\u00BFMor\u00EDs antes de los objetivos?" }), _jsx("li", { children: "\u00BFTu ventaja de l\u00EDnea se convierte en torre, drag\u00F3n o heraldo?" }), _jsx("li", { children: "\u00BFEst\u00E1s llegando tarde a ventanas de reset y setup?" })] }) })] }));
+}

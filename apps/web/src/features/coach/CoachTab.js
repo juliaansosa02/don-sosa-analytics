@@ -1,0 +1,5 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { Card, Badge } from '../../components/ui';
+export function CoachTab({ dataset }) {
+    return (_jsx("div", { style: { display: 'grid', gap: 16 }, children: dataset.summary.insights.map((insight) => (_jsx(Card, { title: insight.title, subtitle: insight.category, children: _jsxs("div", { style: { display: 'grid', gap: 10, color: '#c7d4ea' }, children: [_jsx(Badge, { tone: insight.priority, children: insight.priority.toUpperCase() }), _jsxs("div", { children: [_jsx("strong", { children: "Problema:" }), " ", insight.problem] }), _jsxs("div", { children: [_jsx("strong", { children: "Evidencia:" }), " ", insight.evidence.join(' ')] }), _jsxs("div", { children: [_jsx("strong", { children: "Impacto:" }), " ", insight.impact] }), _jsxs("div", { children: [_jsx("strong", { children: "Causa:" }), " ", insight.cause] }), _jsxs("div", { children: [_jsx("strong", { children: "Acci\u00F3n:" }), " ", insight.actions.join(' ')] })] }) }, insight.id))) }));
+}

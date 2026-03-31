@@ -1,0 +1,59 @@
+import type { AggregateSummary, ParticipantSnapshot } from '@don-sosa/core';
+
+export type MatchSnapshot = ParticipantSnapshot & {
+  timeline: ParticipantSnapshot['timeline'] & {
+    goldDiffAt15?: number;
+    levelDiffAt15?: number;
+  };
+};
+
+export interface RankSummary {
+  label: string;
+  queueLabel?: string;
+  tier: string;
+  division: string;
+  leaguePoints: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+}
+
+export interface BenchmarkAggregateRecord {
+  tier: string;
+  role: string;
+  queueBucket: 'RANKED_SOLO' | 'RANKED_FLEX' | 'OTHER';
+  championName: string | null;
+  sampleSize: number;
+  avgCsAt15: number;
+  avgLevelAt15: number;
+  avgGoldAt15: number;
+  avgDeathsPre14: number;
+}
+
+export interface BenchmarkCatalog {
+  source: 'internal';
+  note: string;
+  totalTrackedEntries: number;
+  roleBenchmarks: BenchmarkAggregateRecord[];
+  championBenchmarks: BenchmarkAggregateRecord[];
+}
+
+export interface Dataset {
+  player: string;
+  tagLine: string;
+  ddragonVersion?: string;
+  rawMatchesFetched?: number;
+  remakesExcluded?: number;
+  profile?: {
+    profileIconId: number;
+    summonerLevel: number;
+  } | null;
+  rank?: {
+    highest: RankSummary;
+    soloQueue: RankSummary;
+    flexQueue: RankSummary;
+  } | null;
+  benchmarks?: BenchmarkCatalog | null;
+  summary: AggregateSummary;
+  matches: MatchSnapshot[];
+}
