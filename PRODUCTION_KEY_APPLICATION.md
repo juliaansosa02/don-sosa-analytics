@@ -4,7 +4,6 @@ This file is a practical draft to help submit Don Sosa Coach for a Riot producti
 
 Important:
 - Do not claim features that are not live.
-- Replace placeholder contact information before submitting.
 - Riot can still reject the request; this pack improves readiness but does not guarantee approval.
 
 ## Current public site
@@ -12,6 +11,7 @@ Important:
 - Product URL: `https://don-sosa.onrender.com`
 - Privacy Policy: `https://don-sosa.onrender.com/privacy.html`
 - Terms of Service: `https://don-sosa.onrender.com/terms.html`
+- Contact email: `juliaansosa02@gmail.com`
 
 ## One-line product description
 
@@ -58,7 +58,7 @@ This application is for a live prototype of Don Sosa Coach. The current public b
 - Public website works without needing source code access.
 - Terms page is public.
 - Privacy page is public.
-- Replace placeholder contact text in both legal pages with a real email.
+- Contact email is visible and real.
 - If possible, add a simple About or Contact section on the website.
 - Keep the site in a stable state when Riot reviews it.
 - Avoid marketing it as an open public live product until you have the right key.
