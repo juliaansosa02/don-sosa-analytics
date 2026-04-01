@@ -338,6 +338,20 @@ async function generateWithOpenAI(context: AICoachContext, localCards: Awaited<R
   return response.output_parsed;
 }
 
+function isRecoverableOpenAIError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+
+  const message = error.message.toLowerCase();
+  return (
+    message.includes('insufficient_quota') ||
+    message.includes('exceeded your current quota') ||
+    message.includes('billing details') ||
+    message.includes('rate limit') ||
+    message.includes('too many requests') ||
+    message.includes('429')
+  );
+}
+
 export async function generateAICoach(input: AICoachRequest) {
   const dataset = await loadProfileSnapshot<StoredDataset>(input.gameName, input.tagLine);
   if (!dataset) {
@@ -357,10 +371,18 @@ export async function generateAICoach(input: AICoachRequest) {
   let coach = normalizeCoachOutput(context, buildDraftCoach(context, localKnowledge));
 
   if (input.providerMode !== 'draft' && openai) {
-    const modelOutput = await generateWithOpenAI(context, localKnowledge);
-    if (modelOutput) {
-      provider = 'openai';
-      coach = normalizeCoachOutput(context, modelOutput);
+    try {
+      const modelOutput = await generateWithOpenAI(context, localKnowledge);
+      if (modelOutput) {
+        provider = 'openai';
+        coach = normalizeCoachOutput(context, modelOutput);
+      }
+    } catch (error) {
+      if (!isRecoverableOpenAIError(error)) {
+        throw error;
+      }
+
+      console.warn('OpenAI unavailable for AI coach, falling back to structured draft mode:', error instanceof Error ? error.message : error);
     }
   }
 
