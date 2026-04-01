@@ -42,6 +42,7 @@ interface SavedProfileRecord {
 }
 
 const savedProfilesStorageKey = 'don-sosa:saved-profiles';
+const initialMatchOptions = [20, 50, 100];
 
 function datasetStorageKey(gameName: string, tagLine: string) {
   return `don-sosa:dataset:${gameName}#${tagLine}`.toLowerCase();
@@ -64,6 +65,40 @@ function mergeDatasets(current: Dataset | null, incoming: Dataset, locale: Local
     summary: mergedSummary,
     remakesExcluded: Math.max(current.remakesExcluded ?? 0, incoming.remakesExcluded ?? 0)
   };
+}
+
+function normalizeTagLineInput(value: string) {
+  return value.replace(/^#+/, '').trim();
+}
+
+function buildTargetOptions(currentMatches: number | null) {
+  if (!currentMatches) return initialMatchOptions;
+
+  const options = new Set<number>([currentMatches, 100]);
+  [1, 5, 10].forEach((delta) => {
+    const next = Math.min(100, currentMatches + delta);
+    if (next > currentMatches) options.add(next);
+  });
+
+  return Array.from(options).sort((a, b) => a - b);
+}
+
+function buildQuickRefreshActions(currentMatches: number | null) {
+  if (!currentMatches || currentMatches >= 100) return [];
+
+  const candidates = [
+    { id: 'plus-1', target: Math.min(100, currentMatches + 1), label: '+1' },
+    { id: 'plus-5', target: Math.min(100, currentMatches + 5), label: '+5' },
+    { id: 'plus-10', target: Math.min(100, currentMatches + 10), label: '+10' },
+    { id: 'complete', target: 100, label: '100' }
+  ];
+
+  const seen = new Set<number>();
+  return candidates.filter((action) => {
+    if (action.target <= currentMatches || seen.has(action.target)) return false;
+    seen.add(action.target);
+    return true;
+  });
 }
 
 export default function App() {
@@ -251,6 +286,9 @@ export default function App() {
     return dataset.matches.length < matchCount;
   }, [dataset, matchCount]);
 
+  const targetCountOptions = useMemo(() => buildTargetOptions(dataset?.matches.length ?? null), [dataset?.matches.length]);
+  const quickRefreshActions = useMemo(() => buildQuickRefreshActions(dataset?.matches.length ?? null), [dataset?.matches.length]);
+
   useEffect(() => {
     if (!availableRoles.includes(roleFilter)) {
       setRoleFilter('ALL');
@@ -317,7 +355,7 @@ export default function App() {
     void hydrateFromServer(profile.gameName, profile.tagLine);
   }
 
-  async function runAnalysis() {
+  async function runAnalysis(requestedCount = matchCount) {
     setLoading(true);
     setError(null);
     setSyncMessage(null);
@@ -326,8 +364,8 @@ export default function App() {
     try {
       const cachedDataset = window.localStorage.getItem(datasetStorageKey(gameName, tagLine));
       const previousDataset = cachedDataset ? (JSON.parse(cachedDataset) as Dataset) : null;
-      const shouldRefreshFullSample = !previousDataset || previousDataset.matches.length < matchCount;
-      const result = await collectProfile(gameName, tagLine, matchCount, {
+      const shouldRefreshFullSample = !previousDataset || previousDataset.matches.length < requestedCount;
+      const result = await collectProfile(gameName, tagLine, requestedCount, {
         locale,
         onProgress: (nextProgress) => setProgress(nextProgress),
         knownMatchIds: shouldRefreshFullSample ? [] : previousDataset.matches.map((match) => match.matchId)
@@ -346,7 +384,7 @@ export default function App() {
           : (locale === 'en'
             ? 'No new matches were found to add. The analysis keeps your current history without overwriting it.'
             : 'No aparecieron partidas nuevas para sumar. El análisis mantiene tu histórico actual sin sobrescribirlo.'));
-      } else if (previousDataset && shouldRefreshFullSample) {
+        } else if (previousDataset && shouldRefreshFullSample) {
         setSyncMessage(locale === 'en'
           ? `The sample was rebuilt to ${mergedDataset.summary.matches} valid matches so the analysis is not biased by a smaller cache.`
           : `Se reconstruyó la muestra hasta ${mergedDataset.summary.matches} partidas válidas para que el análisis no quede sesgado por una cache más chica.`);
@@ -355,9 +393,10 @@ export default function App() {
           ? `${mergedDataset.summary.matches} valid matches were loaded to build your first sample.`
           : `Se cargaron ${mergedDataset.summary.matches} partidas válidas para construir tu primera muestra.`);
       }
-      window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({ gameName, tagLine, matchCount }));
+      setMatchCount(requestedCount);
+      window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({ gameName, tagLine, matchCount: requestedCount }));
       window.localStorage.setItem(datasetStorageKey(gameName, tagLine), JSON.stringify(mergedDataset));
-      persistSavedProfile(mergedDataset, matchCount);
+      persistSavedProfile(mergedDataset, requestedCount);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -368,7 +407,7 @@ export default function App() {
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    await runAnalysis();
+    await runAnalysis(matchCount);
   }
 
   async function handleGenerateAICoach(force = false) {
@@ -464,74 +503,113 @@ export default function App() {
           </div>
 
           <Card
-            title={showAccountControls ? (locale === 'en' ? 'Analyze account' : 'Analizar cuenta') : (locale === 'en' ? 'Active account' : 'Cuenta activa')}
+            title={showAccountControls ? (locale === 'en' ? 'Load Riot account' : 'Cargar cuenta de Riot') : (locale === 'en' ? 'Active account' : 'Cuenta activa')}
             subtitle={showAccountControls
-              ? (locale === 'en' ? 'Enter a Riot ID and choose how many matches you want to analyze.' : 'Ingresá el Riot ID y elegí cuántas partidas querés analizar.')
-              : (locale === 'en' ? 'Your account is ready to refresh data or switch profiles whenever you want.' : 'Tu cuenta queda lista para refrescar datos o cambiar de perfil cuando quieras.')}
+              ? (locale === 'en' ? 'Enter the Riot ID you want to analyze and choose the depth of the first sample.' : 'Ingresá el Riot ID que querés analizar y elegí la profundidad de la primera muestra.')
+              : (locale === 'en' ? 'Your account is ready. Refresh only what is missing or switch profiles whenever you want.' : 'Tu cuenta ya está lista. Refrescá solo lo que falta o cambiá de perfil cuando quieras.')}
           >
             {showAccountControls || !dataset ? (
-              <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 12 }}>
-                <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr .8fr .7fr', gap: 10 }}>
-                  <input value={gameName} onChange={(e) => setGameName(e.target.value)} placeholder="Riot Game Name" style={inputStyle} />
-                  <input value={tagLine} onChange={(e) => setTagLine(e.target.value)} placeholder="Tag Line" style={inputStyle} />
-                  <select value={matchCount} onChange={(e) => setMatchCount(Number(e.target.value))} style={selectStyle}>
-                    {[10, 20, 30, 40, 50, 75, 100].map((count) => (
-                      <option key={count} value={count}>{count} {locale === 'en' ? 'matches' : 'partidas'}</option>
-                    ))}
-                  </select>
+              <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 16 }}>
+                <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr .85fr .7fr', gap: 12, alignItems: 'end' }}>
+                  <label style={fieldBlockStyle}>
+                    <span style={fieldLabelStyle}>{locale === 'en' ? 'Game name' : 'Game name'}</span>
+                    <input value={gameName} onChange={(e) => setGameName(e.target.value)} placeholder={locale === 'en' ? 'For example, Faker' : 'Por ejemplo, Don Sosa'} style={inputStyle} />
+                  </label>
+                  <label style={fieldBlockStyle}>
+                    <span style={fieldLabelStyle}>{locale === 'en' ? 'Tag' : 'Tag'}</span>
+                    <div style={tagInputShellStyle}>
+                      <span style={tagPrefixStyle}>#</span>
+                      <input value={tagLine} onChange={(e) => setTagLine(normalizeTagLineInput(e.target.value))} placeholder={locale === 'en' ? 'KR1' : 'LAS'} style={tagInputStyle} />
+                    </div>
+                  </label>
+                  <label style={fieldBlockStyle}>
+                    <span style={fieldLabelStyle}>{locale === 'en' ? 'First sample' : 'Primera muestra'}</span>
+                    <select value={matchCount} onChange={(e) => setMatchCount(Number(e.target.value))} style={selectStyle}>
+                      {initialMatchOptions.map((count) => (
+                        <option key={count} value={count}>{count} {locale === 'en' ? 'matches' : 'partidas'}</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
 
-                <div style={{ color: '#7f8898', fontSize: 12, lineHeight: 1.5 }}>
-                  {matchCount >= 75
-                    ? (locale === 'en' ? 'With 75 or 100 matches the analysis is more stable, but it can take a while because of Riot rate limits.' : 'Con 75 o 100 partidas el análisis es más estable, pero puede tardar bastante por los límites de Riot.')
-                    : (locale === 'en' ? 'Fewer matches load faster. More matches produce a more reliable read.' : 'Menos partidas cargan más rápido. Más partidas dan una lectura más confiable.')}
-                </div>
-
-                {!dataset && gameName && tagLine ? (
-                  <div style={{ color: '#9ba6b8', fontSize: 12 }}>
-                    {locale === 'en'
-                      ? 'There is no saved analysis for this account in this browser yet. Load it once and it will be available afterwards.'
-                      : 'No hay un análisis guardado para esta cuenta en este navegador. Cargalo una vez y después quedará disponible.'}
+                <div style={softPanelStyle}>
+                  <div style={{ display: 'grid', gap: 4 }}>
+                    <div style={{ color: '#eef4ff', fontWeight: 700 }}>
+                      {locale === 'en' ? 'Recommended start' : 'Inicio recomendado'}
+                    </div>
+                    <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
+                      {matchCount >= 100
+                        ? (locale === 'en' ? 'A 100-match baseline gives the sharpest first read, but it can take longer because of Riot rate limits.' : 'Una base de 100 partidas da la lectura inicial más filosa, pero puede tardar más por los límites de Riot.')
+                        : (locale === 'en' ? 'Start with 20 or 50 if you want speed. Move to 100 when you want the most stable baseline.' : 'Empezá con 20 o 50 si querés velocidad. Pasá a 100 cuando quieras la base más estable.')}
+                    </div>
                   </div>
-                ) : null}
+                  {!dataset && gameName && tagLine ? (
+                    <div style={{ color: '#a5b2c6', fontSize: 13, lineHeight: 1.6 }}>
+                      {locale === 'en'
+                        ? 'Once this account is loaded, it will stay saved here and future refreshes will only complete what is missing.'
+                        : 'Una vez que cargues esta cuenta, va a quedar guardada acá y los próximos refreshes solo completarán lo que falte.'}
+                    </div>
+                  ) : null}
+                </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Badge tone="default">{locale === 'en' ? `Current filter: ${translateRole(roleFilter, 'en')}` : `Filtro actual: ${getRoleLabel(roleFilter)}`}</Badge>
-                    {dataset?.remakesExcluded ? <Badge tone="medium">{locale === 'en' ? `${dataset.remakesExcluded} remakes excluded` : `${dataset.remakesExcluded} remakes excluidos`}</Badge> : null}
+                    <Badge tone="default">{locale === 'en' ? `${matchCount} match target` : `Objetivo de ${matchCount} partidas`}</Badge>
+                    <Badge tone="default">{locale === 'en' ? `Current read: ${translateRole(roleFilter, 'en')}` : `Lectura actual: ${getRoleLabel(roleFilter)}`}</Badge>
                   </div>
-                  <button type="submit" style={buttonStyle}>{loading ? (locale === 'en' ? 'Analyzing...' : 'Analizando...') : `${dataset ? (locale === 'en' ? 'Update' : 'Actualizar') : (locale === 'en' ? 'Load' : 'Cargar')} ${matchCount} ${locale === 'en' ? 'matches' : 'partidas'}`}</button>
+                  <button type="submit" style={buttonStyle}>{loading ? (locale === 'en' ? 'Analyzing...' : 'Analizando...') : (locale === 'en' ? 'Build first analysis' : 'Construir primer análisis')}</button>
                 </div>
               </form>
             ) : (
-              <div style={{ display: 'grid', gap: 12 }}>
-              <div style={{ color: '#e7eef8', lineHeight: 1.6 }}>
-                  {gameName && tagLine ? `${gameName}#${tagLine}` : (locale === 'en' ? 'Account ready to analyze' : 'Cuenta lista para analizar')}.
-                </div>
-                <div style={{ color: '#8a95a8', fontSize: 12, lineHeight: 1.5 }}>
-                  {needsSampleBackfill
-                    ? (locale === 'en'
-                      ? `The saved sample has ${dataset.matches.length} matches. If you ask for ${matchCount}, the app rebuilds the full sample to reach that size.`
-                      : `La muestra guardada tiene ${dataset.matches.length} partidas. Si pedís ${matchCount}, la app vuelve a construir la muestra completa para llegar a ese tamaño.`)
-                    : (locale === 'en'
-                      ? 'If matches are already saved, update looks for new ones and adds them without overwriting the previous history.'
-                      : 'Si ya hay partidas guardadas, actualizar busca partidas nuevas y las agrega sin pisar el historial anterior.')}
+              <div style={{ display: 'grid', gap: 14 }}>
+                <div style={softPanelStyle}>
+                  <div style={{ color: '#e7eef8', lineHeight: 1.5, fontWeight: 700 }}>
+                    {gameName && tagLine ? `${gameName}#${tagLine}` : (locale === 'en' ? 'Account ready to analyze' : 'Cuenta lista para analizar')}
+                  </div>
+                  <div style={{ color: '#8a95a8', fontSize: 13, lineHeight: 1.6 }}>
+                    {locale === 'en'
+                      ? `Saved sample: ${dataset.matches.length} matches. Choose whether you want to add a little, a lot or complete the block.`
+                      : `Muestra guardada: ${dataset.matches.length} partidas. Elegí si querés sumar un poco, bastante o completar el bloque.`}
+                  </div>
                 </div>
                 {syncMessage ? <div style={syncMessageStyle}>{syncMessage}</div> : null}
-                <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  {quickRefreshActions.length ? (
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      <div style={fieldLabelStyle}>{locale === 'en' ? 'Quick refresh' : 'Refresh rápido'}</div>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {quickRefreshActions.map((action) => (
+                          <button
+                            key={action.id}
+                            type="button"
+                            style={secondaryButtonStyle}
+                            onClick={() => void runAnalysis(action.target)}
+                            disabled={loading}
+                          >
+                            {action.id === 'complete'
+                              ? (locale === 'en' ? 'Complete to 100' : 'Completar a 100')
+                              : `${action.label} ${locale === 'en' ? 'match' : 'partida'}${action.label === '+1' ? '' : 's'}`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 12 }}>
                   <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ color: '#8d96a5', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Match count' : 'Cantidad de partidas'}</div>
+                    <div style={fieldLabelStyle}>{locale === 'en' ? 'Target block' : 'Bloque objetivo'}</div>
                     <select value={matchCount} onChange={(e) => setMatchCount(Number(e.target.value))} style={selectStyle}>
-                      {[10, 20, 30, 40, 50, 75, 100].map((count) => (
+                      {targetCountOptions.map((count) => (
                         <option key={count} value={count}>{count} {locale === 'en' ? 'matches' : 'partidas'}</option>
                       ))}
                     </select>
                   </div>
                   <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ color: '#8d96a5', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Role filter' : 'Filtro de rol'}</div>
+                    <div style={fieldLabelStyle}>{locale === 'en' ? 'Current context' : 'Contexto actual'}</div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <Badge tone="default">{locale === 'en' ? `Current filter: ${translateRole(roleFilter, 'en')}` : `Filtro actual: ${getRoleLabel(roleFilter)}`}</Badge>
+                      <Badge tone="default">{locale === 'en' ? `${translateRole(roleFilter, 'en')}` : `${getRoleLabel(roleFilter)}`}</Badge>
                       {dataset?.remakesExcluded ? <Badge tone="medium">{locale === 'en' ? `${dataset.remakesExcluded} remakes excluded` : `${dataset.remakesExcluded} remakes excluidos`}</Badge> : null}
+                      {needsSampleBackfill ? <Badge tone="medium">{locale === 'en' ? 'Needs backfill' : 'Le falta backfill'}</Badge> : <Badge tone="low">{locale === 'en' ? 'Only new matches' : 'Solo nuevas partidas'}</Badge>}
                     </div>
                   </div>
                 </div>
@@ -541,7 +619,7 @@ export default function App() {
                       ? (locale === 'en' ? 'Analyzing...' : 'Analizando...')
                       : needsSampleBackfill
                         ? (locale === 'en' ? `Backfill to ${matchCount} matches` : `Completar a ${matchCount} partidas`)
-                        : (locale === 'en' ? `Update ${matchCount} matches` : `Actualizar ${matchCount} partidas`)}
+                        : (locale === 'en' ? 'Check for new matches' : 'Buscar nuevas partidas')}
                   </button>
                   <button type="button" style={secondaryButtonStyle} onClick={() => setShowAccountControls(true)}>{locale === 'en' ? 'Switch account' : 'Cambiar cuenta'}</button>
                 </div>
@@ -556,7 +634,7 @@ export default function App() {
               <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Saved profiles' : 'Perfiles guardados'}</div>
               <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>{locale === 'en' ? 'Jump back into accounts you already analyzed' : 'Volvé rápido a cuentas que ya analizaste'}</div>
             </div>
-            <div className="four-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
               {savedProfiles.map((profile) => {
                 const isActive = `${profile.gameName}#${profile.tagLine}`.toLowerCase() === `${gameName}#${tagLine}`.toLowerCase();
                 return (
@@ -644,7 +722,7 @@ export default function App() {
                   </button>
                 ))}
               </div>
-              <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.1fr .9fr', gap: 10 }}>
+              <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
                 <div style={contextGroupStyle}>
                   <div style={contextLabelStyle}>{locale === 'en' ? 'Queue type' : 'Tipo de cola'}</div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -713,9 +791,9 @@ export default function App() {
           <div style={navigationPanelStyle}>
               <div style={{ display: 'grid', gap: 3 }}>
               <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Explore' : 'Exploración'}</div>
-              <div style={{ color: '#eef4ff', fontSize: 15, fontWeight: 800 }}>{locale === 'en' ? 'Choose which layer to open' : 'Elegí qué capa querés abrir'}</div>
+              <div style={{ color: '#eef4ff', fontSize: 15, fontWeight: 800 }}>{locale === 'en' ? 'Open the layer you need now' : 'Abrí la capa que necesitás ahora'}</div>
             </div>
-            <div className="tab-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0, 1fr))', gap: 8, flex: 1 }}>
+            <div className="tab-grid" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
@@ -783,21 +861,22 @@ export default function App() {
 
 const heroStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '1.2fr .95fr',
-  gap: 18,
-  padding: 24,
-  borderRadius: 24,
-  border: '1px solid rgba(255,255,255,0.06)',
-  background: 'linear-gradient(180deg, rgba(39,27,67,0.8), rgba(7,10,16,0.98))'
+  gridTemplateColumns: '1.18fr .82fr',
+  gap: 20,
+  padding: 28,
+  borderRadius: 28,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'radial-gradient(circle at top left, rgba(79, 56, 146, 0.34), transparent 42%), linear-gradient(180deg, rgba(17,20,31,0.96), rgba(7,10,16,0.98))',
+  boxShadow: '0 28px 80px rgba(0,0,0,0.26)'
 };
 
 const accountCardStyle: CSSProperties = {
   display: 'grid',
-  gap: 12,
-  padding: '18px 20px',
-  borderRadius: 16,
-  background: 'linear-gradient(180deg, rgba(22,26,38,0.96), rgba(8,11,18,0.98))',
-  border: '1px solid rgba(255,255,255,0.06)'
+  gap: 14,
+  padding: '20px 22px',
+  borderRadius: 20,
+  background: 'linear-gradient(180deg, rgba(16,20,30,0.98), rgba(8,11,18,0.98))',
+  border: '1px solid rgba(255,255,255,0.07)'
 };
 
 const profileIconStyle: CSSProperties = {
@@ -807,36 +886,39 @@ const profileIconStyle: CSSProperties = {
 
 const inputStyle: CSSProperties = {
   width: '100%',
-  padding: '12px 14px',
-  borderRadius: 12,
+  padding: '13px 14px',
+  borderRadius: 14,
   border: '1px solid rgba(255,255,255,0.08)',
-  background: '#070b12',
-  color: '#edf2ff'
+  background: 'rgba(7,11,18,0.92)',
+  color: '#edf2ff',
+  boxShadow: '0 0 0 1px rgba(255,255,255,0.02) inset'
 };
 
 const selectStyle: CSSProperties = {
   width: '100%',
-  padding: '12px 14px',
-  borderRadius: 12,
+  padding: '13px 14px',
+  borderRadius: 14,
   border: '1px solid rgba(255,255,255,0.08)',
-  background: '#070b12',
-  color: '#edf2ff'
+  background: 'rgba(7,11,18,0.92)',
+  color: '#edf2ff',
+  boxShadow: '0 0 0 1px rgba(255,255,255,0.02) inset'
 };
 
 const buttonStyle: CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.08)',
+  border: '1px solid rgba(216,253,241,0.12)',
   padding: '12px 18px',
-  borderRadius: 12,
-  background: '#d8fdf1',
+  borderRadius: 14,
+  background: 'linear-gradient(180deg, #d8fdf1, #b8f4df)',
   color: '#07111f',
   fontWeight: 800,
-  cursor: 'pointer'
+  cursor: 'pointer',
+  boxShadow: '0 10px 28px rgba(87, 209, 162, 0.18)'
 };
 
 const secondaryButtonStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.08)',
   padding: '12px 18px',
-  borderRadius: 12,
+  borderRadius: 14,
   background: '#0a0f18',
   color: '#e8eef9',
   fontWeight: 700,
@@ -845,8 +927,8 @@ const secondaryButtonStyle: CSSProperties = {
 
 const tabStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.08)',
-  padding: '12px 14px',
-  borderRadius: 12,
+  padding: '10px 14px',
+  borderRadius: 999,
   background: '#070b12',
   color: '#d7e3f5',
   cursor: 'pointer',
@@ -854,8 +936,8 @@ const tabStyle: CSSProperties = {
 };
 
 const activeTabStyle: CSSProperties = {
-  background: 'linear-gradient(180deg, rgba(53,35,95,0.95), rgba(16,23,35,1))',
-  borderColor: 'rgba(216,253,241,0.18)',
+  background: 'linear-gradient(180deg, rgba(49,55,86,0.95), rgba(16,23,35,1))',
+  borderColor: 'rgba(216,253,241,0.2)',
   color: '#ffffff'
 };
 
@@ -885,13 +967,13 @@ const roleFilterPanelStyle: CSSProperties = {
 
 const rolePillGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
   gap: 8
 };
 
 const rolePillStyle: CSSProperties = {
   padding: '12px 12px',
-  borderRadius: 12,
+  borderRadius: 14,
   border: '1px solid rgba(255,255,255,0.08)',
   background: '#080d15',
   color: '#d9e4f6',
@@ -940,20 +1022,20 @@ const activeContextChipStyle: CSSProperties = {
 };
 
 const syncMessageStyle: CSSProperties = {
-  padding: '10px 12px',
-  borderRadius: 12,
+  padding: '12px 14px',
+  borderRadius: 14,
   background: 'rgba(216,253,241,0.08)',
-  border: '1px solid rgba(216,253,241,0.12)',
+  border: '1px solid rgba(216,253,241,0.14)',
   color: '#dff7eb',
-  fontSize: 12,
+  fontSize: 13,
   lineHeight: 1.5
 };
 
 const navigationPanelStyle: CSSProperties = {
   display: 'grid',
-  gap: 10,
-  padding: '14px 16px',
-  borderRadius: 16,
+  gap: 12,
+  padding: '16px 18px',
+  borderRadius: 18,
   background: '#060a10',
   border: '1px solid rgba(255,255,255,0.06)'
 };
@@ -971,7 +1053,7 @@ const savedProfileCardStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
   padding: '14px 15px',
-  borderRadius: 14,
+  borderRadius: 16,
   background: '#090e16',
   border: '1px solid rgba(255,255,255,0.06)',
   cursor: 'pointer'
@@ -1134,4 +1216,56 @@ const footerLinkStyle: CSSProperties = {
   color: '#b8c7de',
   textDecoration: 'none',
   fontSize: 13
+};
+
+const fieldBlockStyle: CSSProperties = {
+  display: 'grid',
+  gap: 7
+};
+
+const fieldLabelStyle: CSSProperties = {
+  color: '#8da0ba',
+  fontSize: 11,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em'
+};
+
+const tagInputShellStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '36px minmax(0, 1fr)',
+  alignItems: 'center',
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(7,11,18,0.92)',
+  boxShadow: '0 0 0 1px rgba(255,255,255,0.02) inset'
+};
+
+const tagPrefixStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  color: '#7f8ca1',
+  fontWeight: 800,
+  fontSize: 13,
+  borderRight: '1px solid rgba(255,255,255,0.06)',
+  height: '100%'
+};
+
+const tagInputStyle: CSSProperties = {
+  width: '100%',
+  padding: '13px 14px',
+  borderRadius: 14,
+  border: 0,
+  outline: 'none',
+  background: 'transparent',
+  color: '#edf2ff'
+};
+
+const softPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  padding: '14px 15px',
+  borderRadius: 16,
+  background: 'rgba(9,14,22,0.85)',
+  border: '1px solid rgba(255,255,255,0.05)'
 };

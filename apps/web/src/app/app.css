@@ -24,6 +24,20 @@ button, input {
   font: inherit;
 }
 
+button, input, select {
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: rgba(216, 253, 241, 0.22) !important;
+  box-shadow: 0 0 0 3px rgba(216, 253, 241, 0.08);
+}
+
 .info-hint:hover .info-hint-tooltip,
 .info-hint:focus-within .info-hint-tooltip {
   opacity: 1;
