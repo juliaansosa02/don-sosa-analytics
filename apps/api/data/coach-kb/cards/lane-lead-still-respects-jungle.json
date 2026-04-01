@@ -1,0 +1,27 @@
+{
+  "id": "lane-lead-still-respects-jungle",
+  "title": "Winning the lane does not cancel jungle pressure",
+  "language": "en",
+  "role": "TOP",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "lead_still_respects_jungle",
+  "skillLevel": "all",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["top lane", "jungle tracking", "respect", "lead management", "map context"],
+  "body": "Hard winning the 1v1 does not remove the rest of the map. Even when you are stomping lane, you still need to respect where the enemy jungler is, how the map is split, and whether your own jungler can cover. A lead that ignores jungle state is a lead waiting to be donated back.",
+  "actionables": [
+    "When ahead, track jungle side before deciding how far your next push is allowed to go.",
+    "If the enemy jungler is confirmed on your side and your jungler cannot cover, lower your aggression immediately.",
+    "Review lost leads by asking whether the mistake was in the 1v1 or in ignoring the 2v1."
+  ],
+  "source": {
+    "coach": "Coach Sneith",
+    "title": "Jugar asi me convirtio en la mejor camille de europa (te enseno como lo hice)",
+    "notes": "Built from the examples where the player is winning lane hard but still respects Shaco's top-side presence."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "jungle-dont-rewrite-system-after-one-game",
+  "title": "Do not rewrite your whole system after one bad game",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "review",
+  "concept": "dont_rewrite_system_after_one_game",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["soloq", "mindset", "review", "consistency", "small adjustments"],
+  "body": "A chaotic game should not make you abandon your whole jungle identity. Strong review means extracting one or two real improvements without panicking into new champions, random overganking, or replacing your entire system because one match felt unfair.",
+  "actionables": [
+    "After a rough game, write down one useful correction instead of creating a whole new theory.",
+    "Do not change champion, route philosophy, and playstyle all at once because of one loss.",
+    "Judge your last 10 games as a block before changing your approach."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Solving The #1 SoloQ Problem (How To Carry Bad Teams) — Jungle Guide",
+    "notes": "Derived from Leo's point that bad games should produce small corrections, not panic reinvention."
+  }
+}

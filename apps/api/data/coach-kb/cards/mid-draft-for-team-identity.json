@@ -1,0 +1,27 @@
+{
+  "id": "mid-draft-for-team-identity",
+  "title": "Draft mid lane for your team's identity, not only your lane matchup",
+  "language": "en",
+  "role": "MIDDLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "draft",
+  "concept": "draft_for_team_identity",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["draft", "mid lane", "team comp", "engage", "range", "identity", "soloq"],
+  "body": "A strong mid lane draft starts with what your own composition needs, not just what beats the enemy lane in isolation. If your team needs engage, pick with that in mind. If your team already has dive and needs range, setup, or control, your mid pick should solve that missing job.",
+  "actionables": [
+    "Before locking your mid champion, ask what function your team still lacks.",
+    "Do not autopilot a comfort pick if it creates a comp that cannot play its win condition cleanly.",
+    "Review drafts by asking whether your mid pick matched your team's identity or fought against it."
+  ],
+  "source": {
+    "coach": "Coach Mysterias",
+    "title": "How to Win as a Mid Laner - Gameplay Guide",
+    "notes": "Built from the draft discussion around engage needs, mage incentives, and composition fit."
+  }
+}

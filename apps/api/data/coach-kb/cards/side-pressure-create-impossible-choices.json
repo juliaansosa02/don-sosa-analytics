@@ -1,0 +1,27 @@
+{
+  "id": "side-pressure-create-impossible-choices",
+  "title": "Good side pressure creates impossible choices for the enemy team",
+  "language": "en",
+  "role": "ALL",
+  "champion": null,
+  "matchup": null,
+  "phase": "mid_game",
+  "concept": "side_pressure_impossible_choices",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["side lane", "pressure", "macro", "crossmap", "impossible choices", "tp"],
+  "body": "Strong side pressure does not just hit a tower. It forces the enemy team into bad choices: send people to the side and lose control elsewhere, or ignore the side and lose wave, tower, tempo, or a vulnerable carry. The real win is the no-win decision tree you create.",
+  "actionables": [
+    "Before hard committing to side pressure, identify which two bad responses you are creating for the enemy.",
+    "Use teleport, respawn timing, and visible enemy positions to make your side pressure costly to answer.",
+    "Review side lane wins by asking what impossible choice the enemy was forced into."
+  ],
+  "source": {
+    "coach": "Coach Sneith",
+    "title": "Jugar asi me convirtio en la mejor camille de europa (te enseno como lo hice)",
+    "notes": "Derived from the repeated side-lane sequences where pressure forces defenders or loses Baron/Nash control."
+  }
+}

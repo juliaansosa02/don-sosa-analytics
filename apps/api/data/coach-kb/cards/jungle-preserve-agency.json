@@ -1,0 +1,24 @@
+{
+  "id": "jungle-preserve-agency",
+  "title": "Preserve your agency so enemy mistakes still matter",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "preserve_agency",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["soloq", "agency", "carry", "strength", "punish mistakes", "bounty"],
+  "body": "The enemy team will make punishable mistakes, but those mistakes only matter if you stay strong enough to punish them. Preserving agency means protecting your own tempo, gold, item timing, and life total so you can actually convert enemy errors instead of being too weak or too dead to capitalize.",
+  "actionables": [
+    "Judge risky contests by one question: if I fail this, do I lose my ability to punish the next enemy mistake?",
+    "Avoid low-value fights that risk your bounty, route, or item timing for uncertain upside.",
+    "Review losses by checking whether your team lost because of one enemy move or because you lost your own agency earlier."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Solving The #1 SoloQ Problem (How To Carry Bad Teams) — Jungle Guide",
+    "notes": "Derived from the video's core carry principle that your strength must survive long enough to punish enemy errors."
+  }
+}

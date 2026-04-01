@@ -1,0 +1,24 @@
+{
+  "id": "jungle-protect-mental-energy",
+  "title": "Protect your mental energy for decisions you control",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "review",
+  "concept": "protect_mental_energy",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["soloq", "mindset", "mental stack", "focus", "typing", "blame"],
+  "body": "In SoloQ, mental energy is one of your most limited resources. Typing, blaming, replaying mistakes in your head, or obsessing over LP reduces the focus you still need for tracking, pathing, and adaptation. Protecting energy is not passive; it is a performance decision.",
+  "actionables": [
+    "Treat typing, arguing, and blame as mental stack leaks rather than harmless habits.",
+    "When you feel your focus drifting, ask what decision is actually in your control right now.",
+    "Review one game per day by marking the first moment your mind left the map and entered emotion."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Solving The #1 SoloQ Problem (How To Carry Bad Teams) — Jungle Guide",
+    "notes": "Built from the source's SoloQ mindset section on using energy only on controllable decisions."
+  }
+}

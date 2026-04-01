@@ -1,0 +1,24 @@
+{
+  "id": "jungle-simplify-champion-pool-for-tempo",
+  "title": "Keep the champion pool narrow enough to repeat tempo patterns",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "draft",
+  "concept": "simplify_pool_for_tempo",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["champion pool", "tempo", "consistency", "clear speed", "main picks"],
+  "body": "A jungle pool should be small enough that your first clears, route logic, spike timing, and objective habits stay repeatable. If every champion changes your entire map identity, your review loop becomes noisy and your tempo habits stay unstable.",
+  "actionables": [
+    "Reduce your pool until your early routes and first objective plans feel repeatable across games.",
+    "Prefer picks that let you preserve a familiar tempo pattern while you improve fundamentals.",
+    "Avoid adding new ranked picks until your current pool stops creating avoidable inconsistency."
+  ],
+  "source": {
+    "coach": "Titans Coaching / Levi",
+    "title": "Guia Definitiva de la Jungla para Subir a Challenger en la Nueva Temporada 2026 de League of Legends",
+    "notes": "Built from the source's argument for a small pool that preserves route and tempo consistency."
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "mid-offensive-defense-through-push",
+  "title": "Use push as offensive defense in mid lane",
+  "language": "en",
+  "role": "MIDDLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "offensive_defense_through_push",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["mid lane", "push", "lane control", "poke matchups", "defense", "spacing"],
+  "body": "In many mid lane matchups, the safest lane state is not passive defense but controlled pressure. If the enemy is strongest when they are free to cast on you, pushing first can reduce their windows, improve your spacing, and keep the lane on terms that are easier for you to manage.",
+  "actionables": [
+    "Ask whether your matchup becomes harder when you are the one being pushed in.",
+    "If the answer is yes, treat early push as part of your defensive structure rather than as greed.",
+    "Review lane phases by checking whether losing push also removed your ability to trade, ward, or move."
+  ],
+  "source": {
+    "coach": "Coach Mysterias",
+    "title": "How to Win as a Mid Laner - Gameplay Guide",
+    "notes": "Derived from the lane plan into Vel'Koz where pushing is described as offensive defense."
+  }
+}

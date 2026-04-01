@@ -1,0 +1,24 @@
+{
+  "id": "jungle-uptime-downtime-in-chaos",
+  "title": "Even in chaotic games, uptime and downtime still exist",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "mid_game",
+  "concept": "uptime_downtime_in_chaos",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["soloq", "uptime", "downtime", "turn-based", "mid game", "farming"],
+  "body": "A chaotic SoloQ game does not erase turn structure. When your team is synced, pressuring, or able to contest, that is uptime. When teammates are dead, basing, or scattered, that is usually downtime. During downtime, your best play is often to farm, reset, avoid throw zones, and wait for the next real turn.",
+  "actionables": [
+    "Before contesting anything, check whether your team is actually in uptime or whether you are forcing uptime from downtime.",
+    "When two or more teammates are desynced, default to farm, reset, or safe setup instead of random hovering.",
+    "Review losses by marking the moments you forced a play during downtime."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Solving The #1 SoloQ Problem (How To Carry Bad Teams) — Jungle Guide",
+    "notes": "Derived from the video's repeated use of uptime and downtime to explain farming, resetting, and choosing fights in chaotic games."
+  }
+}

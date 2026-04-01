@@ -1,0 +1,24 @@
+{
+  "id": "jungle-recalls-before-objectives",
+  "title": "Recall before objectives so the setup starts early",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "recall_before_objective",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["recall", "objective setup", "dragon", "herald", "tempo", "items"],
+  "body": "A large part of objective control is decided before anyone touches the objective. Late recalls force weak arrivals, poor item timing, and bad vision posture. If you want cleaner dragon or Herald fights, the reset is part of the setup, not a separate detail.",
+  "actionables": [
+    "Plan your reset early enough that you arrive to the objective with gold spent and pathing intact.",
+    "Treat late recalls as setup errors, not as bad luck during the fight itself.",
+    "Review whether you are entering objective windows with tempo or scrambling to buy on spawn."
+  ],
+  "source": {
+    "coach": "Titans Coaching / Levi",
+    "title": "Guia Definitiva de la Jungla para Subir a Challenger en la Nueva Temporada 2026 de League of Legends",
+    "notes": "Built from the source's strong emphasis on professional recalls before objective windows."
+  }
+}

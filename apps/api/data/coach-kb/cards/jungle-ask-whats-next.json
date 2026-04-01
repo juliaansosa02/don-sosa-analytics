@@ -1,0 +1,25 @@
+{
+  "id": "jungle-ask-whats-next",
+  "title": "After mistakes, ask what's next instead of dwelling",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "review",
+  "concept": "whats_next_after_mistake",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["mental reset", "review", "what's next", "summoner tracking", "pathing"],
+  "body": "The first response to a mistake should not be emotional replay. The correct reset is to ask what the next important thing on the map is. That means tracking what summoners were burned, what objective is spawning next, and which side of the map becomes the next profitable route.",
+  "actionables": [
+    "After every death, name the next objective, next route, and the most important summoner that was traded.",
+    "Do not solve the previous mistake during live play; save that for post-game review.",
+    "Use the phrase 'what's next?' as a mental trigger the moment a bad play ends."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Give Me 40 Minutes To Make You INSANE At Jungle - Diamond Jungle Coaching",
+    "url": "https://www.youtube.com/watch?v=3jOURGjldOM",
+    "notes": "Built from multiple moments where Leo redirects attention from the failed play to the next objective and path."
+  }
+}

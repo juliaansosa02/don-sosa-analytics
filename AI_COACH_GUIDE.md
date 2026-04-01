@@ -69,7 +69,10 @@ Add these to Render when you are ready:
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4.1-mini
 OPENAI_VECTOR_STORE_ID=
+CURRENT_LOL_PATCH=
 ```
+
+`CURRENT_LOL_PATCH` is optional for now, but it becomes important once you start mixing evergreen fundamentals with patch-sensitive cards.
 
 ## First milestone
 
@@ -113,6 +116,85 @@ npm run coach:knowledge:audit -w @don-sosa/api
 4. Set `OPENAI_API_KEY`.
 5. Start generating AI coaching blocks.
 6. Save feedback every time the output feels generic or especially useful.
+
+## Recommended operating loop for new videos
+
+For each new video, use this sequence:
+
+1. Archive the source.
+2. Produce one cleaned processed note file.
+3. Extract 5 to 12 card-worthy concepts.
+4. Create one JSON card per concept.
+5. Run the knowledge audit.
+6. Test the AI coach on a real player profile where those concepts matter.
+7. Record whether the generated advice felt useful, generic, or incorrect.
+
+### What you should do
+
+- choose the videos
+- decide which concepts are truly high-value
+- reject vague ideas
+- approve the final cards
+
+### What your cousin should do
+
+- keep the API route stable
+- keep storage and retrieval maintainable
+- later add vector-store upload tooling
+- later add eval dashboards and review queues
+
+## Best order to feed knowledge
+
+Start with:
+
+1. Jungle tempo and pathing
+2. Objective setup
+3. Lane volatility / enemy jungle tracking
+4. Deaths before 14 and unstable early games
+5. Wave and reset discipline
+6. Mid-game map trades
+7. Champion-anchor matchup plans
+
+Only after those packs are solid should you expand into:
+
+- champion-specific micro
+- niche matchup edges
+- patch-specific details
+
+## Patch awareness policy
+
+Not every coaching rule should be treated equally across patches.
+
+Use these categories on knowledge cards:
+
+- `evergreen`: fundamentals that remain useful across most patches
+- `meta_sensitive`: advice that depends on champion balance or the current meta
+- `system_sensitive`: advice that depends on objectives, items, runes, map systems, or season rules
+
+Recommended policy:
+
+1. Keep the majority of the knowledge base evergreen.
+2. Mark patch-sensitive cards explicitly.
+3. Set `CURRENT_LOL_PATCH` in production.
+4. Later, ingest official Riot patch notes as a separate layer.
+5. When a champion or system changes a lot, refresh the old cards or add newer patch-bounded cards.
+
+The goal is not to rewrite the whole coaching stack every patch. The goal is to stop old meta advice from being treated like a timeless truth.
+
+### Recommended future patch workflow
+
+When you are ready, add a second knowledge stream separate from coach videos:
+
+1. Official Riot patch notes
+2. Champion-specific buff/nerf summaries
+3. System changes such as objectives, item systems, jungle economy, or lane swaps
+4. A small "meta impact" summary written in your own words
+
+That patch layer should not replace the evergreen KB. It should sit on top of it and modify emphasis:
+
+- warn when a champion changed recently
+- warn when an old meta-sensitive card is likely stale
+- surface system-sensitive cards only when they match the current patch
 
 ## Important warning
 

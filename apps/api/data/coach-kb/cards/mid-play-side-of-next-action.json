@@ -1,0 +1,27 @@
+{
+  "id": "mid-play-side-of-next-action",
+  "title": "Play on the side of the next useful action",
+  "language": "en",
+  "role": "MIDDLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "play_side_of_next_action",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["mid lane", "strong side", "objective side", "macro", "teleport", "timers"],
+  "body": "A strong mid laner places themselves on the side of the map where the next useful action is likely to happen. Without teleport, this becomes even more important. Drifting onto the weak side while the important objective or your strongest teammate is elsewhere often removes your ability to influence the real game state.",
+  "actionables": [
+    "Before each lane assignment, identify which side of the map holds the next useful skirmish or objective.",
+    "If you do not have teleport, be extra strict about not wasting time on the wrong side.",
+    "Review missed fights by checking whether you were simply on the wrong map half when the game asked for you."
+  ],
+  "source": {
+    "coach": "Coach Mysterias",
+    "title": "How to Win as a Mid Laner - Gameplay Guide",
+    "notes": "Derived from the repeated emphasis on playing the side of dragon, strongest ally, or next actionable objective."
+  }
+}

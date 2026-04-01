@@ -1,0 +1,24 @@
+{
+  "id": "jungle-pre-objective-setup-timeline",
+  "title": "Win the objective before spawn through setup timing",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "pre_objective_setup_timeline",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["objective setup", "dragon", "herald", "vision", "positioning", "tempo"],
+  "body": "The objective fight often starts 30 to 90 seconds before spawn. Waves, recall timing, vision clearing, and entry control determine whether the fight is playable before the objective is ever hit. A jungler who treats setup as part of the fight wins more neutral objectives without needing miracle mechanics.",
+  "actionables": [
+    "Start thinking about the objective well before spawn instead of only when the timer is low.",
+    "Chain recall, vision, and lane position so your team reaches the river on purpose rather than by accident.",
+    "If you have no priority or no setup, be willing to trade instead of forcing a bad contest."
+  ],
+  "source": {
+    "coach": "Titans Coaching / Levi",
+    "title": "Guia Definitiva de la Jungla para Subir a Challenger en la Nueva Temporada 2026 de League of Legends",
+    "notes": "Distilled from the video's timeline around objective setup, recall timing, and pre-spawn positioning."
+  }
+}

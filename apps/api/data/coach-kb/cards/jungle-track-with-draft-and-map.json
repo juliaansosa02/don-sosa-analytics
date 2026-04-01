@@ -1,0 +1,24 @@
+{
+  "id": "jungle-track-with-draft-and-map",
+  "title": "Track with both draft information and map information",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "draft",
+  "concept": "track_with_draft_and_map",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["tracking", "draft", "map information", "priority", "summoners", "matchups"],
+  "body": "Tracking is more than locating the enemy jungler on the map. Good tracking starts in champion select and loading screen. Summoners, lane matchups, priority patterns, and likely win conditions all help predict where the enemy jungler should want to play before they ever reveal.",
+  "actionables": [
+    "Before the game starts, predict the enemy jungler's best first side using matchups and summoners.",
+    "Update that prediction every time lane priority or wave state changes.",
+    "Review whether your enemy jungle reads came from real information or only from last-known position."
+  ],
+  "source": {
+    "coach": "Titans Coaching / Levi",
+    "title": "Guia Definitiva de la Jungla para Subir a Challenger en la Nueva Temporada 2026 de League of Legends",
+    "notes": "Built from the video's framing that tracking combines draft understanding, lane expectations, and map state."
+  }
+}

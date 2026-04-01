@@ -1,0 +1,27 @@
+{
+  "id": "ahri-no-r-no-fight",
+  "title": "Ahri should respect her ultimate-gated fight windows",
+  "language": "en",
+  "role": "MIDDLE",
+  "champion": "Ahri",
+  "matchup": null,
+  "phase": "mid_game",
+  "concept": "ahri_ultimate_gated_identity",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "meta_sensitive",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["ahri", "mid lane", "ultimate", "cooldown", "identity", "fight windows"],
+  "body": "Ahri's playmaking and safety both change heavily when her ultimate is unavailable. In many map states, 'no R' should immediately change your willingness to fight, contest vision, or overextend for a skirmish. Respecting that identity keeps your map play consistent and prevents low-value deaths.",
+  "actionables": [
+    "When your ultimate is down, lower your appetite for contested vision and marginal fights.",
+    "Plan your side lane and rotation windows around when your R is available rather than pretending your champion works the same without it.",
+    "Review deaths on Ahri by checking whether you took a fight that only works with ultimate up."
+  ],
+  "source": {
+    "coach": "Coach Mysterias",
+    "title": "How to Win as a Mid Laner - Gameplay Guide",
+    "notes": "Built from repeated Ahri examples where no-R windows fundamentally changed what fights were playable."
+  }
+}

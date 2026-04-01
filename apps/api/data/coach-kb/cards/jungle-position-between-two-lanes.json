@@ -1,0 +1,25 @@
+{
+  "id": "jungle-position-between-two-lanes",
+  "title": "In mid game, position between the two active lanes",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "mid_game",
+  "concept": "position_between_two_lanes",
+  "skillLevel": "emerald_plus",
+  "patch": null,
+  "tags": ["mid game", "positioning", "between lanes", "camps", "vision", "pick creation"],
+  "body": "A jungler's strongest mid-game position is often in the jungle space between the two lanes their team is actively contesting. From there you can farm camps, clear vision, react to fights in either lane, and threaten picks. Literal grouping on the tower or catching random side waves often removes that pressure.",
+  "actionables": [
+    "When your team is set up around two nearby lanes, path through the jungle corridor between them instead of standing directly on the structure.",
+    "Use that corridor to chain camps, vision clears, and reactive movement into either lane.",
+    "Review moments where you were hitting tower or taking a wave while a better jungle angle existed nearby."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Give Me 40 Minutes To Make You INSANE At Jungle - Diamond Jungle Coaching",
+    "url": "https://www.youtube.com/watch?v=3jOURGjldOM",
+    "notes": "Built from Leo's repeated mid-game advice about living in the jungle space between lanes rather than grouping too literally."
+  }
+}

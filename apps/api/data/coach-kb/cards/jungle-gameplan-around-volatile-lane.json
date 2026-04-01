@@ -1,0 +1,25 @@
+{
+  "id": "jungle-gameplan-around-volatile-lane",
+  "title": "Build the early game plan around the volatile lane",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "draft",
+  "concept": "volatile_lane_gameplan",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["enemy jungle", "volatile lane", "game plan", "draft", "runes", "summoners", "cc"],
+  "body": "Your first jungle plan should start with the lane that can actually explode. Volatility is created by damage, crowd control, aggressive summoners, and aggressive keystones. Once you identify the volatile lane, ask what the enemy jungler wants to do with it and build your first path around that answer.",
+  "actionables": [
+    "Before loading screen ends, identify the lane with the most all-in or poke volatility.",
+    "Use champions, crowd control, summoners, and keystones to decide which lane can break first.",
+    "State the enemy jungler's most dangerous first path out loud before your first camp."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Give Me 40 Minutes To Make You INSANE At Jungle - Diamond Jungle Coaching",
+    "url": "https://www.youtube.com/watch?v=3jOURGjldOM",
+    "notes": "Derived from the review section on volatile lanes, early pathing, and enemy jungle options."
+  }
+}

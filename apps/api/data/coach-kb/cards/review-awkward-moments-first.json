@@ -1,0 +1,27 @@
+{
+  "id": "review-awkward-moments-first",
+  "title": "Start review from the moments that felt awkward",
+  "language": "en",
+  "role": "ALL",
+  "champion": null,
+  "matchup": null,
+  "phase": "review",
+  "concept": "review_awkward_moments_first",
+  "skillLevel": "all",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["review", "vod review", "awkward moments", "improvement loop", "all roles"],
+  "body": "A fast and effective review method is to jump first to the moments that felt awkward in real time. Those moments usually contain the clearest information gap, timing error, or execution hesitation. Instead of reviewing every second equally, start with discomfort and turn it into one specific lesson.",
+  "actionables": [
+    "After each game, list one to three moments that felt awkward before opening the replay.",
+    "At each awkward moment, ask what information was missing and what cleaner decision would have fixed it.",
+    "Turn each awkward moment into one concrete rule rather than one vague feeling."
+  ],
+  "source": {
+    "coach": "Coach Mysterias",
+    "title": "How to Win as a Mid Laner - Gameplay Guide",
+    "notes": "Built from the post-game review method where the replay starts from the sequences that felt awkward."
+  }
+}

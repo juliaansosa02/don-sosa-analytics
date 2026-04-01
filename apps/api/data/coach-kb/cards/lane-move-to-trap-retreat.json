@@ -1,0 +1,27 @@
+{
+  "id": "lane-move-to-trap-retreat",
+  "title": "Move to trap the enemy retreat path, not just to hit them once",
+  "language": "en",
+  "role": "ALL",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "move_to_trap_retreat",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["lane", "movement", "pathing", "retreat path", "trading"],
+  "body": "A strong trade is often won by where you click before the enemy disengages, not only by the spell you cast. Moving into the enemy's retreat line can turn their own knockback, dash, or sidestep into a losing exit path and extend the trade in your favor.",
+  "actionables": [
+    "Before committing to the trade, picture where the enemy wants to end up if they disengage.",
+    "Path your clicks to cut that retreat line rather than only to land one initial spell.",
+    "Review close trades by asking whether better movement would have made the enemy escape worse."
+  ],
+  "source": {
+    "coach": "Coach Sneith",
+    "title": "Jugar asi me convirtio en la mejor camille de europa (te enseno como lo hice)",
+    "notes": "Derived from the explanation of clicking behind Jayce so his knockback still leaves him in a bad corridor."
+  }
+}

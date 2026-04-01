@@ -1,0 +1,27 @@
+{
+  "id": "carry-life-is-macro-value",
+  "title": "If you are the carry, staying alive is part of your macro job",
+  "language": "en",
+  "role": "ALL",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "carry_life_is_macro_value",
+  "skillLevel": "all",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["carry", "macro", "lead", "death management", "all roles"],
+  "body": "When your lead is the main thing holding the game together, your life becomes a macro resource. Dying is no longer just a mechanical mistake; it can remove the only pressure source your team still has. Protecting that lead is part of carrying, not a sign of fear.",
+  "actionables": [
+    "If your team depends on your lead, lower the amount of coinflip fights you take.",
+    "Judge risky plays by how much game state disappears if you die, not only by whether the combo could work.",
+    "Review losing throws by asking whether one death erased the only stable win condition on your team."
+  ],
+  "source": {
+    "coach": "Coach Sneith",
+    "title": "Jugar asi me convirtio en la mejor camille de europa (te enseno como lo hice)",
+    "notes": "Built from the repeated idea that once fed, dying once can decide the game because the whole team relies on your pressure."
+  }
+}

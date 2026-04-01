@@ -1,0 +1,25 @@
+{
+  "id": "jungle-farm-react-timeline",
+  "title": "Use a farm-then-react timeline instead of gambling",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "farm_react_timeline",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["tempo", "consistency", "timeline", "farm", "information", "gamble plays"],
+  "body": "The default timeline for jungle should be simple: farm, react to information, then return to farming unless a high-value play is clearly available. A lot of inconsistent jungle games come from replacing this timeline with low-certainty detours that are not backed by information.",
+  "actionables": [
+    "Treat farming as your default state until a lane state, vision, or enemy reveal creates a real decision point.",
+    "After every completed action, ask whether you are still on your farm timeline or deliberately breaking it for value.",
+    "Review every early detour and label it as information-based or feeling-based."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Give Me 40 Minutes To Make You INSANE At Jungle - Diamond Jungle Coaching",
+    "url": "https://www.youtube.com/watch?v=3jOURGjldOM",
+    "notes": "Built from Leo's framing that jungle is a timeline of default farming interrupted only by useful information."
+  }
+}

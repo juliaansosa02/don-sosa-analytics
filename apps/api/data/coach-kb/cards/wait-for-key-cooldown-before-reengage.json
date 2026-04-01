@@ -1,0 +1,27 @@
+{
+  "id": "wait-for-key-cooldown-before-reengage",
+  "title": "Wait for your key cooldown before re-entering aggressively",
+  "language": "en",
+  "role": "ALL",
+  "champion": null,
+  "matchup": null,
+  "phase": "mid_game",
+  "concept": "wait_for_key_cooldown",
+  "skillLevel": "all",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["cooldowns", "re-engage", "all-in", "discipline", "all roles"],
+  "body": "A lot of low-elo overextensions happen because players keep walking forward after their key engage spell is unavailable. If your champion's real threat depends on one cooldown, your posture must change until that tool returns. Aggressive body language without the spell is often just fake pressure that gets you killed.",
+  "actionables": [
+    "When your key engage or mobility spell is down, stop walking like you still threaten the same all-in.",
+    "Use the cooldown window to hold space, reposition, or wait rather than forcing your way forward.",
+    "Review failed chases by checking whether you kept committing after your champion's real threat expired."
+  ],
+  "source": {
+    "coach": "Coach Sneith",
+    "title": "Jugar asi me convirtio en la mejor camille de europa (te enseno como lo hice)",
+    "notes": "Derived from the explanation that once the key spell is not available, you must stop acting as if the all-in is still live."
+  }
+}

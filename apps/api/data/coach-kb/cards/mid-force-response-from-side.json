@@ -1,0 +1,27 @@
+{
+  "id": "mid-force-response-from-side",
+  "title": "Use side lane pressure to force a response and shift first",
+  "language": "en",
+  "role": "MIDDLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "mid_game",
+  "concept": "force_response_from_side",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["mid lane", "side lane", "pressure", "first move", "response", "macro"],
+  "body": "Side lane pressure is valuable because it forces someone to answer you and creates first move into the next play. You do not always need to all-in the side laner. Often the win comes from pinning the responder, crashing the wave, and moving first into an invade, objective, or skirmish.",
+  "actionables": [
+    "When you enter side lane, decide whether your goal is to kill, pin, or simply force a response.",
+    "After forcing a response, look to shift first into the next map action instead of staying too long in side.",
+    "Review side lane sequences by checking whether you turned pressure into first move or only farmed one extra wave."
+  ],
+  "source": {
+    "coach": "Coach Mysterias",
+    "title": "How to Win as a Mid Laner - Gameplay Guide",
+    "notes": "Derived from the mid-game sequences where side lane pressure is used to pin Smolder and move first."
+  }
+}

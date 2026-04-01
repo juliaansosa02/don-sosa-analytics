@@ -1,0 +1,25 @@
+{
+  "id": "jungle-ping-intent-clearly",
+  "title": "Use pings to communicate intent, not frustration",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "ping_intent_clearly",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["pings", "communication", "intent", "assist", "danger", "enemy jungle"],
+  "body": "Good jungle pings tell your team what the next play means. A clear danger ping on a lane before the enemy jungler arrives or a direct assist ping on the next objective changes how teammates react. Spam or vague pings often create less value than one or two precise pings tied to the real play.",
+  "actionables": [
+    "Ping the enemy jungler's likely destination before the play starts, not after it is already happening.",
+    "Use assist pings to state the objective or move you want your team to commit to.",
+    "Review your first two pings before each major enemy action and ask whether they communicated intent or only emotion."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Give Me 40 Minutes To Make You INSANE At Jungle - Diamond Jungle Coaching",
+    "url": "https://www.youtube.com/watch?v=3jOURGjldOM",
+    "notes": "Built from Leo's distinction between vague pings and informative pings that tell laners what is about to happen."
+  }
+}

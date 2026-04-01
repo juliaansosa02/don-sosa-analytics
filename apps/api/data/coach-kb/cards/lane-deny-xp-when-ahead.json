@@ -1,0 +1,27 @@
+{
+  "id": "lane-deny-xp-when-ahead",
+  "title": "When ahead, deny experience and not only last hits",
+  "language": "en",
+  "role": "ALL",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "deny_xp_when_ahead",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["lane", "xp denial", "cs denial", "wave control", "all roles"],
+  "body": "A lane lead becomes much more punishing when you deny experience as well as gold. Once you are stronger, your positioning should force the opponent to choose between taking damage, giving up last hits, or even losing experience from key minions like cannons and level-up breakpoints.",
+  "actionables": [
+    "When ahead, stand where the opponent must walk into your threat range to touch the wave.",
+    "Look especially for moments where denying one cannon or one melee minion also denies a level-up timing.",
+    "Review winning lanes by checking whether you merely farmed your lead or actively converted it into denied XP."
+  ],
+  "source": {
+    "coach": "Coach Sneith",
+    "title": "Jugar asi me convirtio en la mejor camille de europa (te enseno como lo hice)",
+    "notes": "Derived from the repeated examples of zoning Mundo and Jayce off both farm and experience."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "jungle-early-avoidable-deaths-destroy-tempo",
+  "title": "Avoidable early deaths destroy jungle tempo",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "early_avoidable_deaths",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["deaths", "early game", "tempo", "objectives", "consistency"],
+  "body": "Free deaths in the early game are one of the fastest ways to lose jungle control because they break tempo, remove pressure from the map, and often cost a camp cycle or an objective window at the same time. Reducing avoidable deaths is usually more valuable than adding one extra speculative gank.",
+  "actionables": [
+    "Review each early death as a tempo event, not only as a combat mistake.",
+    "Label whether the death cost you camps, vision, or objective posture in the next 30 to 60 seconds.",
+    "Prioritize cutting one avoidable early death before trying to increase overall aggression."
+  ],
+  "source": {
+    "coach": "Titans Coaching / Levi",
+    "title": "Guia Definitiva de la Jungla para Subir a Challenger en la Nueva Temporada 2026 de League of Legends",
+    "notes": "Built from the source's repeated emphasis that avoidable deaths are a major reason players fail to stabilize and climb."
+  }
+}

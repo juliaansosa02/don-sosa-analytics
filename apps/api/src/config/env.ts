@@ -12,6 +12,7 @@ const envSchema = z.object({
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default('gpt-4.1-mini'),
   OPENAI_VECTOR_STORE_ID: z.string().optional(),
+  CURRENT_LOL_PATCH: z.string().optional(),
   DEFAULT_GAME_NAME: z.string().optional(),
   DEFAULT_TAG_LINE: z.string().optional(),
   MATCH_COUNT: z.coerce.number().default(100),

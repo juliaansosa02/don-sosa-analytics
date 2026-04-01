@@ -1,0 +1,25 @@
+{
+  "id": "jungle-trade-dont-match-when-down-numbers",
+  "title": "Trade or minimize when you are down numbers",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "mid_game",
+  "concept": "trade_instead_of_matching",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["numbers", "trade", "minimize", "herald", "map trade", "mid game"],
+  "body": "When the enemy commits to a side with superior numbers, forcing the same side often just throws the map wider open. Match when you are stronger, trade when you are weaker, and if nothing can be traded, minimize the damage by protecting your own camps, waves, or opposite-side pressure.",
+  "actionables": [
+    "Count numbers before matching Herald or side fights instead of reacting emotionally to teammates getting caught.",
+    "If you are outnumbered, immediately check what opposite-side camp, plate, wave, or tower can be traded.",
+    "If no trade exists, take the safest map value and avoid making the losing side even worse."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Give Me 40 Minutes To Make You INSANE At Jungle - Diamond Jungle Coaching",
+    "url": "https://www.youtube.com/watch?v=3jOURGjldOM",
+    "notes": "Built from the Herald example where the correct answer was to trade or minimize instead of matching on the losing side."
+  }
+}

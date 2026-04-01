@@ -1,0 +1,27 @@
+{
+  "id": "use-vision-expectations-to-fake-exit",
+  "title": "Use enemy vision expectations to fake your exit and re-enter from fog",
+  "language": "en",
+  "role": "ALL",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "fake_exit_with_vision_expectations",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["vision", "fog", "deception", "re-enter", "picks", "all roles"],
+  "body": "Players react to what they think they last saw. If the enemy watches you leave on one path and then loses vision, you can use fog, sweeper, or alternate terrain to re-enter from a different angle. Good deception does not start from invisibility; it starts from controlling the enemy's expectation.",
+  "actionables": [
+    "Notice what route the enemy believes you took before leaving vision.",
+    "If you have sweeper or fog access, use that false assumption to set up a new entry angle.",
+    "Review picks by asking whether the enemy lacked vision or whether they were acting on the wrong information."
+  ],
+  "source": {
+    "coach": "Coach Sneith",
+    "title": "Jugar asi me convirtio en la mejor camille de europa (te enseno como lo hice)",
+    "notes": "Built from the sequence where visible movement suggests one exit, then sweeper and fog create a surprise re-entry."
+  }
+}

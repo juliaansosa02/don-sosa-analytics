@@ -1,0 +1,25 @@
+{
+  "id": "jungle-strong-side-only-with-certainty",
+  "title": "Only run to strong side when the payoff is real",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "strong_side_with_certainty",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["strong side", "certainty", "dragon", "tempo", "objective setup", "downtime"],
+  "body": "Running straight to strong side is only correct when you can say what you are taking with confidence. If you cannot honestly say you are securing dragon, killing the enemy jungler, or converting a lane play with high certainty, you are often just abandoning camps and walking into downtime.",
+  "actionables": [
+    "Before pathing directly to strong side, state the exact payoff you expect to secure.",
+    "If the answer is vague, finish your weak-side sequence first and react later.",
+    "Use certainty, not anxiety, to decide whether to skip camps for an objective window."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Give Me 40 Minutes To Make You INSANE At Jungle - Diamond Jungle Coaching",
+    "url": "https://www.youtube.com/watch?v=3jOURGjldOM",
+    "notes": "Derived from Leo's point that pathing to drake or bot only makes sense when the jungler can describe the guaranteed conversion."
+  }
+}

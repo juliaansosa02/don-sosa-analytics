@@ -1,5 +1,6 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { env } from '../config/env.js';
 import type { AICoachContext, KnowledgeCard } from './aiCoachSchemas.js';
 import { knowledgeCardSchema } from './aiCoachSchemas.js';
 
@@ -24,6 +25,53 @@ function inferPreferredPhase(context: AICoachContext) {
   return 'mid_game';
 }
 
+function parsePatchParts(patch?: string | null) {
+  if (!patch) return null;
+  const match = patch.match(/(\d+)\.(\d+)/);
+  if (!match) return null;
+
+  return {
+    major: Number(match[1]),
+    minor: Number(match[2])
+  };
+}
+
+function comparePatch(left?: string | null, right?: string | null) {
+  const a = parsePatchParts(left);
+  const b = parsePatchParts(right);
+  if (!a || !b) return null;
+  if (a.major !== b.major) return a.major - b.major;
+  return a.minor - b.minor;
+}
+
+function scorePatchRelevance(card: KnowledgeCard) {
+  const currentPatch = env.CURRENT_LOL_PATCH;
+
+  if (card.patchSensitivity === 'evergreen') return 6;
+  if (!currentPatch) return -2;
+
+  let score = 0;
+
+  if (card.patch && comparePatch(card.patch, currentPatch) === 0) score += 12;
+
+  const fromCompare = comparePatch(card.validFromPatch, currentPatch);
+  const toCompare = comparePatch(card.validToPatch, currentPatch);
+  const aboveLowerBound = fromCompare === null || fromCompare <= 0;
+  const belowUpperBound = toCompare === null || toCompare >= 0;
+
+  if ((card.validFromPatch || card.validToPatch) && aboveLowerBound && belowUpperBound) {
+    score += 10;
+  }
+
+  if ((card.validFromPatch || card.validToPatch) && (!aboveLowerBound || !belowUpperBound)) {
+    score -= 10;
+  }
+
+  if (card.patchSensitivity === 'system_sensitive') score -= 2;
+
+  return score;
+}
+
 function scoreCard(card: KnowledgeCard, context: AICoachContext) {
   let score = 0;
   const anchorChampion = context.player.anchorChampion?.toLowerCase();
@@ -45,6 +93,7 @@ function scoreCard(card: KnowledgeCard, context: AICoachContext) {
   if (card.skillLevel === 'emerald_plus' && ['PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(context.player.highestTier ?? '')) score += 8;
   if (card.skillLevel === 'diamond_plus' && ['DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(context.player.highestTier ?? '')) score += 8;
   if (card.skillLevel === 'gold_plus' && ['GOLD', 'PLATINUM', 'EMERALD', 'DIAMOND', 'MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(context.player.highestTier ?? '')) score += 6;
+  score += scorePatchRelevance(card);
 
   for (const tag of card.tags) {
     if (topProblemText.includes(tag.toLowerCase())) score += 6;

@@ -1,0 +1,27 @@
+{
+  "id": "map-context-justifies-greed",
+  "title": "Map context decides whether a greedy-looking play is actually safe",
+  "language": "en",
+  "role": "ALL",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "map_context_justifies_greed",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["map context", "greed", "safety", "waves", "numbers", "macro"],
+  "body": "Some plays look greedy only if you ignore the map. Staying on a wave at low HP, pushing one more side wave, or holding pressure can be correct when the enemy's position, respawn timers, and numbers prove that no punish actually exists. Fear-based play without map context gives away too much value.",
+  "actionables": [
+    "Before backing off from a low-HP position, check whether the map actually contains a punish path.",
+    "Use enemy numbers, death timers, and visible positions to decide whether the extra wave is real greed or free value.",
+    "Review greedy-looking moments by asking whether the map proved them wrong or actually justified them."
+  ],
+  "source": {
+    "coach": "Coach Sneith",
+    "title": "Jugar asi me convirtio en la mejor camille de europa (te enseno como lo hice)",
+    "notes": "Built from the low-HP push examples that were safe because all punish resources were on the other side of the map."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "jungle-focus-three-kpis-per-week",
+  "title": "Improve only a few jungle KPIs at a time",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "review",
+  "concept": "focus_three_kpis",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["kpis", "consistency", "review", "weekly focus", "habits"],
+  "body": "Players usually slow their improvement by trying to fix every weakness at once. Jungle progress is cleaner when you choose only a few key habits or KPIs for the week and monitor the rest without actively trying to force them all at once.",
+  "actionables": [
+    "Pick no more than three KPIs or habits to actively improve in the same week.",
+    "Monitor the rest of your stats without trying to optimize everything simultaneously.",
+    "At the end of the week, decide whether those three habits improved before swapping focus."
+  ],
+  "source": {
+    "coach": "Titans Coaching / Levi",
+    "title": "Guia Definitiva de la Jungla para Subir a Challenger en la Nueva Temporada 2026 de League of Legends",
+    "notes": "Derived from the transcript's advice to select only a few KPIs at a time and build consistency."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "jungle-simple-tracking-loop",
+  "title": "Use a simple four-part tracking loop every game",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "simple_tracking_loop",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["tracking", "enemy start", "camp sequence", "priority", "objective prediction"],
+  "body": "A teachable tracking loop can simplify jungle awareness. Start with where the enemy likely started, then ask what camps are available to them, which lanes have priority, and what their next realistic objective or lane action should be. This loop is simple enough to repeat and strong enough to prevent blind pathing.",
+  "actionables": [
+    "At every major enemy reveal, restate the four questions instead of only reacting to the reveal itself.",
+    "Use lane priority and camp state together before predicting the enemy's next move.",
+    "Review early games by writing down the first three times you lost the tracking loop."
+  ],
+  "source": {
+    "coach": "Titans Coaching / Levi",
+    "title": "Guia Definitiva de la Jungla para Subir a Challenger en la Nueva Temporada 2026 de League of Legends",
+    "notes": "Derived from the source's simplified tracking model based on enemy start, camps, prio, and next objective."
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "jungle-trade-or-minimize-when-team-is-desynced",
+  "title": "When your team is desynced, trade or minimize instead of forcing",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "mid_game",
+  "concept": "trade_or_minimize_when_desynced",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["soloq", "desynced team", "trade", "minimize", "baron", "dragon", "crossmap"],
+  "body": "If your team is late, dead, basing, or otherwise desynced, forcing the same side usually turns a bad situation into a throw. In those moments, the clean choices are to trade something on the opposite side or minimize what the enemy gets by protecting waves, towers, or nearby camps.",
+  "actionables": [
+    "Before matching an objective, ask whether your team's tempo lines are actually synchronized enough to contest.",
+    "If they are not, choose the cleanest crossmap trade available or reduce what the enemy can take.",
+    "Review every lost objective by labeling it as a failed match, a missed trade, or a missed minimize."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Solving The #1 SoloQ Problem (How To Carry Bad Teams) — Jungle Guide",
+    "notes": "Built from Leo's use of trade and minimize in games where teammates are dead or too desynced to contest directly."
+  }
+}

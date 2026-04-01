@@ -1,0 +1,25 @@
+{
+  "id": "jungle-path-to-cut-off",
+  "title": "Rotate to cut off, not only to save",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "mid_game",
+  "concept": "path_to_cut_off",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["pathing", "cut off", "rotation", "collapse", "kill angle"],
+  "body": "When a fight is already starting, the strongest jungle path is often the one that cuts the enemy escape instead of the one that merely gets you closest to your teammate. Saving pathing is reactive; cut-off pathing creates the kill angle and turns the rotation into a real punish.",
+  "actionables": [
+    "Before entering a skirmish, ask which path blocks the enemy retreat instead of which path reaches your ally fastest.",
+    "Use fog and terrain to arrive from the side that traps the enemy between your teammate and your route.",
+    "Review rotations where you arrived but did not influence the kill because your angle was too defensive."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Give Me 40 Minutes To Make You INSANE At Jungle - Diamond Jungle Coaching",
+    "url": "https://www.youtube.com/watch?v=3jOURGjldOM",
+    "notes": "Derived from Leo's advice to path toward the enemy's escape route instead of only pathing to 'save' a teammate."
+  }
+}

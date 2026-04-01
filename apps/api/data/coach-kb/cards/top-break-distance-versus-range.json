@@ -1,0 +1,27 @@
+{
+  "id": "top-break-distance-versus-range",
+  "title": "Against range, break distance before the poke becomes unplayable",
+  "language": "en",
+  "role": "TOP",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "break_distance_versus_range",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["top lane", "ranged matchup", "distance", "all-in", "trading", "camille"],
+  "body": "Into ranged or extended-reach top matchups, the melee player cannot accept endless free poke before ever interacting. The core job is to break distance early enough that the lane turns into a real trade or all-in before your HP bar gets chipped into a losing state.",
+  "actionables": [
+    "Identify the earliest moment in the wave where you can break distance without losing too much HP first.",
+    "Do not let the lane stay at the enemy's ideal spacing for multiple waves in a row.",
+    "Review ranged matchups by checking whether you lost because of one bad engage or because you never closed space at all."
+  ],
+  "source": {
+    "coach": "Coach Sneith",
+    "title": "Jugar asi me convirtio en la mejor camille de europa (te enseno como lo hice)",
+    "notes": "Built from the repeated Camille versus ranged-lane framing: break distance before poke becomes permanent."
+  }
+}

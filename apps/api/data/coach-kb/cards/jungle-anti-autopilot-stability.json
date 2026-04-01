@@ -1,0 +1,24 @@
+{
+  "id": "jungle-anti-autopilot-stability",
+  "title": "Mental stability means staying present, not only avoiding tilt",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "review",
+  "concept": "anti_autopilot_stability",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["mental", "autopilot", "tilt", "presence", "decision making"],
+  "body": "Mental instability in jungle is not only hard tilt. It also shows up as autopilot, emotional routing, and forcing the game to match your frustration. Stable jungle play means staying present enough to keep making rational map decisions instead of emotional ones.",
+  "actionables": [
+    "Notice the first moment each game where you stop asking questions and begin auto-routing.",
+    "Use one short reset phrase after mistakes, such as 'next play' or 'back to plan.'",
+    "If emotion changes your route, label that moment in review as instability even if you did not type or rage."
+  ],
+  "source": {
+    "coach": "Titans Coaching / Levi",
+    "title": "Guia Definitiva de la Jungla para Subir a Challenger en la Nueva Temporada 2026 de League of Legends",
+    "notes": "Built from the useful mental framing in the transcript: instability includes autopilot and emotionally biased decisions."
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "jungle-punish-off-tempo-enemy-camps",
+  "title": "Punish enemy camps when the opposing jungler goes off-tempo",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "punish_off_tempo_enemy_camps",
+  "skillLevel": "emerald_plus",
+  "patch": null,
+  "tags": ["enemy camps", "tempo punish", "raptors", "invade", "tracking", "jungle route"],
+  "body": "When the enemy jungler shows on a lane or makes an off-tempo play, the question is not only whether the play worked. The better question is which camp cycle they just gave up. Elite junglers punish the camp that should have been on tempo instead of letting the opponent keep both the lane play and their own farm.",
+  "actionables": [
+    "After every enemy jungle reveal, ask which camp they are now late to rather than staring only at the lane outcome.",
+    "Invade for the camp that should be spawning on their route if the reveal confirms they cannot defend it on time.",
+    "Review missed invade windows around raptors, wolves, or Krugs after enemy side-lane plays."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Give Me 40 Minutes To Make You INSANE At Jungle - Diamond Jungle Coaching",
+    "url": "https://www.youtube.com/watch?v=3jOURGjldOM",
+    "notes": "Built from the repeated example where Lee Sin showed top and should have been punished on raptor timing."
+  }
+}

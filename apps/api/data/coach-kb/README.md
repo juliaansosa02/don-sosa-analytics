@@ -79,6 +79,50 @@ npm run coach:knowledge:audit -w @don-sosa/api
 
 6. When `OPENAI_API_KEY` is configured, the AI coach endpoint can already use those cards.
 
+## Video-to-card operating workflow
+
+Use this exact pipeline every time:
+
+1. Save the source metadata in `sources/raw/`.
+2. Write one cleaned markdown in `sources/processed/`.
+3. Split the video into reusable concepts.
+4. Create one card per concept in `cards/`.
+5. Keep cards in English first so reviewer-facing AI output stays strong in English.
+6. Only add champion-specific cards when the source is truly champion-specific.
+7. Prefer 6 to 12 narrow cards over 1 giant card.
+
+### What belongs in `sources/raw/`
+
+- video title
+- url
+- coach name
+- raw transcript or the user-provided transcript
+
+### What belongs in `sources/processed/`
+
+- cleaned summary
+- repeated concepts removed
+- sections by role / phase / concept
+- a short list of "best concepts to turn into cards"
+
+### What belongs in a card
+
+- one coaching idea
+- one main phase
+- one main concept
+- 2 to 3 actionables
+- enough metadata that retrieval can find it
+- if relevant, whether the idea is mainly for `soloq`, `coordinated play`, or both through tags
+
+### What should not become a card
+
+- motivational talk
+- personal anecdotes
+- repeated filler
+- broad ideas like "play smarter"
+- mixed concepts like "tempo, objectives, communication, and mechanics" all in one file
+- sales claims, unverifiable results, or authority statements that do not teach gameplay
+
 ## Suggested first content packs
 
 Start here:

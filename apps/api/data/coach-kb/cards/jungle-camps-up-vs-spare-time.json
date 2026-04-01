@@ -1,0 +1,25 @@
+{
+  "id": "jungle-camps-up-vs-spare-time",
+  "title": "Separate camps-up time from spare time",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "camps_up_vs_spare_time",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["tempo", "camp timers", "spare time", "efficiency", "jungle route"],
+  "body": "One of the cleanest tempo rules for jungle is to separate camps-up time from spare time. When camps are spawning or available, your default should be tempo and farming. Spare time is the dead window before camps or after an objective sequence where you can invest into vision, information, wave help, or setup.",
+  "actionables": [
+    "If a first-spawn camp is about to come up, arrive on time instead of inventing a weak side action.",
+    "If camps are not yet spawning, switch your brain into setup mode instead of standing idle or recalling too early.",
+    "Review your VOD by marking which seconds were camps-up time and which seconds were true spare time."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Give Me 40 Minutes To Make You INSANE At Jungle - Diamond Jungle Coaching",
+    "url": "https://www.youtube.com/watch?v=3jOURGjldOM",
+    "notes": "Main concept from the review: tempo improves when the player knows whether the current seconds belong to farming or setup."
+  }
+}

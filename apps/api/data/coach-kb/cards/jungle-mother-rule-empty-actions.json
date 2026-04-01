@@ -1,0 +1,24 @@
+{
+  "id": "jungle-mother-rule-empty-actions",
+  "title": "Use the three-question rule to detect empty actions",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "review",
+  "concept": "empty_action_filter",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["review", "decision filter", "tempo", "deny resources", "permanent value"],
+  "body": "A strong review filter for jungle decisions is to ask three questions: did this action gain time, deny enemy resources, or convert into something permanent? If the answer is no across all three, the action was probably empty. Empty actions feel active, but they usually create fatigue without creating advantage.",
+  "actionables": [
+    "Review failed plays with the three-question rule before judging mechanics.",
+    "If a move gains nothing permanent and denies nothing, treat it as a tempo leak even if it looked busy.",
+    "Use this filter on roams, repeat ganks, random hover time, and post-fight movement."
+  ],
+  "source": {
+    "coach": "Titans Coaching / Levi",
+    "title": "Guia Definitiva de la Jungla para Subir a Challenger en la Nueva Temporada 2026 de League of Legends",
+    "notes": "Built from the source's 'mother rule' for evaluating whether an action was meaningful or empty."
+  }
+}

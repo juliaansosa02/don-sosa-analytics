@@ -1,0 +1,24 @@
+{
+  "id": "jungle-convert-kills-into-permanent-value",
+  "title": "Convert kills into permanent value",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "conversion_ratio",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["conversion", "kills", "plates", "objectives", "vision", "permanent value"],
+  "body": "A kill only matters if it becomes something that stays on the map after the enemy respawns. Good jungle conversion means turning kills, summoner burns, or lane advantages into plates, camps, vision control, dragons, Herald, towers, or cleaner resets.",
+  "actionables": [
+    "After every successful play, ask what permanent gain is available before defaulting back to farm.",
+    "Track whether your ganks create plates, camps, vision, or objective setup instead of only counting kills.",
+    "Review one game per week and label each kill as converted or unconverted."
+  ],
+  "source": {
+    "coach": "Titans Coaching / Levi",
+    "title": "Guia Definitiva de la Jungla para Subir a Challenger en la Nueva Temporada 2026 de League of Legends",
+    "notes": "Derived from the source's repeated emphasis on conversion ratio and permanent objectives."
+  }
+}

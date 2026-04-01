@@ -1,0 +1,24 @@
+{
+  "id": "jungle-take-small-wins-when-chaotic",
+  "title": "In chaotic SoloQ, rebuild the game through small wins",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "mid_game",
+  "concept": "small_wins_in_chaos",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["soloq", "small wins", "chaos management", "mid game", "stability"],
+  "body": "When the map is unstable, you do not always need one heroic play to carry. Often the best path back into the game is to accumulate small wins: one kill, one flash, one traded camp, one objective, one protected wave. Small wins stabilize the game state without forcing desperation.",
+  "actionables": [
+    "When the game feels chaotic, ask what the smallest useful win on the map is right now.",
+    "Avoid all-in recovery attempts if a smaller gain keeps your tempo and your gold intact.",
+    "Review comeback games by identifying the first three small wins that rebuilt the position."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Solving The #1 SoloQ Problem (How To Carry Bad Teams) — Jungle Guide",
+    "notes": "Built from Leo's idea that unstable games are often recovered through accumulated small wins, not one giant force."
+  }
+}

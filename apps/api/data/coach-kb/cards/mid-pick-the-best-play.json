@@ -1,0 +1,27 @@
+{
+  "id": "mid-pick-the-best-play",
+  "title": "Do not take any play, take the best available play",
+  "language": "en",
+  "role": "MIDDLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "pick_the_best_play",
+  "skillLevel": "all",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["mid lane", "decision making", "macro", "best play", "information"],
+  "body": "Strong mid lane decision making is not about always doing something. It is about choosing the best play available from the current information. That means checking who is strong, what objective matters, which side has pressure, and whether the play in front of you is actually the highest-value option.",
+  "actionables": [
+    "When multiple plays exist, pause long enough to ask which one gives the best outcome, not just a possible outcome.",
+    "Use strength, wave state, objective state, and ally position to rank your options.",
+    "Review low-value roams or fights by asking what the better alternative on the map was."
+  ],
+  "source": {
+    "coach": "Coach Mysterias",
+    "title": "How to Win as a Mid Laner - Gameplay Guide",
+    "notes": "Built from the transcript's repeated emphasis on finding the best play instead of taking any available play."
+  }
+}

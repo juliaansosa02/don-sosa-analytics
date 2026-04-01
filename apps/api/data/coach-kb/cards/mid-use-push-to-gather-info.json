@@ -1,0 +1,27 @@
+{
+  "id": "mid-use-push-to-gather-info",
+  "title": "Use lane push to gather information and move first",
+  "language": "en",
+  "role": "MIDDLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "push_to_gather_info",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["mid lane", "push", "vision", "move first", "raptor ward", "scuttle"],
+  "body": "Push gives a mid laner more than priority. It creates time to ward, check enemy jungle paths, and support river or jungle first. A push that becomes information and first move is far more valuable than a push that only crashes minions and then sits still.",
+  "actionables": [
+    "Use your first controlled push to place a ward or gather side information instead of staying frozen in lane.",
+    "After every crash, ask what information or movement window you just created.",
+    "Review whether your lane priority actually became map impact or only temporary minion control."
+  ],
+  "source": {
+    "coach": "Coach Mysterias",
+    "title": "How to Win as a Mid Laner - Gameplay Guide",
+    "notes": "Built from the early lane sequence where push enables raptor warding, scuttle support, and pressure."
+  }
+}

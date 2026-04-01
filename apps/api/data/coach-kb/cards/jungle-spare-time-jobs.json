@@ -1,0 +1,25 @@
+{
+  "id": "jungle-spare-time-jobs",
+  "title": "Turn spare time into setup jobs",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "review",
+  "concept": "spare_time_jobs",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["spare time", "vision", "tracking", "warding", "sweeper", "wave fix"],
+  "body": "If no high-value play is guaranteed and your camps are not yet due, spare time should still produce something. Good spare-time jobs include warding enemy camps, removing vision, checking lane conditions, denying blast cone access, or helping a wave only when that wave fix is clearly worth more than the alternative.",
+  "actionables": [
+    "When you catch yourself waiting for a spawn, ask which setup job creates the most information in the next 20 seconds.",
+    "Use spare time to ward enemy camps or sweep a key entrance rather than recalling too early.",
+    "Only use spare time on a lane wave if that wave state is clearly more valuable than vision or enemy camp information."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "Give Me 40 Minutes To Make You INSANE At Jungle - Diamond Jungle Coaching",
+    "url": "https://www.youtube.com/watch?v=3jOURGjldOM",
+    "notes": "Derived from Leo's repeated examples of warding camps, sweeping, blast cone denial, and wave fixes during dead windows."
+  }
+}

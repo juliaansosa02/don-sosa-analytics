@@ -1,0 +1,24 @@
+{
+  "id": "jungle-time-administration",
+  "title": "Treat jungle as time administration, not random ganking",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "time_administration",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["tempo", "time", "jungle role", "ganking", "pressure"],
+  "body": "The core job of a jungler is to manage time better than the opposing jungler. Ganks are only one use of time. Strong jungle play comes from doing important actions earlier, converting windows into pressure, and chaining that pressure into camps, objectives, vision, or towers.",
+  "actionables": [
+    "Stop labeling your games as good or bad based only on gank count.",
+    "After each sequence, ask whether your time created pressure, information, or permanent value.",
+    "Review your route as a time plan first and a gank plan second."
+  ],
+  "source": {
+    "coach": "Titans Coaching / Levi",
+    "title": "Guia Definitiva de la Jungla para Subir a Challenger en la Nueva Temporada 2026 de League of Legends",
+    "notes": "Distilled from the source's repeated framing that jungle is primarily about time management."
+  }
+}
