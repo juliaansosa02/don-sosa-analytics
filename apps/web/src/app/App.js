@@ -379,6 +379,7 @@ export default function App() {
             lastSyncedAt: Date.now(),
             matches: nextDataset.summary.matches,
             profileIconId: nextDataset.profile?.profileIconId,
+            ddragonVersion: nextDataset.ddragonVersion,
             rankLabel: nextDataset.rank?.highest.label
         };
         const nextProfiles = [
@@ -569,11 +570,11 @@ export default function App() {
                                                         : (locale === 'en' ? 'Check for new matches' : 'Buscar nuevas partidas') }), _jsx("button", { type: "button", style: secondaryButtonStyle, onClick: () => setShowAccountControls(true), children: locale === 'en' ? 'Switch account' : 'Cambiar cuenta' })] })] })) })] }), savedProfiles.length ? (_jsxs("section", { style: savedProfilesSectionStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Saved profiles' : 'Perfiles guardados' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: locale === 'en' ? 'Jump back into accounts you already analyzed' : 'Volvé rápido a cuentas que ya analizaste' })] }), _jsx("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }, children: savedProfiles.map((profile) => {
                                 const isActive = `${profile.gameName}#${profile.tagLine}`.toLowerCase() === `${gameName}#${tagLine}`.toLowerCase();
                                 const rankTier = extractRankTierFromLabel(profile.rankLabel);
-                                const rankEmblem = rankTier ? getRankEmblemDataUrl(rankTier) : null;
+                                const profileIcon = getProfileIconUrl(profile.profileIconId, profile.ddragonVersion ?? dataset?.ddragonVersion);
                                 return (_jsxs("button", { type: "button", onClick: () => loadSavedProfile(profile), style: {
                                         ...savedProfileCardStyle,
                                         ...(isActive ? activeSavedProfileCardStyle : {})
-                                    }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: rankEmblem ? '32px minmax(0, 1fr)' : '1fr', gap: 10, alignItems: 'center', textAlign: 'left', minWidth: 0 }, children: [rankEmblem ? (_jsx("img", { src: rankEmblem, alt: profile.rankLabel ?? '', width: 32, height: 32, style: { display: 'block', width: 32, height: 32, objectFit: 'contain' } })) : null, _jsxs("div", { style: { display: 'grid', gap: 4, minWidth: 0 }, children: [_jsxs("div", { style: { color: '#edf2ff', fontWeight: 800 }, children: [profile.gameName, _jsxs("span", { style: { color: '#8592a8' }, children: ["#", profile.tagLine] })] }), _jsx("div", { style: { color: '#8390a6', fontSize: 12 }, children: profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible') })] })] }), _jsx(Badge, { tone: isActive ? 'low' : 'default', children: locale === 'en' ? `${profile.matches} matches` : `${profile.matches} partidas` })] }), _jsxs("div", { style: { color: '#748198', fontSize: 12, textAlign: 'left' }, children: [locale === 'en' ? 'Last update' : 'Última actualización', " ", new Date(profile.lastSyncedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')] })] }, `${profile.gameName}#${profile.tagLine}`));
+                                    }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: profileIcon ? '56px minmax(0, 1fr)' : '1fr', gap: 12, alignItems: 'center', textAlign: 'left', minWidth: 0 }, children: [profileIcon ? (_jsx("img", { src: profileIcon, alt: profile.gameName, width: 56, height: 56, style: { ...profileIconStyle, width: 56, height: 56, objectFit: 'cover', borderRadius: 14 } })) : null, _jsxs("div", { style: { display: 'grid', gap: 4, minWidth: 0 }, children: [_jsxs("div", { style: { color: '#edf2ff', fontWeight: 800 }, children: [profile.gameName, _jsxs("span", { style: { color: '#8592a8' }, children: ["#", profile.tagLine] })] }), _jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }, children: [rankTier ? _jsx(RankEmblem, { tier: rankTier, label: profile.rankLabel ?? '', size: 24 }) : null, _jsx("div", { style: { color: '#8390a6', fontSize: 12 }, children: profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible') })] })] })] }), _jsx(Badge, { tone: isActive ? 'low' : 'default', children: locale === 'en' ? `${profile.matches} matches` : `${profile.matches} partidas` })] }), _jsxs("div", { style: { color: '#748198', fontSize: 12, textAlign: 'left' }, children: [locale === 'en' ? 'Last update' : 'Última actualización', " ", new Date(profile.lastSyncedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')] })] }, `${profile.gameName}#${profile.tagLine}`));
                             }) })] })) : null, _jsxs("section", { style: { display: 'grid', gap: 12 }, children: [viewDataset && activeTab !== 'coach' ? (_jsxs("div", { style: roleFilterPanelStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Exploration filters' : 'Filtros de exploración' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: locale === 'en' ? 'Open the exact slice you want to inspect' : 'Abrí el recorte exacto que querés inspeccionar' }), _jsx("div", { style: { color: '#8793a8', fontSize: 13 }, children: locale === 'en' ? 'These filters only affect stats, matchups, runes, champions and match review. They no longer trigger a new AI coaching block.' : 'Estos filtros afectan solo métricas, cruces, runas, campeones y review de partidas. Ya no disparan un bloque nuevo de coaching IA.' })] }), _jsx("div", { className: "role-pill-grid", style: rolePillGridStyle, children: preferredRoles.map((role) => (_jsx("button", { type: "button", onClick: () => setRoleFilter(role), style: {
                                             ...rolePillStyle,
                                             ...(roleFilter === role ? activeRolePillStyle : {})
@@ -834,20 +835,38 @@ function TopStat({ label, value, hint }) {
     return (_jsxs("div", { style: topStatStyle, children: [_jsx("div", { style: { color: '#768091', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: label }), _jsx("div", { style: { fontSize: 21, fontWeight: 800, lineHeight: 1.05 }, children: value }), _jsx("div", { style: { color: '#8692a7', fontSize: 12 }, children: hint })] }));
 }
 function RankBadge({ rank, compact = false, locale = 'es' }) {
-    const emblem = getRankEmblemDataUrl(rank.highest.tier);
     const palette = getRankPalette(rank.highest.tier);
     const lpProgress = Math.max(0, Math.min(rank.highest.leaguePoints, 100));
-    const emblemSize = compact ? 118 : 138;
     const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR`;
     return (_jsxs("div", { title: title, style: {
             display: 'grid',
             gap: compact ? 8 : 10,
-            minWidth: compact ? 286 : 320,
+            minWidth: compact ? 220 : 248,
             padding: compact ? '12px 14px' : '16px 18px',
             borderRadius: 16,
             background: compact ? 'rgba(9, 14, 22, 0.86)' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
             border: `1px solid ${palette.primary}33`
-        }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: compact ? 10 : 14 }, children: [_jsx("img", { src: emblem, alt: rank.highest.label, width: emblemSize, height: emblemSize, style: { display: 'block', objectFit: 'contain', filter: `drop-shadow(0 16px 32px ${palette.primary}24)`, margin: compact ? '-10px -16px -8px -12px' : '-12px -18px -10px -14px' } }), _jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: rank.highest.queueLabel ?? (locale === 'en' ? 'Ranked' : 'Ranked') }), _jsxs("div", { style: { display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }, children: [_jsx("span", { style: { fontSize: compact ? 17 : 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }, children: rank.highest.label }), _jsx("span", { style: { color: palette.glow, fontSize: 13, fontWeight: 800 }, children: `${rank.highest.leaguePoints} LP` })] })] })] }), _jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: { height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }, children: _jsx("div", { style: { width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` } }) }), !compact ? (_jsx("div", { style: { color: '#7e889b', fontSize: 11 }, children: locale === 'en' ? 'Hover to view Solo/Duo and Flex' : 'Hover para ver Solo/Duo y Flex' })) : null] })] }));
+        }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: `${compact ? 72 : 82}px minmax(0, 1fr)`, alignItems: 'center', gap: compact ? 8 : 12 }, children: [_jsx(RankEmblem, { tier: rank.highest.tier, label: rank.highest.label, size: compact ? 72 : 82 }), _jsxs("div", { style: { display: 'grid', gap: 3, minWidth: 0 }, children: [_jsx("div", { style: { color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: rank.highest.queueLabel ?? (locale === 'en' ? 'Ranked' : 'Ranked') }), _jsxs("div", { style: { display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }, children: [_jsx("span", { style: { fontSize: compact ? 17 : 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }, children: rank.highest.label }), _jsx("span", { style: { color: palette.glow, fontSize: 13, fontWeight: 800 }, children: `${rank.highest.leaguePoints} LP` })] })] })] }), _jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: { height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }, children: _jsx("div", { style: { width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` } }) }), !compact ? (_jsx("div", { style: { color: '#7e889b', fontSize: 11 }, children: locale === 'en' ? 'Hover to view Solo/Duo and Flex' : 'Hover para ver Solo/Duo y Flex' })) : null] })] }));
+}
+function RankEmblem({ tier, label, size }) {
+    const emblem = getRankEmblemDataUrl(tier);
+    const palette = getRankPalette(tier);
+    const assetSize = Math.round(size * 2.35);
+    return (_jsx("div", { "aria-hidden": "true", style: {
+            width: size,
+            height: size,
+            overflow: 'hidden',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            filter: `drop-shadow(0 16px 32px ${palette.primary}24)`
+        }, children: _jsx("img", { src: emblem, alt: label, width: assetSize, height: assetSize, style: {
+                display: 'block',
+                width: assetSize,
+                height: assetSize,
+                objectFit: 'contain',
+                marginTop: Math.round(size * 0.06)
+            } }) }));
 }
 function TrendSparkline({ matches, locale = 'es' }) {
     const sorted = [...matches].sort((a, b) => a.gameCreation - b.gameCreation).slice(-12);
