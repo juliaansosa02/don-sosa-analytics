@@ -7,6 +7,7 @@ import { env } from './config/env.js';
 import { healthRouter } from './routes/health.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { aiCoachRouter } from './routes/aiCoach.js';
+import { membershipRouter } from './routes/membership.js';
 import { refreshPatchNotesFromOfficialSource } from './services/patchNotes.js';
 
 const app = express();
@@ -27,6 +28,7 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: false }));
 
 app.use('/api/health', healthRouter);
+app.use('/api/membership', membershipRouter);
 
 function readCookies(req: Request) {
   const cookieHeader = req.headers.cookie;

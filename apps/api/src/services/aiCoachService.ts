@@ -9,6 +9,7 @@ import { getPatchContextForCoach } from './patchNotes.js';
 import { aiCoachOutputSchema, type AICoachContext, type AICoachContinuity, type AICoachOutput, type AICoachProcessing, type AICoachRequest } from './aiCoachSchemas.js';
 import { loadAICoachUsageForMonth, loadLatestAICoachingGenerationForRequest, saveAICoachingGeneration } from './aiCoachStore.js';
 import type { collectPlayerSnapshot } from './collectionService.js';
+import { assertCoachEntitlement, limitDatasetToMembership, type MembershipContext } from './membershipService.js';
 
 type StoredDataset = Awaited<ReturnType<typeof collectPlayerSnapshot>>;
 
@@ -90,8 +91,10 @@ function decideProcessingPolicy(input: AICoachRequest, context: AICoachContext, 
   openaiGenerations: number;
   premiumGenerations: number;
   estimatedCostUsd: number;
-}, newVisibleMatchCount: number, hasPreviousGeneration: boolean): AICoachProcessing {
+}, newVisibleMatchCount: number, hasPreviousGeneration: boolean, membership: MembershipContext): AICoachProcessing {
   const budget = buildBudgetSnapshot(monthlyUsage);
+  const maxOpenAiRuns = Math.min(membership.plan.entitlements.maxAICoachRunsPerMonth, env.AI_COACH_MAX_MONTHLY_OPENAI_RUNS);
+  const maxPremiumRuns = Math.min(membership.plan.entitlements.maxPremiumAICoachRunsPerMonth, env.AI_COACH_MAX_MONTHLY_PREMIUM_RUNS);
 
   if (input.providerMode === 'draft' || !openai) {
     return {
@@ -104,7 +107,7 @@ function decideProcessingPolicy(input: AICoachRequest, context: AICoachContext, 
   }
 
   const hardBudgetReached = budget.remainingBudgetUsd <= 0
-    || monthlyUsage.openaiGenerations >= env.AI_COACH_MAX_MONTHLY_OPENAI_RUNS;
+    || monthlyUsage.openaiGenerations >= maxOpenAiRuns;
 
   if (hardBudgetReached) {
     return {
@@ -121,7 +124,8 @@ function decideProcessingPolicy(input: AICoachRequest, context: AICoachContext, 
     : newVisibleMatchCount >= env.AI_COACH_PREMIUM_MIN_NEW_MATCHES;
 
   const premiumAllowed = premiumDesired
-    && monthlyUsage.premiumGenerations < env.AI_COACH_MAX_MONTHLY_PREMIUM_RUNS
+    && maxPremiumRuns > 0
+    && monthlyUsage.premiumGenerations < maxPremiumRuns
     && budget.remainingBudgetUsd >= env.AI_COACH_PREMIUM_MIN_REMAINING_BUDGET_USD;
 
   if (premiumAllowed) {
@@ -566,14 +570,17 @@ function isRecoverableOpenAIError(error: unknown) {
   );
 }
 
-export async function generateAICoach(input: AICoachRequest) {
-  const dataset = await loadProfileSnapshot<StoredDataset>(input.gameName, input.tagLine, input.platform);
+export async function generateAICoach(input: AICoachRequest, membership: MembershipContext) {
+  assertCoachEntitlement(membership, input);
+  const storedDataset = await loadProfileSnapshot<StoredDataset>(input.gameName, input.tagLine, input.platform);
+  const dataset = storedDataset ? limitDatasetToMembership(storedDataset, membership.plan, input.locale) : null;
   if (!dataset) {
     throw new Error(input.locale === 'en' ? 'No cached analysis was found for that account yet.' : 'Todavía no existe un análisis guardado para esa cuenta.');
   }
 
   const context = await buildCoachContext(dataset, input);
   const previousGeneration = await loadLatestAICoachingGenerationForRequest({
+    viewerId: membership.viewerId,
     gameName: input.gameName,
     tagLine: input.tagLine,
     platform: input.platform,
@@ -585,9 +592,7 @@ export async function generateAICoach(input: AICoachRequest) {
   const previousVisibleMatchIds = previousGeneration?.context_payload?.sample?.visibleMatchIds ?? [];
   const newVisibleMatchIds = context.sample.visibleMatchIds.filter((matchId) => !previousVisibleMatchIds.includes(matchId));
   const monthlyUsage = await loadAICoachUsageForMonth({
-    gameName: input.gameName,
-    tagLine: input.tagLine,
-    platform: input.platform
+    viewerId: membership.viewerId
   });
 
   if (previousGeneration?.context_payload?.sample?.sampleSignature === context.sample.sampleSignature) {
@@ -631,7 +636,7 @@ export async function generateAICoach(input: AICoachRequest) {
   let estimatedCostUsd = 0;
   let inputTokens = 0;
   let outputTokens = 0;
-  let processing = decideProcessingPolicy(input, context, monthlyUsage, newVisibleMatchIds.length, Boolean(previousGeneration));
+  let processing = decideProcessingPolicy(input, context, monthlyUsage, newVisibleMatchIds.length, Boolean(previousGeneration), membership);
   const previousCoaching = previousGeneration
     ? {
         coach: previousGeneration.response_payload,
@@ -676,6 +681,7 @@ export async function generateAICoach(input: AICoachRequest) {
   }
 
   const generationId = await saveAICoachingGeneration({
+    viewerId: membership.viewerId,
     request: input,
     context,
     provider,

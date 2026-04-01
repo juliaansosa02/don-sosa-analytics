@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { buildAggregateSummary } from '@don-sosa/core';
 import { useEffect, useMemo, useState } from 'react';
-import { collectProfile, fetchCachedProfile, generateAICoach, sendAICoachFeedback } from '../lib/api';
+import { collectProfile, fetchCachedProfile, fetchMembershipCatalog, fetchMembershipMe, generateAICoach, sendAICoachFeedback, setMembershipPlanDev } from '../lib/api';
 import { Shell, Card, Badge } from '../components/ui';
 import { CoachingHome } from '../features/coach/CoachingHome';
 import { StatsTab } from '../features/stats/StatsTab';
@@ -21,7 +21,7 @@ const tabs = [
     { id: 'matches', label: { es: 'Partidas', en: 'Matches' } }
 ];
 const savedProfilesStorageKey = 'don-sosa:saved-profiles';
-const initialMatchOptions = [20, 50, 100];
+const initialMatchOptions = [20, 30, 50, 100];
 function legacyDatasetStorageKey(gameName, tagLine) {
     return `don-sosa:dataset:${gameName}#${tagLine}`.toLowerCase();
 }
@@ -78,6 +78,16 @@ function mergeDatasets(current, incoming, locale) {
 function normalizeTagLineInput(value) {
     return value.replace(/^#+/, '').trim();
 }
+function limitDatasetMatches(dataset, maxMatches, locale) {
+    if (dataset.matches.length <= maxMatches)
+        return dataset;
+    const limitedMatches = [...dataset.matches].sort((a, b) => b.gameCreation - a.gameCreation).slice(0, maxMatches);
+    return {
+        ...dataset,
+        matches: limitedMatches,
+        summary: buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, limitedMatches, locale)
+    };
+}
 function serializeCoachRoles(roles) {
     return [...new Set(roles.map((role) => role.trim().toUpperCase()).filter(Boolean))].sort().join('+');
 }
@@ -113,25 +123,33 @@ function filterMatchesByRoles(dataset, roles) {
     const normalizedRoles = roles.map((role) => role.trim().toUpperCase()).filter(Boolean);
     return dataset.matches.filter((match) => normalizedRoles.includes((match.role || 'NONE').toUpperCase()));
 }
-function buildTargetOptions(currentMatches) {
+function buildTargetOptions(currentMatches, maxMatchesPerProfile) {
+    const baseOptions = initialMatchOptions.filter((option) => option <= maxMatchesPerProfile);
+    const premiumOptions = [150, 250, 500, 1000].filter((option) => option <= maxMatchesPerProfile);
+    const optionSeed = [...baseOptions, ...premiumOptions, maxMatchesPerProfile];
     if (!currentMatches)
-        return initialMatchOptions;
-    const options = new Set([currentMatches, 100]);
+        return Array.from(new Set(optionSeed)).sort((a, b) => a - b);
+    const options = new Set([currentMatches, maxMatchesPerProfile]);
     [1, 5, 10].forEach((delta) => {
-        const next = Math.min(100, currentMatches + delta);
+        const next = Math.min(maxMatchesPerProfile, currentMatches + delta);
         if (next > currentMatches)
             options.add(next);
     });
+    for (const option of optionSeed) {
+        if (option >= currentMatches) {
+            options.add(option);
+        }
+    }
     return Array.from(options).sort((a, b) => a - b);
 }
-function buildQuickRefreshActions(currentMatches) {
-    if (!currentMatches || currentMatches >= 100)
+function buildQuickRefreshActions(currentMatches, maxMatchesPerProfile) {
+    if (!currentMatches || currentMatches >= maxMatchesPerProfile)
         return [];
     const candidates = [
-        { id: 'plus-1', target: Math.min(100, currentMatches + 1), label: '+1' },
-        { id: 'plus-5', target: Math.min(100, currentMatches + 5), label: '+5' },
-        { id: 'plus-10', target: Math.min(100, currentMatches + 10), label: '+10' },
-        { id: 'complete', target: 100, label: '100' }
+        { id: 'plus-1', target: Math.min(maxMatchesPerProfile, currentMatches + 1), label: '+1' },
+        { id: 'plus-5', target: Math.min(maxMatchesPerProfile, currentMatches + 5), label: '+5' },
+        { id: 'plus-10', target: Math.min(maxMatchesPerProfile, currentMatches + 10), label: '+10' },
+        { id: 'complete', target: maxMatchesPerProfile, label: String(maxMatchesPerProfile) }
     ];
     const seen = new Set();
     return candidates.filter((action) => {
@@ -186,6 +204,45 @@ export default function App() {
     const [aiCoachError, setAICoachError] = useState(null);
     const [lastAICoachRequestKey, setLastAICoachRequestKey] = useState(null);
     const [lastGeneratedCoachScopeKey, setLastGeneratedCoachScopeKey] = useState(null);
+    const [membershipCatalog, setMembershipCatalog] = useState(null);
+    const [membership, setMembership] = useState(null);
+    const [membershipLoading, setMembershipLoading] = useState(true);
+    const [membershipError, setMembershipError] = useState(null);
+    const [membershipActionLoading, setMembershipActionLoading] = useState(false);
+    const currentPlan = membership?.plan ?? null;
+    const planEntitlements = currentPlan?.entitlements ?? null;
+    async function refreshMembership() {
+        setMembershipLoading(true);
+        setMembershipError(null);
+        try {
+            const [catalog, currentMembership] = await Promise.all([
+                fetchMembershipCatalog(),
+                fetchMembershipMe()
+            ]);
+            setMembershipCatalog(catalog);
+            setMembership(currentMembership);
+        }
+        catch (err) {
+            setMembershipError(err instanceof Error ? err.message : 'Unknown error');
+        }
+        finally {
+            setMembershipLoading(false);
+        }
+    }
+    async function handleDevPlanChange(planId) {
+        setMembershipActionLoading(true);
+        setMembershipError(null);
+        try {
+            await setMembershipPlanDev(planId);
+            await refreshMembership();
+        }
+        catch (err) {
+            setMembershipError(err instanceof Error ? err.message : 'Unknown error');
+        }
+        finally {
+            setMembershipActionLoading(false);
+        }
+    }
     async function hydrateFromServer(gameNameValue, tagLineValue, platformValue) {
         try {
             const serverDataset = await fetchCachedProfile(gameNameValue, tagLineValue, platformValue, locale);
@@ -205,12 +262,16 @@ export default function App() {
             setSyncMessage(locale === 'en'
                 ? 'We recovered a saved version from the server so you do not have to start from zero on this device.'
                 : 'Recuperamos una versión guardada en el servidor para que no arranques de cero en este dispositivo.');
+            void refreshMembership();
             return true;
         }
         catch {
             return false;
         }
     }
+    useEffect(() => {
+        void refreshMembership();
+    }, []);
     useEffect(() => {
         const rawProfiles = window.localStorage.getItem(savedProfilesStorageKey);
         if (rawProfiles) {
@@ -269,6 +330,25 @@ export default function App() {
             window.localStorage.removeItem('don-sosa:last-profile');
         }
     }, [locale]);
+    useEffect(() => {
+        if (!planEntitlements)
+            return;
+        if (savedProfiles.length <= planEntitlements.maxStoredProfiles)
+            return;
+        const trimmed = savedProfiles.slice(0, planEntitlements.maxStoredProfiles);
+        setSavedProfiles(trimmed);
+        window.localStorage.setItem(savedProfilesStorageKey, JSON.stringify(trimmed));
+    }, [savedProfiles, planEntitlements]);
+    useEffect(() => {
+        if (!dataset || !planEntitlements)
+            return;
+        if (dataset.matches.length <= planEntitlements.maxStoredMatchesPerProfile)
+            return;
+        const limited = limitDatasetMatches(dataset, planEntitlements.maxStoredMatchesPerProfile, locale);
+        setDataset(limited);
+        window.localStorage.setItem(datasetStorageKey(limited.player, limited.tagLine, limited.summary.platform), JSON.stringify(limited));
+        persistSavedProfile(limited, Math.min(matchCount, planEntitlements.maxStoredMatchesPerProfile));
+    }, [dataset, planEntitlements, locale, matchCount]);
     const availableRoles = useMemo(() => {
         if (!dataset)
             return ['ALL'];
@@ -287,6 +367,20 @@ export default function App() {
             return dataset.summary;
         return buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, scopedMatches, locale);
     }, [dataset, coachRoles, locale]);
+    useEffect(() => {
+        if (!planEntitlements)
+            return;
+        if (matchCount > planEntitlements.maxStoredMatchesPerProfile) {
+            setMatchCount(planEntitlements.maxStoredMatchesPerProfile);
+        }
+    }, [matchCount, planEntitlements]);
+    useEffect(() => {
+        if (!planEntitlements)
+            return;
+        if (coachRoles.length <= planEntitlements.maxCoachRoles)
+            return;
+        setCoachRoles((current) => current.slice(0, planEntitlements.maxCoachRoles));
+    }, [coachRoles, planEntitlements]);
     const availableQueueFilters = useMemo(() => {
         if (!dataset)
             return ['ALL'];
@@ -387,8 +481,8 @@ export default function App() {
             return false;
         return dataset.matches.length < matchCount;
     }, [dataset, matchCount]);
-    const targetCountOptions = useMemo(() => buildTargetOptions(dataset?.matches.length ?? null), [dataset?.matches.length]);
-    const quickRefreshActions = useMemo(() => buildQuickRefreshActions(dataset?.matches.length ?? null), [dataset?.matches.length]);
+    const targetCountOptions = useMemo(() => buildTargetOptions(dataset?.matches.length ?? null, planEntitlements?.maxStoredMatchesPerProfile ?? 100), [dataset?.matches.length, planEntitlements?.maxStoredMatchesPerProfile]);
+    const quickRefreshActions = useMemo(() => buildQuickRefreshActions(dataset?.matches.length ?? null, planEntitlements?.maxStoredMatchesPerProfile ?? 100), [dataset?.matches.length, planEntitlements?.maxStoredMatchesPerProfile]);
     const profileIconUrl = useMemo(() => getProfileIconUrl(dataset?.profile?.profileIconId, dataset?.ddragonVersion), [dataset?.profile?.profileIconId, dataset?.ddragonVersion]);
     const currentPlatformInfo = useMemo(() => getRiotPlatformInfo(dataset?.summary.platform ?? platform), [dataset?.summary.platform, platform]);
     const searchPreviewLabel = useMemo(() => {
@@ -416,7 +510,7 @@ export default function App() {
             const nextRoles = parsed
                 .map((role) => role.trim().toUpperCase())
                 .filter((role) => coachRoleOptions.includes(role))
-                .slice(0, 2);
+                .slice(0, planEntitlements?.maxCoachRoles ?? 2);
             setCoachRoles(nextRoles.length ? nextRoles : defaultRoles);
             setLastGeneratedCoachScopeKey(null);
         }
@@ -424,7 +518,7 @@ export default function App() {
             setCoachRoles(defaultRoles);
             setLastGeneratedCoachScopeKey(null);
         }
-    }, [dataset, gameName, tagLine, platform, coachRoleOptions]);
+    }, [dataset, gameName, tagLine, platform, coachRoleOptions, planEntitlements?.maxCoachRoles]);
     useEffect(() => {
         if (!availableRoles.includes(roleFilter)) {
             setRoleFilter('ALL');
@@ -458,7 +552,7 @@ export default function App() {
         const nextProfiles = [
             nextRecord,
             ...savedProfiles.filter((profile) => buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform) !== buildProfileIdentityKey(nextRecord.gameName, nextRecord.tagLine, nextRecord.platform))
-        ].slice(0, 8);
+        ].slice(0, planEntitlements?.maxStoredProfiles ?? 8);
         setSavedProfiles(nextProfiles);
         window.localStorage.setItem(savedProfilesStorageKey, JSON.stringify(nextProfiles));
     }
@@ -492,14 +586,15 @@ export default function App() {
         void hydrateFromServer(profile.gameName, profile.tagLine, profile.platform ?? guessDefaultRiotPlatform(locale));
     }
     async function runAnalysis(requestedCount = matchCount) {
+        const cappedRequestedCount = Math.min(requestedCount, planEntitlements?.maxStoredMatchesPerProfile ?? requestedCount);
         setLoading(true);
         setError(null);
         setSyncMessage(null);
         setProgress({ stage: 'queued', current: 0, total: 1, message: locale === 'en' ? 'Preparing analysis' : 'Preparando análisis' });
         try {
             const previousDataset = readCachedDataset(gameName, tagLine, platform);
-            const shouldRefreshFullSample = !previousDataset || previousDataset.matches.length < requestedCount;
-            const result = await collectProfile(gameName, tagLine, requestedCount, {
+            const shouldRefreshFullSample = !previousDataset || previousDataset.matches.length < cappedRequestedCount;
+            const result = await collectProfile(gameName, tagLine, cappedRequestedCount, {
                 platform,
                 locale,
                 onProgress: (nextProgress) => setProgress(nextProgress),
@@ -530,11 +625,12 @@ export default function App() {
                     ? `${mergedDataset.summary.matches} valid matches were loaded to build your first sample.`
                     : `Se cargaron ${mergedDataset.summary.matches} partidas válidas para construir tu primera muestra.`);
             }
-            setMatchCount(requestedCount);
+            setMatchCount(cappedRequestedCount);
             setPlatform(mergedDataset.summary.platform ?? platform);
-            window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({ gameName, tagLine, platform: mergedDataset.summary.platform, matchCount: requestedCount }));
+            window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({ gameName, tagLine, platform: mergedDataset.summary.platform, matchCount: cappedRequestedCount }));
             window.localStorage.setItem(datasetStorageKey(gameName, tagLine, mergedDataset.summary.platform), JSON.stringify(mergedDataset));
-            persistSavedProfile(mergedDataset, requestedCount);
+            persistSavedProfile(mergedDataset, cappedRequestedCount);
+            await refreshMembership();
         }
         catch (err) {
             setError(err instanceof Error ? err.message : 'Unknown error');
@@ -550,10 +646,11 @@ export default function App() {
     }
     function toggleCoachRole(role) {
         const normalizedRole = role.trim().toUpperCase();
+        const maxCoachRoles = planEntitlements?.maxCoachRoles ?? 2;
         setCoachRoles((current) => {
             const next = current.includes(normalizedRole)
                 ? current.filter((item) => item !== normalizedRole)
-                : [...current, normalizedRole].slice(0, 2);
+                : [...current, normalizedRole].slice(0, maxCoachRoles);
             if (gameName && tagLine && platform) {
                 window.localStorage.setItem(coachScopeStorageKey(gameName, tagLine, platform), JSON.stringify(next));
             }
@@ -586,6 +683,7 @@ export default function App() {
             setAICoach(result);
             setLastGeneratedCoachScopeKey(coachScopeKey);
             window.localStorage.setItem(coachScopeStorageKey(gameName, tagLine, platform), JSON.stringify(coachRoles));
+            await refreshMembership();
         }
         catch (err) {
             setAICoachError(err instanceof Error ? err.message : 'Unknown error');
@@ -608,7 +706,18 @@ export default function App() {
             setAICoachError(err instanceof Error ? err.message : 'Unknown error');
         }
     }
-    return (_jsx(Shell, { children: _jsxs("div", { style: { display: 'grid', gap: 18, maxWidth: 1440, margin: '0 auto' }, children: [_jsxs("section", { style: topBarStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#eef4ff', fontSize: 18, fontWeight: 800, letterSpacing: '-0.03em' }, children: "Don Sosa Coach" }), _jsx("div", { style: { color: '#8b96aa', fontSize: 13 }, children: locale === 'en' ? 'Premium coaching, review and progression tracking for League of Legends.' : 'Coaching premium, revisión y seguimiento de progreso para League of Legends.' })] }), _jsxs("div", { style: accountAccessStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#dfe8f6', fontSize: 13, fontWeight: 700 }, children: locale === 'en' ? 'Account and membership' : 'Cuenta y membresía' }), _jsx("div", { style: { color: '#8190a6', fontSize: 12 }, children: locale === 'en' ? 'Reserved space for login, profile and billing.' : 'Espacio reservado para login, perfil y suscripción.' })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }, children: [_jsx(Badge, { tone: "default", children: locale === 'en' ? 'Coming soon' : 'Próximamente' }), _jsx("button", { type: "button", style: topBarGhostButtonStyle, disabled: true, children: locale === 'en' ? 'Sign in' : 'Iniciar sesión' }), _jsx("button", { type: "button", style: topBarPrimaryButtonStyle, disabled: true, children: locale === 'en' ? 'Profile' : 'Perfil' })] })] })] }), _jsxs("section", { style: heroGridStyle, children: [!dataset ? (_jsx("div", { style: heroIntroPanelStyle, children: _jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsx("div", { style: { color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }, children: "Don Sosa Coach" }), _jsx("h1", { style: { margin: 0, fontSize: 46, letterSpacing: '-0.05em', maxWidth: 760 }, children: locale === 'en'
+    return (_jsx(Shell, { children: _jsxs("div", { style: { display: 'grid', gap: 18, maxWidth: 1440, margin: '0 auto' }, children: [_jsxs("section", { style: topBarStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#eef4ff', fontSize: 18, fontWeight: 800, letterSpacing: '-0.03em' }, children: "Don Sosa Coach" }), _jsx("div", { style: { color: '#8b96aa', fontSize: 13 }, children: locale === 'en' ? 'Premium coaching, review and progression tracking for League of Legends.' : 'Coaching premium, revisión y seguimiento de progreso para League of Legends.' })] }), _jsxs("div", { style: accountAccessStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#dfe8f6', fontSize: 13, fontWeight: 700 }, children: locale === 'en' ? 'Account and membership' : 'Cuenta y membresía' }), _jsx("div", { style: { color: '#8190a6', fontSize: 12 }, children: currentPlan
+                                                ? (locale === 'en'
+                                                    ? `${currentPlan.name} · ${currentPlan.monthlyUsd === 0 ? 'current free tier' : `US$${currentPlan.monthlyUsd}/month`}`
+                                                    : `${currentPlan.name} · ${currentPlan.monthlyUsd === 0 ? 'tu nivel gratis actual' : `US$${currentPlan.monthlyUsd}/mes`}`)
+                                                : (locale === 'en' ? 'Loading plan and entitlements...' : 'Cargando plan y entitlements...') })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }, children: [membershipLoading ? _jsx(Badge, { tone: "default", children: locale === 'en' ? 'Loading plan' : 'Cargando plan' }) : null, currentPlan ? _jsx(Badge, { tone: "default", children: currentPlan.name }) : null, membership ? _jsx(Badge, { tone: "low", children: locale === 'en' ? `${membership.linkedProfiles.length}/${membership.plan.entitlements.maxStoredProfiles} profiles` : `${membership.linkedProfiles.length}/${membership.plan.entitlements.maxStoredProfiles} perfiles` }) : null, membership ? _jsx(Badge, { tone: "low", children: locale === 'en' ? `${membership.usage.openaiGenerations}/${membership.plan.entitlements.maxAICoachRunsPerMonth} AI` : `${membership.usage.openaiGenerations}/${membership.plan.entitlements.maxAICoachRunsPerMonth} IA` }) : null, _jsx("button", { type: "button", style: topBarGhostButtonStyle, disabled: true, children: locale === 'en' ? 'Login soon' : 'Login pronto' })] })] })] }), membershipCatalog?.plans?.length ? (_jsxs("section", { style: planSectionStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Memberships' : 'Membresías' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: locale === 'en' ? 'Limits, upgrades and entitlement model' : 'Límites, upgrades y modelo de entitlements' })] }), _jsx("div", { style: planCardsGridStyle, children: membershipCatalog.plans.map((plan) => {
+                                const isCurrent = membership?.plan.id === plan.id;
+                                return (_jsxs("div", { style: { ...planCardStyle, ...(isCurrent ? activePlanCardStyle : {}) }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }, children: [_jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 800, fontSize: 16 }, children: plan.name }), _jsx("div", { style: { color: '#8a97ab', fontSize: 13, lineHeight: 1.5 }, children: plan.description })] }), _jsx(Badge, { tone: isCurrent ? 'low' : 'default', children: isCurrent ? (locale === 'en' ? 'Current' : 'Actual') : plan.badge })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "low", children: plan.monthlyUsd === 0 ? (locale === 'en' ? 'Free' : 'Gratis') : (locale === 'en' ? `US$${plan.monthlyUsd}/month` : `US$${plan.monthlyUsd}/mes`) }), _jsx(Badge, { tone: "default", children: `${plan.entitlements.maxStoredMatchesPerProfile} ${locale === 'en' ? 'matches/profile' : 'partidas/perfil'}` }), _jsx(Badge, { tone: "default", children: `${plan.entitlements.maxStoredProfiles} ${locale === 'en' ? 'profiles' : 'perfiles'}` })] }), _jsx("div", { style: { display: 'grid', gap: 6 }, children: plan.featureHighlights.slice(0, 4).map((feature) => (_jsxs("div", { style: { color: '#d5dfef', fontSize: 13, lineHeight: 1.5 }, children: ["\u2022 ", feature] }, feature))) }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }, children: membership?.devToolsEnabled ? (_jsx("button", { type: "button", style: isCurrent ? topBarPrimaryButtonStyle : secondaryButtonStyle, disabled: membershipActionLoading || isCurrent, onClick: () => void handleDevPlanChange(plan.id), children: isCurrent
+                                                    ? (locale === 'en' ? 'Current plan' : 'Plan actual')
+                                                    : membershipActionLoading
+                                                        ? (locale === 'en' ? 'Switching...' : 'Cambiando...')
+                                                        : (locale === 'en' ? 'Activate in dev' : 'Activar en dev') })) : (_jsx("button", { type: "button", style: isCurrent ? topBarPrimaryButtonStyle : secondaryButtonStyle, disabled: true, children: isCurrent ? (locale === 'en' ? 'Current plan' : 'Plan actual') : (locale === 'en' ? 'Stripe soon' : 'Stripe pronto') })) })] }, plan.id));
+                            }) }), membershipError ? _jsx("div", { style: softPanelStyle, children: membershipError }) : null] })) : null, _jsxs("section", { style: heroGridStyle, children: [!dataset ? (_jsx("div", { style: heroIntroPanelStyle, children: _jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsx("div", { style: { color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }, children: "Don Sosa Coach" }), _jsx("h1", { style: { margin: 0, fontSize: 46, letterSpacing: '-0.05em', maxWidth: 760 }, children: locale === 'en'
                                             ? 'A competitive read of your play, not just another stats page'
                                             : 'Tu lectura competitiva para jugar mejor, no solo mirar stats' }), _jsx("p", { style: { margin: 0, color: '#9099aa', maxWidth: 760, lineHeight: 1.7 }, children: locale === 'en'
                                             ? 'Clear diagnosis, actionable decisions and an organized view of matchups, runes, champions and review. First you understand what to fix, then you go deeper.'
@@ -622,41 +731,44 @@ export default function App() {
                                         ? 'Choose the one or two roles you truly want to improve. The AI block is generated only from this scope.'
                                         : 'Elegí el o los dos roles que de verdad querés mejorar. El bloque de IA se genera solo sobre este alcance.', children: _jsxs("div", { style: { display: 'grid', gap: 14 }, children: [_jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: coachRoleOptions.map((role) => {
                                                     const selected = coachRoles.includes(role);
-                                                    return (_jsx("button", { type: "button", onClick: () => toggleCoachRole(role), style: {
+                                                    const maxRolesReached = !selected && coachRoles.length >= (planEntitlements?.maxCoachRoles ?? 2);
+                                                    return (_jsx("button", { type: "button", disabled: maxRolesReached, onClick: () => toggleCoachRole(role), style: {
                                                             ...rolePillStyle,
                                                             ...(selected ? activeRolePillStyle : {}),
-                                                            borderColor: selected ? 'rgba(216,253,241,0.26)' : 'rgba(255,255,255,0.07)'
+                                                            borderColor: selected ? 'rgba(216,253,241,0.26)' : 'rgba(255,255,255,0.07)',
+                                                            opacity: maxRolesReached ? 0.45 : 1,
+                                                            cursor: maxRolesReached ? 'not-allowed' : 'pointer'
                                                         }, children: locale === 'en' ? translateRole(role, 'en') : getRoleLabel(role) }, role));
-                                                }) }), _jsxs("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: '1.2fr repeat(2, minmax(0, 1fr))', gap: 12 }, children: [_jsxs("div", { style: scopeMetaCardStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Current scope' : 'Alcance actual' }), _jsx("div", { style: { ...heroMetaValueStyle, fontSize: 20 }, children: coachScopeLabel }), _jsx("div", { style: heroMetaSubtleStyle, children: coachRoles.length === 2
-                                                                    ? (locale === 'en' ? 'Maximum scope selected' : 'Máximo de alcance seleccionado')
+                                                }) }), _jsxs("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: '1.2fr repeat(2, minmax(0, 1fr))', gap: 12 }, children: [_jsxs("div", { style: scopeMetaCardStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Current scope' : 'Alcance actual' }), _jsx("div", { style: { ...heroMetaValueStyle, fontSize: 20 }, children: coachScopeLabel }), _jsx("div", { style: heroMetaSubtleStyle, children: coachRoles.length >= (planEntitlements?.maxCoachRoles ?? 2)
+                                                                    ? (locale === 'en' ? 'Maximum scope selected for this plan' : 'Máximo de alcance para este plan')
                                                                     : locale === 'en'
-                                                                        ? 'You can add one more role'
-                                                                        : 'Podés sumar un rol más' })] }), _jsxs("div", { style: scopeMetaCardStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Token policy' : 'Política de tokens' }), _jsx("div", { style: { ...heroMetaValueStyle, fontSize: 20 }, children: locale === 'en' ? 'Manual refresh' : 'Refresh manual' }), _jsx("div", { style: heroMetaSubtleStyle, children: locale === 'en' ? 'Changing this scope does not regenerate coaching until you refresh.' : 'Cambiar este alcance no regenera coaching hasta que vos actualices.' })] }), _jsxs("div", { style: scopeMetaCardStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Current queue read' : 'Lectura de colas' }), _jsx("div", { style: { ...heroMetaValueStyle, fontSize: 20 }, children: formatQueueSummary(dataset, locale) }), _jsx("div", { style: heroMetaSubtleStyle, children: locale === 'en' ? 'Saved ranked context' : 'Contexto ranked guardado' })] })] }), coachScopeDirty ? (_jsx("div", { style: scopeStatusStyle, children: locale === 'en'
+                                                                        ? `You can add up to ${(planEntitlements?.maxCoachRoles ?? 2) - coachRoles.length} more role`
+                                                                        : `Podés sumar hasta ${(planEntitlements?.maxCoachRoles ?? 2) - coachRoles.length} rol más` })] }), _jsxs("div", { style: scopeMetaCardStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Token policy' : 'Política de tokens' }), _jsx("div", { style: { ...heroMetaValueStyle, fontSize: 20 }, children: locale === 'en' ? 'Manual refresh' : 'Refresh manual' }), _jsx("div", { style: heroMetaSubtleStyle, children: locale === 'en' ? 'Changing this scope does not regenerate coaching until you refresh.' : 'Cambiar este alcance no regenera coaching hasta que vos actualices.' })] }), _jsxs("div", { style: scopeMetaCardStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Current queue read' : 'Lectura de colas' }), _jsx("div", { style: { ...heroMetaValueStyle, fontSize: 20 }, children: formatQueueSummary(dataset, locale) }), _jsx("div", { style: heroMetaSubtleStyle, children: locale === 'en' ? 'Saved ranked context' : 'Contexto ranked guardado' })] })] }), coachScopeDirty ? (_jsx("div", { style: scopeStatusStyle, children: locale === 'en'
                                                     ? `The coaching scope changed to ${coachScopeLabel}. Refresh the coaching block when you want this role selection to become the new main read.`
                                                     : `El alcance del coaching cambió a ${coachScopeLabel}. Actualizá el bloque cuando quieras que esta selección de roles pase a ser la lectura principal.` })) : null] }) })] })), _jsx(Card, { title: showAccountControls ? (locale === 'en' ? 'Load Riot account' : 'Cargar cuenta de Riot') : (locale === 'en' ? 'Active account' : 'Cuenta activa'), subtitle: showAccountControls
                                 ? (locale === 'en' ? 'Enter the Riot ID you want to analyze and choose the depth of the first sample.' : 'Ingresá el Riot ID que querés analizar y elegí la profundidad de la primera muestra.')
                                 : (locale === 'en' ? 'Your account is ready. Refresh only what is missing or switch profiles whenever you want.' : 'Tu cuenta ya está lista. Refrescá solo lo que falta o cambiá de perfil cuando quieras.'), children: showAccountControls || !dataset ? (_jsxs("form", { onSubmit: handleSubmit, style: { display: 'grid', gap: 16 }, children: [_jsxs("div", { style: riotSearchShellStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Riot account lookup' : 'Búsqueda de cuenta Riot' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: searchPreviewLabel })] }), _jsxs("div", { className: "five-col-grid", style: riotSearchRowStyle, children: [_jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Game name' : 'Nombre en juego' }), _jsx("input", { value: gameName, onChange: (e) => setGameName(e.target.value), placeholder: locale === 'en' ? 'For example, Faker' : 'Por ejemplo, Don Sosa', style: riotSearchInputStyle })] }), _jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Tag' : 'Tag' }), _jsxs("div", { style: tagInputShellStyle, children: [_jsx("span", { style: tagPrefixStyle, children: "#" }), _jsx("input", { value: tagLine, onChange: (e) => setTagLine(normalizeTagLineInput(e.target.value)), placeholder: locale === 'en' ? 'KR1' : 'LAS', style: tagInputStyle })] })] }), _jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Platform' : 'Platform' }), _jsx("select", { value: platform, onChange: (e) => setPlatform(e.target.value), style: riotSearchInputStyle, children: supportedRiotPlatforms.map((platformCode) => {
                                                                     const info = getRiotPlatformInfo(platformCode);
                                                                     return (_jsx("option", { value: platformCode, children: info ? `${info.platform} · ${info.shortLabel}` : platformCode }, platformCode));
-                                                                }) })] }), _jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Sample' : 'Muestra' }), _jsx("select", { value: matchCount, onChange: (e) => setMatchCount(Number(e.target.value)), style: riotSearchInputStyle, children: initialMatchOptions.map((count) => (_jsxs("option", { value: count, children: [count, " ", locale === 'en' ? 'matches' : 'partidas'] }, count))) })] }), _jsx("button", { type: "submit", style: { ...buttonStyle, minHeight: 52 }, children: loading ? (locale === 'en' ? 'Analyzing...' : 'Analizando...') : (locale === 'en' ? 'Build first analysis' : 'Construir primer análisis') })] })] }), _jsx("div", { className: "two-col-grid", style: { display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 12 }, children: _jsxs("div", { style: softPanelStyle, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Routing context' : 'Contexto de routing' }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }, children: currentPlatformInfo
+                                                                }) })] }), _jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Sample' : 'Muestra' }), _jsx("select", { value: matchCount, onChange: (e) => setMatchCount(Number(e.target.value)), style: riotSearchInputStyle, children: targetCountOptions.map((count) => (_jsxs("option", { value: count, children: [count, " ", locale === 'en' ? 'matches' : 'partidas'] }, count))) })] }), _jsx("button", { type: "submit", style: { ...buttonStyle, minHeight: 52 }, children: loading ? (locale === 'en' ? 'Analyzing...' : 'Analizando...') : (locale === 'en' ? 'Build first analysis' : 'Construir primer análisis') })] })] }), _jsx("div", { className: "two-col-grid", style: { display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 12 }, children: _jsxs("div", { style: softPanelStyle, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Routing context' : 'Contexto de routing' }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }, children: currentPlatformInfo
                                                         ? (locale === 'en'
                                                             ? `${currentPlatformInfo.label} uses Riot regional route ${currentPlatformInfo.regionalRoute}. UI language stays independent from this selection.`
                                                             : `${currentPlatformInfo.label} usa el regional route ${currentPlatformInfo.regionalRoute} de Riot. El idioma de la UI sigue separado de esta elección.`)
                                                         : (locale === 'en'
                                                             ? 'Choose the Riot platform where this account actually plays.'
                                                             : 'Elegí la platform de Riot donde realmente juega esta cuenta.') })] }) }), _jsxs("div", { style: softPanelStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Recommended start' : 'Inicio recomendado' }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }, children: matchCount >= 100
-                                                            ? (locale === 'en' ? 'A 100-match baseline gives the sharpest first read, but it can take longer because of Riot rate limits.' : 'Una base de 100 partidas da la lectura inicial más filosa, pero puede tardar más por los límites de Riot.')
-                                                            : (locale === 'en' ? 'Start with 20 or 50 if you want speed. Move to 100 when you want the most stable baseline.' : 'Empezá con 20 o 50 si querés velocidad. Pasá a 100 cuando quieras la base más estable.') })] }), !dataset && gameName && tagLine ? (_jsx("div", { style: { color: '#a5b2c6', fontSize: 13, lineHeight: 1.6 }, children: locale === 'en'
+                                                            ? (locale === 'en' ? `A ${Math.min(100, planEntitlements?.maxStoredMatchesPerProfile ?? 100)}-match baseline gives the sharpest first read, but it can take longer because of Riot rate limits.` : `Una base de ${Math.min(100, planEntitlements?.maxStoredMatchesPerProfile ?? 100)} partidas da la lectura inicial más filosa, pero puede tardar más por los límites de Riot.`)
+                                                            : (locale === 'en' ? 'Start smaller if you want speed, then scale the sample when you want a more stable baseline.' : 'Empezá más chico si querés velocidad y después escalá la muestra cuando quieras una base más estable.') })] }), !dataset && gameName && tagLine ? (_jsx("div", { style: { color: '#a5b2c6', fontSize: 13, lineHeight: 1.6 }, children: locale === 'en'
                                                     ? 'Once this account is loaded, it will stay saved here and future refreshes will only complete what is missing.'
-                                                    : 'Una vez que cargues esta cuenta, va a quedar guardada acá y los próximos refreshes solo completarán lo que falte.' })) : null] }), _jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: locale === 'en' ? `${matchCount} match target` : `Objetivo de ${matchCount} partidas` }), _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Coaching scope is chosen after loading the account' : 'El alcance del coaching se elige después de cargar la cuenta' })] }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13 }, children: locale === 'en'
+                                                    : 'Una vez que cargues esta cuenta, va a quedar guardada acá y los próximos refreshes solo completarán lo que falte.' })) : null] }), _jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: locale === 'en' ? `${matchCount} match target` : `Objetivo de ${matchCount} partidas` }), planEntitlements ? _jsx(Badge, { tone: "low", children: locale === 'en' ? `Plan cap ${planEntitlements.maxStoredMatchesPerProfile}` : `Tope del plan ${planEntitlements.maxStoredMatchesPerProfile}` }) : null, _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Coaching scope is chosen after loading the account' : 'El alcance del coaching se elige después de cargar la cuenta' })] }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13 }, children: locale === 'en'
                                                     ? 'You can search any supported Riot platform without changing the UI language.'
                                                     : 'Podés buscar cualquier platform soportada de Riot sin cambiar el idioma de la UI.' })] })] })) : (_jsxs("div", { style: { display: 'grid', gap: 14 }, children: [_jsxs("div", { style: softPanelStyle, children: [_jsx("div", { style: { color: '#e7eef8', lineHeight: 1.5, fontWeight: 700 }, children: gameName && tagLine ? `${gameName}#${tagLine}` : (locale === 'en' ? 'Account ready to analyze' : 'Cuenta lista para analizar') }), _jsx("div", { style: { color: '#8a95a8', fontSize: 13, lineHeight: 1.6 }, children: locale === 'en'
                                                     ? `Saved sample: ${dataset.matches.length} matches. Choose whether you want to add a little, a lot or complete the block.`
                                                     : `Muestra guardada: ${dataset.matches.length} partidas. Elegí si querés sumar un poco, bastante o completar el bloque.` }), currentPlatformInfo ? (_jsx("div", { style: { color: '#748198', fontSize: 12 }, children: locale === 'en'
                                                     ? `Platform ${currentPlatformInfo.platform} · ${currentPlatformInfo.label}`
                                                     : `Platform ${currentPlatformInfo.platform} · ${currentPlatformInfo.label}` })) : null] }), syncMessage ? _jsx("div", { style: syncMessageStyle, children: syncMessage }) : null, _jsx("div", { style: { display: 'grid', gap: 10 }, children: quickRefreshActions.length ? (_jsxs("div", { style: { display: 'grid', gap: 8 }, children: [_jsx("div", { style: fieldLabelStyle, children: locale === 'en' ? 'Quick refresh' : 'Refresh rápido' }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: quickRefreshActions.map((action) => (_jsx("button", { type: "button", style: secondaryButtonStyle, onClick: () => void runAnalysis(action.target), disabled: loading, children: action.id === 'complete'
-                                                            ? (locale === 'en' ? 'Complete to 100' : 'Completar a 100')
-                                                            : `${action.label} ${locale === 'en' ? 'match' : 'partida'}${action.label === '+1' ? '' : 's'}` }, action.id))) })] })) : null }), _jsxs("div", { className: "two-col-grid", style: { display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 12 }, children: [_jsxs("div", { style: { display: 'grid', gap: 6 }, children: [_jsx("div", { style: fieldLabelStyle, children: locale === 'en' ? 'Target block' : 'Bloque objetivo' }), _jsx("select", { value: matchCount, onChange: (e) => setMatchCount(Number(e.target.value)), style: selectStyle, children: targetCountOptions.map((count) => (_jsxs("option", { value: count, children: [count, " ", locale === 'en' ? 'matches' : 'partidas'] }, count))) })] }), _jsxs("div", { style: { display: 'grid', gap: 6 }, children: [_jsx("div", { style: fieldLabelStyle, children: locale === 'en' ? 'Coaching scope' : 'Alcance del coaching' }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: coachScopeLabel }), dataset?.remakesExcluded ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? `${dataset.remakesExcluded} remakes excluded` : `${dataset.remakesExcluded} remakes excluidos` }) : null, needsSampleBackfill ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? 'Needs backfill' : 'Le falta backfill' }) : _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Only new matches' : 'Solo nuevas partidas' }), currentPlatformInfo ? _jsx(Badge, { tone: "default", children: currentPlatformInfo.platform }) : null] })] })] }), _jsxs("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' }, children: [_jsx("button", { type: "button", style: buttonStyle, onClick: () => void runAnalysis(), children: loading
+                                                            ? (locale === 'en' ? `Complete to ${action.target}` : `Completar a ${action.target}`)
+                                                            : `${action.label} ${locale === 'en' ? 'match' : 'partida'}${action.label === '+1' ? '' : 's'}` }, action.id))) })] })) : null }), _jsxs("div", { className: "two-col-grid", style: { display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 12 }, children: [_jsxs("div", { style: { display: 'grid', gap: 6 }, children: [_jsx("div", { style: fieldLabelStyle, children: locale === 'en' ? 'Target block' : 'Bloque objetivo' }), _jsx("select", { value: matchCount, onChange: (e) => setMatchCount(Number(e.target.value)), style: selectStyle, children: targetCountOptions.map((count) => (_jsxs("option", { value: count, children: [count, " ", locale === 'en' ? 'matches' : 'partidas'] }, count))) })] }), _jsxs("div", { style: { display: 'grid', gap: 6 }, children: [_jsx("div", { style: fieldLabelStyle, children: locale === 'en' ? 'Coaching scope' : 'Alcance del coaching' }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: coachScopeLabel }), dataset?.remakesExcluded ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? `${dataset.remakesExcluded} remakes excluded` : `${dataset.remakesExcluded} remakes excluidos` }) : null, needsSampleBackfill ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? 'Needs backfill' : 'Le falta backfill' }) : _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Only new matches' : 'Solo nuevas partidas' }), currentPlatformInfo ? _jsx(Badge, { tone: "default", children: currentPlatformInfo.platform }) : null, planEntitlements ? _jsx(Badge, { tone: "default", children: `${dataset.matches.length}/${planEntitlements.maxStoredMatchesPerProfile}` }) : null] })] })] }), _jsxs("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' }, children: [_jsx("button", { type: "button", style: buttonStyle, onClick: () => void runAnalysis(), children: loading
                                                     ? (locale === 'en' ? 'Analyzing...' : 'Analizando...')
                                                     : needsSampleBackfill
                                                         ? (locale === 'en' ? `Backfill to ${matchCount} matches` : `Completar a ${matchCount} partidas`)
@@ -694,7 +806,15 @@ export default function App() {
                                                         ? `${translateRole(roleFilter, 'en')} · ${queueFilter === 'ALL' ? 'all queues' : queueFilter === 'RANKED' ? 'ranked queues' : queueFilter === 'RANKED_SOLO' ? 'solo/duo' : queueFilter === 'RANKED_FLEX' ? 'flex' : 'other queues'}`
                                                         : `${getRoleLabel(roleFilter)} · ${queueFilter === 'ALL' ? 'todas las colas' : queueFilter === 'RANKED' ? 'rankeds' : queueFilter === 'RANKED_SOLO' ? 'solo/duo' : queueFilter === 'RANKED_FLEX' ? 'flex' : 'otras colas'}` }), _jsx("div", { style: { color: '#8390a6', fontSize: 12 }, children: locale === 'en'
                                                         ? (windowFilter === 'ALL' ? `${viewDataset.summary.matches} matches in sample` : `${viewDataset.summary.matches} recent matches`)
-                                                        : (windowFilter === 'ALL' ? `${viewDataset.summary.matches} partidas en muestra` : `${viewDataset.summary.matches} partidas recientes`) })] })] })] })) : null, _jsxs("div", { style: navigationPanelStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Product navigation' : 'Navegación del producto' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 15, fontWeight: 800 }, children: locale === 'en' ? 'One coaching read, several exploration layers' : 'Una lectura de coaching, varias capas de exploración' })] }), _jsx("div", { className: "tab-grid", style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: tabs.map((tab) => (_jsx("button", { onClick: () => setActiveTab(tab.id), style: {
+                                                        : (windowFilter === 'ALL' ? `${viewDataset.summary.matches} partidas en muestra` : `${viewDataset.summary.matches} partidas recientes`) })] })] })] })) : null, membership ? (_jsxs("div", { style: savedProfilesSectionStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Coach workspace' : 'Workspace de coach' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 15, fontWeight: 800 }, children: membership.plan.entitlements.canUseCoachWorkspace
+                                                ? (locale === 'en' ? 'Your plan already supports player management' : 'Tu plan ya soporta gestión de jugadores')
+                                                : (locale === 'en' ? 'Prepared for future coach workflows' : 'Preparado para futuros workflows de coach') })] }), membership.plan.entitlements.canUseCoachWorkspace ? (_jsxs("div", { className: "two-col-grid", style: { display: 'grid', gridTemplateColumns: '1.2fr .8fr', gap: 12 }, children: [_jsxs("div", { style: softPanelStyle, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Roster capacity' : 'Capacidad de roster' }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }, children: locale === 'en'
+                                                        ? `This plan can manage up to ${membership.plan.entitlements.maxManagedPlayers} players and reuse saved profiles as the seed of a coach desk.`
+                                                        : `Este plan puede gestionar hasta ${membership.plan.entitlements.maxManagedPlayers} jugadores y reutilizar perfiles guardados como semilla de un coach desk.` })] }), _jsxs("div", { style: softPanelStyle, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Current seed' : 'Semilla actual' }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }, children: locale === 'en'
+                                                        ? `${membership.linkedProfiles.length} linked profiles ready to become managed players later on.`
+                                                        : `${membership.linkedProfiles.length} perfiles vinculados listos para convertirse después en jugadores gestionados.` })] })] })) : (_jsxs("div", { style: softPanelStyle, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Locked outside Pro Coach' : 'Bloqueado fuera de Pro Coach' }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }, children: locale === 'en'
+                                                ? 'The future coach desk will sit on top of the same profile and coaching foundation you are already using now.'
+                                                : 'El futuro coach desk se va a montar sobre la misma base de perfiles y coaching que ya estás usando ahora.' })] }))] })) : null, _jsxs("div", { style: navigationPanelStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Product navigation' : 'Navegación del producto' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 15, fontWeight: 800 }, children: locale === 'en' ? 'One coaching read, several exploration layers' : 'Una lectura de coaching, varias capas de exploración' })] }), _jsx("div", { className: "tab-grid", style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: tabs.map((tab) => (_jsx("button", { onClick: () => setActiveTab(tab.id), style: {
                                             ...tabStyle,
                                             ...(activeTab === tab.id ? activeTabStyle : {})
                                         }, children: tab.label[locale] }, tab.id))) }), viewDataset ? (_jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: activeTab === 'coach' ? (_jsxs(_Fragment, { children: [_jsx(Badge, { children: locale === 'en' ? `${dataset?.summary.matches ?? 0} matches in the saved coaching block` : `${dataset?.summary.matches ?? 0} partidas en el bloque guardado de coaching` }), _jsx(Badge, { children: coachScopeLabel }), _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Filters do not spend AI here' : 'Acá los filtros no gastan IA' })] })) : (_jsxs(_Fragment, { children: [_jsx(Badge, { children: locale === 'en' ? `${viewDataset.summary.matches} visible matches` : `${viewDataset.summary.matches} partidas visibles` }), viewDataset.matches[0] ? _jsx(Badge, { children: getQueueLabel(viewDataset.matches[0].queueId) }) : null, _jsx(Badge, { tone: "default", children: locale === 'en' ? translateRole(roleFilter, 'en') : getRoleLabel(roleFilter) })] })) })) : null] })] }), error ? _jsx(Card, { title: locale === 'en' ? 'Error' : 'Error', children: error }) : null, viewDataset ? (renderedTab) : (_jsx(Card, { title: locale === 'en' ? 'Waiting for analysis' : 'Esperando análisis', subtitle: locale === 'en' ? 'The goal is for the product to feel more like a premium personal account than a technical dashboard' : 'La idea es que el producto se sienta más cuenta personal premium que panel técnico', children: _jsx("div", { style: { display: 'grid', gap: 12, color: '#c7d4ea', lineHeight: 1.7 }, children: locale === 'en' ? (_jsxs(_Fragment, { children: [_jsxs("div", { children: [_jsx("strong", { children: "Coach:" }), " main blocker, evidence, impact and active plan."] }), _jsxs("div", { children: [_jsx("strong", { children: "Stats:" }), " aggregated metrics and recent evolution."] }), _jsxs("div", { children: [_jsx("strong", { children: "Matchups:" }), " real performance into direct opponents."] }), _jsxs("div", { children: [_jsx("strong", { children: "Runes and champions:" }), " tactical read with more visual context."] })] })) : (_jsxs(_Fragment, { children: [_jsxs("div", { children: [_jsx("strong", { children: "Coach:" }), " problema principal, evidencia, impacto y plan activo."] }), _jsxs("div", { children: [_jsx("strong", { children: "Stats:" }), " m\u00E9tricas agregadas y evoluci\u00F3n."] }), _jsxs("div", { children: [_jsx("strong", { children: "Matchups:" }), " rendimiento real frente a rivales directos."] }), _jsxs("div", { children: [_jsx("strong", { children: "Runes y champions:" }), " lectura t\u00E1ctica con m\u00E1s contexto visual."] })] })) }) })), _jsxs("footer", { style: footerStyle, children: [_jsx("div", { style: { color: '#7f8ca1', fontSize: 13 }, children: locale === 'en'
@@ -720,6 +840,31 @@ const accountAccessStyle = {
     border: '1px solid rgba(255,255,255,0.07)',
     width: 'min(100%, 560px)',
     boxShadow: '0 16px 40px rgba(0,0,0,0.14)'
+};
+const planSectionStyle = {
+    display: 'grid',
+    gap: 12,
+    padding: '16px 18px',
+    borderRadius: 18,
+    background: 'linear-gradient(180deg, rgba(10,14,22,0.95), rgba(5,8,14,0.98))',
+    border: '1px solid rgba(255,255,255,0.06)'
+};
+const planCardsGridStyle = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+    gap: 12
+};
+const planCardStyle = {
+    display: 'grid',
+    gap: 12,
+    padding: '16px 16px 18px',
+    borderRadius: 18,
+    background: '#090e16',
+    border: '1px solid rgba(255,255,255,0.06)'
+};
+const activePlanCardStyle = {
+    background: 'linear-gradient(180deg, rgba(216,253,241,0.08), rgba(12,18,27,0.98))',
+    borderColor: 'rgba(216,253,241,0.18)'
 };
 const topBarGhostButtonStyle = {
     border: '1px solid rgba(255,255,255,0.08)',

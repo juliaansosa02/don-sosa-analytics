@@ -1,4 +1,5 @@
 import type { AggregateSummary, ParticipantSnapshot } from '@don-sosa/core';
+import type { MembershipPlanDefinition, MembershipPlanId, MembershipStatus } from '@don-sosa/core';
 
 export type MatchSnapshot = ParticipantSnapshot & {
   timeline: ParticipantSnapshot['timeline'] & {
@@ -126,4 +127,58 @@ export interface AICoachResult {
     knowledgeCardIds: string[];
     confidence: number;
   };
+}
+
+export interface MembershipAccount {
+  viewerId: string;
+  planId: MembershipPlanId;
+  status: MembershipStatus;
+  source: 'default' | 'dev_override' | 'stripe';
+  billingProvider: 'stripe' | null;
+  stripeCustomerId?: string | null;
+  stripeSubscriptionId?: string | null;
+  stripePriceId?: string | null;
+  currentPeriodEnd?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ViewerProfileLink {
+  id: string;
+  viewerId: string;
+  profileKey: string;
+  gameName: string;
+  tagLine: string;
+  platform: string;
+  lastSeenAt: string;
+}
+
+export interface MembershipUsageSummary {
+  monthKey: string;
+  totalGenerations: number;
+  openaiGenerations: number;
+  premiumGenerations: number;
+  estimatedCostUsd: number;
+}
+
+export interface MembershipBillingCapabilities {
+  provider: 'stripe';
+  ready: boolean;
+  webhookReady: boolean;
+}
+
+export interface MembershipCatalogResponse {
+  plans: MembershipPlanDefinition[];
+  order: MembershipPlanId[];
+  billing: MembershipBillingCapabilities;
+}
+
+export interface MembershipMeResponse {
+  viewerId: string;
+  account: MembershipAccount;
+  plan: MembershipPlanDefinition;
+  linkedProfiles: ViewerProfileLink[];
+  usage: MembershipUsageSummary;
+  billing: MembershipBillingCapabilities;
+  devToolsEnabled: boolean;
 }

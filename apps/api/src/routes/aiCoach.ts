@@ -1,7 +1,9 @@
 import { Router } from 'express';
+import { HttpError } from '../lib/http.js';
 import { aiCoachFeedbackSchema, aiCoachRequestSchema } from '../services/aiCoachSchemas.js';
 import { generateAICoach } from '../services/aiCoachService.js';
 import { saveAICoachingFeedback } from '../services/aiCoachStore.js';
+import { resolveMembershipContext } from '../services/membershipService.js';
 import { getCurrentPatchNotes, refreshPatchNotesFromOfficialSource } from '../services/patchNotes.js';
 
 export const aiCoachRouter = Router();
@@ -41,11 +43,12 @@ aiCoachRouter.post('/patch/refresh', async (_req, res) => {
 aiCoachRouter.post('/generate', async (req, res) => {
   try {
     const input = aiCoachRequestSchema.parse(req.body);
-    const result = await generateAICoach(input);
+    const membership = await resolveMembershipContext(req);
+    const result = await generateAICoach(input, membership);
     res.json(result);
   } catch (error) {
-    res.status(400).json({
-      error: error instanceof Error ? error.message : 'Unknown error'
+    res.status(error instanceof HttpError ? error.status : 400).json({
+      error: error instanceof HttpError ? error.responseText : error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });

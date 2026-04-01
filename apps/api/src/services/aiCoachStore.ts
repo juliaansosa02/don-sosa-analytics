@@ -19,6 +19,7 @@ async function ensureTables() {
       pool.query(`
         CREATE TABLE IF NOT EXISTS ai_coaching_generations (
           id TEXT PRIMARY KEY,
+          viewer_id TEXT NOT NULL DEFAULT 'anon-viewer',
           profile_key TEXT NOT NULL,
           locale TEXT NOT NULL,
           role_filter TEXT NOT NULL,
@@ -33,6 +34,7 @@ async function ensureTables() {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `),
+      pool.query(`ALTER TABLE ai_coaching_generations ADD COLUMN IF NOT EXISTS viewer_id TEXT NOT NULL DEFAULT 'anon-viewer'`),
       pool.query(`
         CREATE TABLE IF NOT EXISTS ai_coaching_feedback (
           id TEXT PRIMARY KEY,
@@ -59,6 +61,7 @@ function buildMonthRange(monthKey?: string) {
 }
 
 export async function saveAICoachingGeneration(input: {
+  viewerId: string;
   request: AICoachRequest;
   context: AICoachContext;
   provider: 'draft' | 'openai';
@@ -78,11 +81,12 @@ export async function saveAICoachingGeneration(input: {
   await ensureTables();
   await pool.query(
     `INSERT INTO ai_coaching_generations (
-      id, profile_key, locale, role_filter, queue_filter, window_filter, provider, model,
+      id, viewer_id, profile_key, locale, role_filter, queue_filter, window_filter, provider, model,
       request_payload, context_payload, retrieval_payload, response_payload, created_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12::jsonb,$13)`,
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11::jsonb,$12::jsonb,$13::jsonb,$14)`,
     [
       id,
+      input.viewerId,
       profileKey,
       input.request.locale,
       input.request.roleFilter,
@@ -136,6 +140,7 @@ export async function loadAICoachingGeneration(id: string) {
 }
 
 export async function loadLatestAICoachingGenerationForRequest(input: {
+  viewerId: string;
   gameName: string;
   tagLine: string;
   platform?: string;
@@ -156,6 +161,7 @@ export async function loadLatestAICoachingGenerationForRequest(input: {
             const raw = await readFile(`${generationsDir}/${file}`, 'utf8');
             return JSON.parse(raw) as {
               id: string;
+              viewerId?: string;
               profileKey: string;
               createdAt?: string;
               request: AICoachRequest;
@@ -177,6 +183,7 @@ export async function loadLatestAICoachingGenerationForRequest(input: {
       return generations
         .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
         .filter((entry) => (
+          (entry.viewerId ?? 'anon-viewer') === input.viewerId &&
           profileKeyCandidates.includes(entry.profileKey) &&
           entry.request.locale === input.locale &&
           entry.request.roleFilter === input.roleFilter &&
@@ -212,26 +219,24 @@ export async function loadLatestAICoachingGenerationForRequest(input: {
   }>(
     `SELECT id, provider, model, context_payload, retrieval_payload, response_payload
      FROM ai_coaching_generations
-     WHERE profile_key = ANY($1::text[])
-       AND locale = $2
-       AND role_filter = $3
-       AND queue_filter = $4
-       AND window_filter = $5
+     WHERE viewer_id = $1
+       AND profile_key = ANY($2::text[])
+       AND locale = $3
+       AND role_filter = $4
+       AND queue_filter = $5
+       AND window_filter = $6
      ORDER BY created_at DESC
      LIMIT 1`,
-    [profileKeyCandidates, input.locale, input.roleFilter, input.queueFilter, input.windowFilter]
+    [input.viewerId, profileKeyCandidates, input.locale, input.roleFilter, input.queueFilter, input.windowFilter]
   );
 
   return result.rows[0] ?? null;
 }
 
 export async function loadAICoachUsageForMonth(input: {
-  gameName: string;
-  tagLine: string;
-  platform?: string;
+  viewerId: string;
   monthKey?: string;
 }) {
-  const profileKeyCandidates = buildProfileKeyCandidates(input.gameName, input.tagLine, input.platform);
   const { monthKey, start, end } = buildMonthRange(input.monthKey);
 
   if (!pool) {
@@ -243,6 +248,7 @@ export async function loadAICoachUsageForMonth(input: {
           try {
             const raw = await readFile(`${generationsDir}/${file}`, 'utf8');
             return JSON.parse(raw) as {
+              viewerId?: string;
               profileKey: string;
               provider: 'draft' | 'openai';
               createdAt?: string;
@@ -259,7 +265,7 @@ export async function loadAICoachUsageForMonth(input: {
       const monthGenerations = generations.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
         .filter((entry) => {
           const createdAt = entry.createdAt ? Date.parse(entry.createdAt) : NaN;
-          return profileKeyCandidates.includes(entry.profileKey) && Number.isFinite(createdAt) && createdAt >= start.getTime() && createdAt < end.getTime();
+          return (entry.viewerId ?? 'anon-viewer') === input.viewerId && Number.isFinite(createdAt) && createdAt >= start.getTime() && createdAt < end.getTime();
         });
 
       const openaiGenerations = monthGenerations.filter((entry) => entry.provider === 'openai');
@@ -308,10 +314,10 @@ export async function loadAICoachUsageForMonth(input: {
          0
      )::text AS estimated_cost_usd
      FROM ai_coaching_generations
-     WHERE profile_key = ANY($1::text[])
+     WHERE viewer_id = $1
        AND created_at >= $2
        AND created_at < $3`,
-    [profileKeyCandidates, start.toISOString(), end.toISOString()]
+    [input.viewerId, start.toISOString(), end.toISOString()]
   );
 
   const row = result.rows[0];

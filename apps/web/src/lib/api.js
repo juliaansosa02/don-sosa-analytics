@@ -1,8 +1,29 @@
 const API_BASE = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, '') ?? 'http://localhost:8787/api';
 const REQUEST_TIMEOUT_MS = 300000;
 const POLL_INTERVAL_MS = 1200;
+const CLIENT_ID_STORAGE_KEY = 'don-sosa:client-id';
 function delay(ms) {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+function generateClientId() {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+        return crypto.randomUUID();
+    }
+    return `viewer-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+}
+export function getOrCreateClientId() {
+    const existing = window.localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+    if (existing)
+        return existing;
+    const next = generateClientId();
+    window.localStorage.setItem(CLIENT_ID_STORAGE_KEY, next);
+    return next;
+}
+function apiHeaders(extra) {
+    return {
+        'x-don-sosa-client-id': getOrCreateClientId(),
+        ...(extra ?? {})
+    };
 }
 async function readErrorMessage(response) {
     const text = await response.text();
@@ -20,7 +41,7 @@ export async function collectProfile(gameName, tagLine, count = 100, options) {
     try {
         const startResponse = await fetch(`${API_BASE}/analytics/collect/start`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: apiHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({ gameName, tagLine, platform: options?.platform, count, knownMatchIds: options?.knownMatchIds ?? [], locale: options?.locale ?? 'es' }),
             signal: controller.signal
         });
@@ -32,6 +53,7 @@ export async function collectProfile(gameName, tagLine, count = 100, options) {
         while (true) {
             await delay(POLL_INTERVAL_MS);
             const jobResponse = await fetch(`${API_BASE}/analytics/collect/${startJob.jobId}`, {
+                headers: apiHeaders(),
                 signal: controller.signal
             });
             if (!jobResponse.ok) {
@@ -60,7 +82,9 @@ export async function collectProfile(gameName, tagLine, count = 100, options) {
     }
 }
 export async function fetchCachedProfile(gameName, tagLine, platform, locale = 'es') {
-    const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?locale=${locale}&platform=${encodeURIComponent(platform)}`);
+    const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?locale=${locale}&platform=${encodeURIComponent(platform)}`, {
+        headers: apiHeaders()
+    });
     if (response.status === 404) {
         return null;
     }
@@ -72,7 +96,7 @@ export async function fetchCachedProfile(gameName, tagLine, platform, locale = '
 export async function generateAICoach(input) {
     const response = await fetch(`${API_BASE}/ai/coach/generate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: apiHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(input)
     });
     if (!response.ok) {
@@ -83,8 +107,37 @@ export async function generateAICoach(input) {
 export async function sendAICoachFeedback(input) {
     const response = await fetch(`${API_BASE}/ai/coach/feedback`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: apiHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(input)
+    });
+    if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+    }
+    return response.json();
+}
+export async function fetchMembershipCatalog() {
+    const response = await fetch(`${API_BASE}/membership/catalog`, {
+        headers: apiHeaders()
+    });
+    if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+    }
+    return response.json();
+}
+export async function fetchMembershipMe() {
+    const response = await fetch(`${API_BASE}/membership/me`, {
+        headers: apiHeaders()
+    });
+    if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+    }
+    return response.json();
+}
+export async function setMembershipPlanDev(planId) {
+    const response = await fetch(`${API_BASE}/membership/dev/plan`, {
+        method: 'POST',
+        headers: apiHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ planId })
     });
     if (!response.ok) {
         throw new Error(await readErrorMessage(response));

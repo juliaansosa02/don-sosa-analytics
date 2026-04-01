@@ -165,6 +165,19 @@ export interface AggregateSummary {
   coaching: CoachingSummary;
 }
 
+export {
+  getMembershipPlan,
+  isPaidMembershipPlan,
+  membershipPlanCatalog,
+  membershipPlanOrder
+} from './plans.js';
+export type {
+  MembershipPlanDefinition,
+  MembershipPlanId,
+  MembershipStatus,
+  PlanEntitlements
+} from './plans.js';
+
 export type SummaryLocale = 'es' | 'en';
 
 const avg = (values: number[]) => (values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0);

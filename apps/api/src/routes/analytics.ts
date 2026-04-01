@@ -6,6 +6,7 @@ import { supportedRiotPlatformTuple } from '../lib/riotRouting.js';
 import { collectPlayerSnapshot } from '../services/collectionService.js';
 import { createJob, getJob, updateJob } from '../services/jobStore.js';
 import { loadProfileSnapshot } from '../services/profileStore.js';
+import { assertCollectionEntitlement, limitDatasetToMembership, registerViewedProfile, resolveMembershipContext } from '../services/membershipService.js';
 
 type CachedProfileDataset = Awaited<ReturnType<typeof collectPlayerSnapshot>>;
 
@@ -13,8 +14,8 @@ const bodySchema = z.object({
   gameName: z.string().trim().min(1).max(32),
   tagLine: z.string().trim().transform((value) => value.replace(/^#+/, '')).pipe(z.string().min(1).max(16)),
   platform: z.string().trim().transform((value) => value.toUpperCase()).pipe(z.enum(supportedRiotPlatformTuple)),
-  count: z.number().int().positive().max(100).optional(),
-  knownMatchIds: z.array(z.string().min(1)).max(500).optional(),
+  count: z.number().int().positive().max(1000).optional(),
+  knownMatchIds: z.array(z.string().min(1)).max(2000).optional(),
   locale: z.enum(['es', 'en']).optional()
 });
 
@@ -43,7 +44,17 @@ function formatCollectionError(error: unknown, locale: SummaryLocale = 'es') {
   }
 
   if (error instanceof HttpError) {
+    if (error.status === 401) {
+      return locale === 'en'
+        ? 'The Riot API key is invalid or expired. Update RIOT_API_KEY before analyzing again.'
+        : 'La Riot API key es inválida o expiró. Actualizá RIOT_API_KEY antes de volver a analizar.';
+    }
+
     if (error.status === 403) {
+      if (error.url.startsWith('membership://')) {
+        return error.responseText;
+      }
+
       return locale === 'en'
         ? 'The server Riot API key is not valid anymore or already expired. Update it in Render before analyzing again.'
         : 'La Riot API key del servidor no es válida o ya expiró. Actualizala en Render antes de seguir analizando.';
@@ -68,17 +79,45 @@ function formatCollectionError(error: unknown, locale: SummaryLocale = 'es') {
 analyticsRouter.post('/collect', async (req, res) => {
   try {
     const input = bodySchema.parse(req.body);
+    const membership = await resolveMembershipContext(req);
+    const collectionAccess = assertCollectionEntitlement(membership, {
+      gameName: input.gameName,
+      tagLine: input.tagLine,
+      platform: input.platform,
+      count: input.count ?? 100,
+      locale: input.locale
+    });
     const dataset = await collectPlayerSnapshot(input);
-    res.json(dataset);
+    const limitedDataset = limitDatasetToMembership(dataset, membership.plan, input.locale ?? 'es');
+    await registerViewedProfile(membership, {
+      gameName: dataset.player,
+      tagLine: dataset.tagLine,
+      platform: limitedDataset.summary.platform
+    });
+    res.json({
+      ...limitedDataset,
+      membership: {
+        planId: membership.plan.id,
+        matchedExistingProfile: collectionAccess.alreadyLinked
+      }
+    });
   } catch (error) {
     const locale = bodySchema.safeParse(req.body).success ? bodySchema.parse(req.body).locale ?? 'es' : 'es';
-    res.status(400).json({ error: formatCollectionError(error, locale) });
+    res.status(error instanceof HttpError ? error.status : 400).json({ error: formatCollectionError(error, locale) });
   }
 });
 
 analyticsRouter.post('/collect/start', async (req, res) => {
   try {
     const input = bodySchema.parse(req.body);
+    const membership = await resolveMembershipContext(req);
+    assertCollectionEntitlement(membership, {
+      gameName: input.gameName,
+      tagLine: input.tagLine,
+      platform: input.platform,
+      count: input.count ?? 100,
+      locale: input.locale
+    });
     const job = createJob();
 
     void collectPlayerSnapshot({
@@ -86,15 +125,21 @@ analyticsRouter.post('/collect/start', async (req, res) => {
       onProgress: (progress) => updateJob(job.id, { status: 'running', progress })
     })
       .then((dataset) => {
+        const limitedDataset = limitDatasetToMembership(dataset, membership.plan, input.locale ?? 'es');
+        void registerViewedProfile(membership, {
+          gameName: dataset.player,
+          tagLine: dataset.tagLine,
+          platform: limitedDataset.summary.platform
+        });
         updateJob(job.id, {
           status: 'completed',
           progress: {
             stage: 'completed',
-            current: dataset.summary.matches,
-            total: dataset.summary.matches || 1,
+            current: limitedDataset.summary.matches,
+            total: limitedDataset.summary.matches || 1,
             message: input.locale === 'en' ? 'Analysis completed' : 'Análisis completado'
           },
-          result: dataset
+          result: limitedDataset
         });
       })
       .catch((error) => {
@@ -111,7 +156,7 @@ analyticsRouter.post('/collect/start', async (req, res) => {
     });
   } catch (error) {
     const locale = bodySchema.safeParse(req.body).success ? bodySchema.parse(req.body).locale ?? 'es' : 'es';
-    res.status(400).json({ error: formatCollectionError(error, locale) });
+    res.status(error instanceof HttpError ? error.status : 400).json({ error: formatCollectionError(error, locale) });
   }
 });
 
@@ -139,8 +184,22 @@ analyticsRouter.get('/profile/:gameName/:tagLine', async (req, res) => {
   }
 
   const locale = query.data.locale === 'en' ? 'en' : 'es';
+  const membership = await resolveMembershipContext(req);
+  assertCollectionEntitlement(membership, {
+    gameName: dataset.player,
+    tagLine: dataset.tagLine,
+    platform: dataset.summary.platform,
+    count: Math.min(dataset.matches.length, membership.plan.entitlements.maxStoredMatchesPerProfile),
+    locale
+  });
+  const limitedDataset = limitDatasetToMembership(dataset, membership.plan, locale);
+  await registerViewedProfile(membership, {
+    gameName: dataset.player,
+    tagLine: dataset.tagLine,
+    platform: limitedDataset.summary.platform
+  });
   res.json({
-    ...dataset,
-    summary: buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, dataset.matches, locale)
+    ...limitedDataset,
+    summary: buildAggregateSummary(limitedDataset.player, limitedDataset.tagLine, limitedDataset.summary.region, limitedDataset.summary.platform, limitedDataset.matches, locale)
   });
 });

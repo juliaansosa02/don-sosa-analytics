@@ -76,6 +76,27 @@ function mapProfile(summoner?: { profileIconId?: number; summonerLevel?: number 
 
 const defaultOutputDir = fileURLToPath(new URL('../../data/output', import.meta.url));
 
+async function fetchRecentMatchIdsUpToCount(
+  riotClient: ReturnType<typeof createRiotClient>,
+  puuid: string,
+  targetCount: number
+) {
+  const matchIds: string[] = [];
+  let start = 0;
+
+  while (matchIds.length < targetCount) {
+    const batchSize = Math.min(100, targetCount - matchIds.length);
+    const batch = await riotClient.getMatchIdsByPuuid(puuid, batchSize, start);
+    if (!batch.length) break;
+
+    matchIds.push(...batch);
+    if (batch.length < batchSize) break;
+    start += batch.length;
+  }
+
+  return matchIds;
+}
+
 export async function collectPlayerSnapshot({
   gameName,
   tagLine,
@@ -134,7 +155,7 @@ export async function collectPlayerSnapshot({
       start += batch.length;
     }
   } else {
-    matchIds.push(...await riotClient.getMatchIdsByPuuid(account.puuid, count));
+    matchIds.push(...await fetchRecentMatchIdsUpToCount(riotClient, account.puuid, count));
   }
 
   onProgress?.({ stage: 'fetching', current: 0, total: matchIds.length, message: locale === 'en' ? 'Downloading matches' : 'Descargando partidas' });

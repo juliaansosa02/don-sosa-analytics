@@ -1,9 +1,10 @@
-import type { AICoachResult, Dataset } from '../types';
+import type { AICoachResult, Dataset, MembershipCatalogResponse, MembershipMeResponse } from '../types';
 import type { Locale } from './i18n';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://localhost:8787/api';
 const REQUEST_TIMEOUT_MS = 300000;
 const POLL_INTERVAL_MS = 1200;
+const CLIENT_ID_STORAGE_KEY = 'don-sosa:client-id';
 
 interface CollectionJobResponse {
   jobId: string;
@@ -20,6 +21,29 @@ interface CollectionJobResponse {
 
 function delay(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function generateClientId() {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID();
+  }
+
+  return `viewer-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+}
+
+export function getOrCreateClientId() {
+  const existing = window.localStorage.getItem(CLIENT_ID_STORAGE_KEY);
+  if (existing) return existing;
+  const next = generateClientId();
+  window.localStorage.setItem(CLIENT_ID_STORAGE_KEY, next);
+  return next;
+}
+
+function apiHeaders(extra?: HeadersInit) {
+  return {
+    'x-don-sosa-client-id': getOrCreateClientId(),
+    ...(extra ?? {})
+  };
 }
 
 async function readErrorMessage(response: Response) {
@@ -50,7 +74,7 @@ export async function collectProfile(
   try {
     const startResponse = await fetch(`${API_BASE}/analytics/collect/start`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: apiHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ gameName, tagLine, platform: options?.platform, count, knownMatchIds: options?.knownMatchIds ?? [], locale: options?.locale ?? 'es' }),
       signal: controller.signal
     });
@@ -66,6 +90,7 @@ export async function collectProfile(
       await delay(POLL_INTERVAL_MS);
 
       const jobResponse = await fetch(`${API_BASE}/analytics/collect/${startJob.jobId}`, {
+        headers: apiHeaders(),
         signal: controller.signal
       });
 
@@ -98,7 +123,9 @@ export async function collectProfile(
 }
 
 export async function fetchCachedProfile(gameName: string, tagLine: string, platform: string, locale: Locale = 'es'): Promise<Dataset | null> {
-  const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?locale=${locale}&platform=${encodeURIComponent(platform)}`);
+  const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?locale=${locale}&platform=${encodeURIComponent(platform)}`, {
+    headers: apiHeaders()
+  });
   if (response.status === 404) {
     return null;
   }
@@ -122,7 +149,7 @@ export async function generateAICoach(input: {
 }): Promise<AICoachResult> {
   const response = await fetch(`${API_BASE}/ai/coach/generate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input)
   });
 
@@ -140,7 +167,7 @@ export async function sendAICoachFeedback(input: {
 }) {
   const response = await fetch(`${API_BASE}/ai/coach/feedback`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input)
   });
 
@@ -149,4 +176,42 @@ export async function sendAICoachFeedback(input: {
   }
 
   return response.json() as Promise<{ ok: true; feedbackId: string }>;
+}
+
+export async function fetchMembershipCatalog() {
+  const response = await fetch(`${API_BASE}/membership/catalog`, {
+    headers: apiHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json() as Promise<MembershipCatalogResponse>;
+}
+
+export async function fetchMembershipMe() {
+  const response = await fetch(`${API_BASE}/membership/me`, {
+    headers: apiHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json() as Promise<MembershipMeResponse>;
+}
+
+export async function setMembershipPlanDev(planId: 'free' | 'pro_player' | 'pro_coach') {
+  const response = await fetch(`${API_BASE}/membership/dev/plan`, {
+    method: 'POST',
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ planId })
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json() as Promise<{ ok: true; account: MembershipMeResponse['account']; plan: MembershipMeResponse['plan'] }>;
 }

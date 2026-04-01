@@ -1,7 +1,7 @@
 import { buildAggregateSummary } from '@don-sosa/core';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { collectProfile, fetchCachedProfile, generateAICoach, sendAICoachFeedback } from '../lib/api';
-import type { AICoachResult, Dataset } from '../types';
+import { collectProfile, fetchCachedProfile, fetchMembershipCatalog, fetchMembershipMe, generateAICoach, sendAICoachFeedback, setMembershipPlanDev } from '../lib/api';
+import type { AICoachResult, Dataset, MembershipCatalogResponse, MembershipMeResponse } from '../types';
 import { Shell, Card, Badge } from '../components/ui';
 import { CoachingHome } from '../features/coach/CoachingHome';
 import { StatsTab } from '../features/stats/StatsTab';
@@ -43,7 +43,7 @@ interface SavedProfileRecord {
 }
 
 const savedProfilesStorageKey = 'don-sosa:saved-profiles';
-const initialMatchOptions = [20, 50, 100];
+const initialMatchOptions = [20, 30, 50, 100];
 
 function legacyDatasetStorageKey(gameName: string, tagLine: string) {
   return `don-sosa:dataset:${gameName}#${tagLine}`.toLowerCase();
@@ -113,6 +113,16 @@ function normalizeTagLineInput(value: string) {
   return value.replace(/^#+/, '').trim();
 }
 
+function limitDatasetMatches(dataset: Dataset, maxMatches: number, locale: Locale) {
+  if (dataset.matches.length <= maxMatches) return dataset;
+  const limitedMatches = [...dataset.matches].sort((a, b) => b.gameCreation - a.gameCreation).slice(0, maxMatches);
+  return {
+    ...dataset,
+    matches: limitedMatches,
+    summary: buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, limitedMatches, locale)
+  };
+}
+
 function serializeCoachRoles(roles: string[]) {
   return [...new Set(roles.map((role) => role.trim().toUpperCase()).filter(Boolean))].sort().join('+');
 }
@@ -151,26 +161,35 @@ function filterMatchesByRoles(dataset: Dataset, roles: string[]) {
   return dataset.matches.filter((match) => normalizedRoles.includes((match.role || 'NONE').toUpperCase()));
 }
 
-function buildTargetOptions(currentMatches: number | null) {
-  if (!currentMatches) return initialMatchOptions;
+function buildTargetOptions(currentMatches: number | null, maxMatchesPerProfile: number) {
+  const baseOptions = initialMatchOptions.filter((option) => option <= maxMatchesPerProfile);
+  const premiumOptions = [150, 250, 500, 1000].filter((option) => option <= maxMatchesPerProfile);
+  const optionSeed = [...baseOptions, ...premiumOptions, maxMatchesPerProfile];
+  if (!currentMatches) return Array.from(new Set(optionSeed)).sort((a, b) => a - b);
 
-  const options = new Set<number>([currentMatches, 100]);
+  const options = new Set<number>([currentMatches, maxMatchesPerProfile]);
   [1, 5, 10].forEach((delta) => {
-    const next = Math.min(100, currentMatches + delta);
+    const next = Math.min(maxMatchesPerProfile, currentMatches + delta);
     if (next > currentMatches) options.add(next);
   });
+
+  for (const option of optionSeed) {
+    if (option >= currentMatches) {
+      options.add(option);
+    }
+  }
 
   return Array.from(options).sort((a, b) => a - b);
 }
 
-function buildQuickRefreshActions(currentMatches: number | null) {
-  if (!currentMatches || currentMatches >= 100) return [];
+function buildQuickRefreshActions(currentMatches: number | null, maxMatchesPerProfile: number) {
+  if (!currentMatches || currentMatches >= maxMatchesPerProfile) return [];
 
   const candidates = [
-    { id: 'plus-1', target: Math.min(100, currentMatches + 1), label: '+1' },
-    { id: 'plus-5', target: Math.min(100, currentMatches + 5), label: '+5' },
-    { id: 'plus-10', target: Math.min(100, currentMatches + 10), label: '+10' },
-    { id: 'complete', target: 100, label: '100' }
+    { id: 'plus-1', target: Math.min(maxMatchesPerProfile, currentMatches + 1), label: '+1' },
+    { id: 'plus-5', target: Math.min(maxMatchesPerProfile, currentMatches + 5), label: '+5' },
+    { id: 'plus-10', target: Math.min(maxMatchesPerProfile, currentMatches + 10), label: '+10' },
+    { id: 'complete', target: maxMatchesPerProfile, label: String(maxMatchesPerProfile) }
   ];
 
   const seen = new Set<number>();
@@ -228,6 +247,45 @@ export default function App() {
   const [aiCoachError, setAICoachError] = useState<string | null>(null);
   const [lastAICoachRequestKey, setLastAICoachRequestKey] = useState<string | null>(null);
   const [lastGeneratedCoachScopeKey, setLastGeneratedCoachScopeKey] = useState<string | null>(null);
+  const [membershipCatalog, setMembershipCatalog] = useState<MembershipCatalogResponse | null>(null);
+  const [membership, setMembership] = useState<MembershipMeResponse | null>(null);
+  const [membershipLoading, setMembershipLoading] = useState(true);
+  const [membershipError, setMembershipError] = useState<string | null>(null);
+  const [membershipActionLoading, setMembershipActionLoading] = useState(false);
+  const currentPlan = membership?.plan ?? null;
+  const planEntitlements = currentPlan?.entitlements ?? null;
+
+  async function refreshMembership() {
+    setMembershipLoading(true);
+    setMembershipError(null);
+
+    try {
+      const [catalog, currentMembership] = await Promise.all([
+        fetchMembershipCatalog(),
+        fetchMembershipMe()
+      ]);
+      setMembershipCatalog(catalog);
+      setMembership(currentMembership);
+    } catch (err) {
+      setMembershipError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setMembershipLoading(false);
+    }
+  }
+
+  async function handleDevPlanChange(planId: 'free' | 'pro_player' | 'pro_coach') {
+    setMembershipActionLoading(true);
+    setMembershipError(null);
+
+    try {
+      await setMembershipPlanDev(planId);
+      await refreshMembership();
+    } catch (err) {
+      setMembershipError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setMembershipActionLoading(false);
+    }
+  }
 
   async function hydrateFromServer(gameNameValue: string, tagLineValue: string, platformValue: string) {
     try {
@@ -248,11 +306,16 @@ export default function App() {
       setSyncMessage(locale === 'en'
         ? 'We recovered a saved version from the server so you do not have to start from zero on this device.'
         : 'Recuperamos una versión guardada en el servidor para que no arranques de cero en este dispositivo.');
+      void refreshMembership();
       return true;
     } catch {
       return false;
     }
   }
+
+  useEffect(() => {
+    void refreshMembership();
+  }, []);
 
   useEffect(() => {
     const rawProfiles = window.localStorage.getItem(savedProfilesStorageKey);
@@ -306,6 +369,23 @@ export default function App() {
     }
   }, [locale]);
 
+  useEffect(() => {
+    if (!planEntitlements) return;
+    if (savedProfiles.length <= planEntitlements.maxStoredProfiles) return;
+    const trimmed = savedProfiles.slice(0, planEntitlements.maxStoredProfiles);
+    setSavedProfiles(trimmed);
+    window.localStorage.setItem(savedProfilesStorageKey, JSON.stringify(trimmed));
+  }, [savedProfiles, planEntitlements]);
+
+  useEffect(() => {
+    if (!dataset || !planEntitlements) return;
+    if (dataset.matches.length <= planEntitlements.maxStoredMatchesPerProfile) return;
+    const limited = limitDatasetMatches(dataset, planEntitlements.maxStoredMatchesPerProfile, locale);
+    setDataset(limited);
+    window.localStorage.setItem(datasetStorageKey(limited.player, limited.tagLine, limited.summary.platform), JSON.stringify(limited));
+    persistSavedProfile(limited, Math.min(matchCount, planEntitlements.maxStoredMatchesPerProfile));
+  }, [dataset, planEntitlements, locale, matchCount]);
+
   const availableRoles = useMemo(() => {
     if (!dataset) return ['ALL'];
     const roles = Array.from(new Set(dataset.matches.map((match) => match.role || 'NONE')))
@@ -326,6 +406,18 @@ export default function App() {
     if (!scopedMatches.length) return dataset.summary;
     return buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, scopedMatches, locale);
   }, [dataset, coachRoles, locale]);
+  useEffect(() => {
+    if (!planEntitlements) return;
+    if (matchCount > planEntitlements.maxStoredMatchesPerProfile) {
+      setMatchCount(planEntitlements.maxStoredMatchesPerProfile);
+    }
+  }, [matchCount, planEntitlements]);
+
+  useEffect(() => {
+    if (!planEntitlements) return;
+    if (coachRoles.length <= planEntitlements.maxCoachRoles) return;
+    setCoachRoles((current) => current.slice(0, planEntitlements.maxCoachRoles));
+  }, [coachRoles, planEntitlements]);
 
   const availableQueueFilters = useMemo(() => {
     if (!dataset) return ['ALL'] as const;
@@ -435,8 +527,14 @@ export default function App() {
     return dataset.matches.length < matchCount;
   }, [dataset, matchCount]);
 
-  const targetCountOptions = useMemo(() => buildTargetOptions(dataset?.matches.length ?? null), [dataset?.matches.length]);
-  const quickRefreshActions = useMemo(() => buildQuickRefreshActions(dataset?.matches.length ?? null), [dataset?.matches.length]);
+  const targetCountOptions = useMemo(
+    () => buildTargetOptions(dataset?.matches.length ?? null, planEntitlements?.maxStoredMatchesPerProfile ?? 100),
+    [dataset?.matches.length, planEntitlements?.maxStoredMatchesPerProfile]
+  );
+  const quickRefreshActions = useMemo(
+    () => buildQuickRefreshActions(dataset?.matches.length ?? null, planEntitlements?.maxStoredMatchesPerProfile ?? 100),
+    [dataset?.matches.length, planEntitlements?.maxStoredMatchesPerProfile]
+  );
   const profileIconUrl = useMemo(
     () => getProfileIconUrl(dataset?.profile?.profileIconId, dataset?.ddragonVersion),
     [dataset?.profile?.profileIconId, dataset?.ddragonVersion]
@@ -474,7 +572,7 @@ export default function App() {
       const nextRoles = parsed
         .map((role) => role.trim().toUpperCase())
         .filter((role) => coachRoleOptions.includes(role))
-        .slice(0, 2);
+        .slice(0, planEntitlements?.maxCoachRoles ?? 2);
 
       setCoachRoles(nextRoles.length ? nextRoles : defaultRoles);
       setLastGeneratedCoachScopeKey(null);
@@ -482,7 +580,7 @@ export default function App() {
       setCoachRoles(defaultRoles);
       setLastGeneratedCoachScopeKey(null);
     }
-  }, [dataset, gameName, tagLine, platform, coachRoleOptions]);
+  }, [dataset, gameName, tagLine, platform, coachRoleOptions, planEntitlements?.maxCoachRoles]);
 
   useEffect(() => {
     if (!availableRoles.includes(roleFilter)) {
@@ -519,7 +617,7 @@ export default function App() {
     const nextProfiles = [
       nextRecord,
       ...savedProfiles.filter((profile) => buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform) !== buildProfileIdentityKey(nextRecord.gameName, nextRecord.tagLine, nextRecord.platform))
-    ].slice(0, 8);
+    ].slice(0, planEntitlements?.maxStoredProfiles ?? 8);
 
     setSavedProfiles(nextProfiles);
     window.localStorage.setItem(savedProfilesStorageKey, JSON.stringify(nextProfiles));
@@ -557,6 +655,7 @@ export default function App() {
   }
 
   async function runAnalysis(requestedCount = matchCount) {
+    const cappedRequestedCount = Math.min(requestedCount, planEntitlements?.maxStoredMatchesPerProfile ?? requestedCount);
     setLoading(true);
     setError(null);
     setSyncMessage(null);
@@ -564,8 +663,8 @@ export default function App() {
 
     try {
       const previousDataset = readCachedDataset(gameName, tagLine, platform);
-      const shouldRefreshFullSample = !previousDataset || previousDataset.matches.length < requestedCount;
-      const result = await collectProfile(gameName, tagLine, requestedCount, {
+      const shouldRefreshFullSample = !previousDataset || previousDataset.matches.length < cappedRequestedCount;
+      const result = await collectProfile(gameName, tagLine, cappedRequestedCount, {
         platform,
         locale,
         onProgress: (nextProgress) => setProgress(nextProgress),
@@ -594,11 +693,12 @@ export default function App() {
           ? `${mergedDataset.summary.matches} valid matches were loaded to build your first sample.`
           : `Se cargaron ${mergedDataset.summary.matches} partidas válidas para construir tu primera muestra.`);
       }
-      setMatchCount(requestedCount);
+      setMatchCount(cappedRequestedCount);
       setPlatform((mergedDataset.summary.platform as RiotPlatform) ?? platform);
-      window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({ gameName, tagLine, platform: mergedDataset.summary.platform, matchCount: requestedCount }));
+      window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({ gameName, tagLine, platform: mergedDataset.summary.platform, matchCount: cappedRequestedCount }));
       window.localStorage.setItem(datasetStorageKey(gameName, tagLine, mergedDataset.summary.platform), JSON.stringify(mergedDataset));
-      persistSavedProfile(mergedDataset, requestedCount);
+      persistSavedProfile(mergedDataset, cappedRequestedCount);
+      await refreshMembership();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -614,10 +714,11 @@ export default function App() {
 
   function toggleCoachRole(role: string) {
     const normalizedRole = role.trim().toUpperCase();
+    const maxCoachRoles = planEntitlements?.maxCoachRoles ?? 2;
     setCoachRoles((current) => {
       const next = current.includes(normalizedRole)
         ? current.filter((item) => item !== normalizedRole)
-        : [...current, normalizedRole].slice(0, 2);
+        : [...current, normalizedRole].slice(0, maxCoachRoles);
 
       if (gameName && tagLine && platform) {
         window.localStorage.setItem(coachScopeStorageKey(gameName, tagLine, platform), JSON.stringify(next));
@@ -653,6 +754,7 @@ export default function App() {
       setAICoach(result);
       setLastGeneratedCoachScopeKey(coachScopeKey);
       window.localStorage.setItem(coachScopeStorageKey(gameName, tagLine, platform), JSON.stringify(coachRoles));
+      await refreshMembership();
     } catch (err) {
       setAICoachError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -690,16 +792,82 @@ export default function App() {
                 {locale === 'en' ? 'Account and membership' : 'Cuenta y membresía'}
               </div>
               <div style={{ color: '#8190a6', fontSize: 12 }}>
-                {locale === 'en' ? 'Reserved space for login, profile and billing.' : 'Espacio reservado para login, perfil y suscripción.'}
+                {currentPlan
+                  ? (locale === 'en'
+                    ? `${currentPlan.name} · ${currentPlan.monthlyUsd === 0 ? 'current free tier' : `US$${currentPlan.monthlyUsd}/month`}`
+                    : `${currentPlan.name} · ${currentPlan.monthlyUsd === 0 ? 'tu nivel gratis actual' : `US$${currentPlan.monthlyUsd}/mes`}`)
+                  : (locale === 'en' ? 'Loading plan and entitlements...' : 'Cargando plan y entitlements...')}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <Badge tone="default">{locale === 'en' ? 'Coming soon' : 'Próximamente'}</Badge>
-              <button type="button" style={topBarGhostButtonStyle} disabled>{locale === 'en' ? 'Sign in' : 'Iniciar sesión'}</button>
-              <button type="button" style={topBarPrimaryButtonStyle} disabled>{locale === 'en' ? 'Profile' : 'Perfil'}</button>
+              {membershipLoading ? <Badge tone="default">{locale === 'en' ? 'Loading plan' : 'Cargando plan'}</Badge> : null}
+              {currentPlan ? <Badge tone="default">{currentPlan.name}</Badge> : null}
+              {membership ? <Badge tone="low">{locale === 'en' ? `${membership.linkedProfiles.length}/${membership.plan.entitlements.maxStoredProfiles} profiles` : `${membership.linkedProfiles.length}/${membership.plan.entitlements.maxStoredProfiles} perfiles`}</Badge> : null}
+              {membership ? <Badge tone="low">{locale === 'en' ? `${membership.usage.openaiGenerations}/${membership.plan.entitlements.maxAICoachRunsPerMonth} AI` : `${membership.usage.openaiGenerations}/${membership.plan.entitlements.maxAICoachRunsPerMonth} IA`}</Badge> : null}
+              <button type="button" style={topBarGhostButtonStyle} disabled>{locale === 'en' ? 'Login soon' : 'Login pronto'}</button>
             </div>
           </div>
         </section>
+
+        {membershipCatalog?.plans?.length ? (
+          <section style={planSectionStyle}>
+            <div style={{ display: 'grid', gap: 4 }}>
+              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                {locale === 'en' ? 'Memberships' : 'Membresías'}
+              </div>
+              <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>
+                {locale === 'en' ? 'Limits, upgrades and entitlement model' : 'Límites, upgrades y modelo de entitlements'}
+              </div>
+            </div>
+            <div style={planCardsGridStyle}>
+              {membershipCatalog.plans.map((plan) => {
+                const isCurrent = membership?.plan.id === plan.id;
+                return (
+                  <div key={plan.id} style={{ ...planCardStyle, ...(isCurrent ? activePlanCardStyle : {}) }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
+                      <div style={{ display: 'grid', gap: 5 }}>
+                        <div style={{ color: '#eef4ff', fontWeight: 800, fontSize: 16 }}>{plan.name}</div>
+                        <div style={{ color: '#8a97ab', fontSize: 13, lineHeight: 1.5 }}>{plan.description}</div>
+                      </div>
+                      <Badge tone={isCurrent ? 'low' : 'default'}>{isCurrent ? (locale === 'en' ? 'Current' : 'Actual') : plan.badge}</Badge>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Badge tone="low">{plan.monthlyUsd === 0 ? (locale === 'en' ? 'Free' : 'Gratis') : (locale === 'en' ? `US$${plan.monthlyUsd}/month` : `US$${plan.monthlyUsd}/mes`)}</Badge>
+                      <Badge tone="default">{`${plan.entitlements.maxStoredMatchesPerProfile} ${locale === 'en' ? 'matches/profile' : 'partidas/perfil'}`}</Badge>
+                      <Badge tone="default">{`${plan.entitlements.maxStoredProfiles} ${locale === 'en' ? 'profiles' : 'perfiles'}`}</Badge>
+                    </div>
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      {plan.featureHighlights.slice(0, 4).map((feature: string) => (
+                        <div key={feature} style={{ color: '#d5dfef', fontSize: 13, lineHeight: 1.5 }}>• {feature}</div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      {membership?.devToolsEnabled ? (
+                        <button
+                          type="button"
+                          style={isCurrent ? topBarPrimaryButtonStyle : secondaryButtonStyle}
+                          disabled={membershipActionLoading || isCurrent}
+                          onClick={() => void handleDevPlanChange(plan.id)}
+                        >
+                          {isCurrent
+                            ? (locale === 'en' ? 'Current plan' : 'Plan actual')
+                            : membershipActionLoading
+                              ? (locale === 'en' ? 'Switching...' : 'Cambiando...')
+                              : (locale === 'en' ? 'Activate in dev' : 'Activar en dev')}
+                        </button>
+                      ) : (
+                        <button type="button" style={isCurrent ? topBarPrimaryButtonStyle : secondaryButtonStyle} disabled>
+                          {isCurrent ? (locale === 'en' ? 'Current plan' : 'Plan actual') : (locale === 'en' ? 'Stripe soon' : 'Stripe pronto')}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {membershipError ? <div style={softPanelStyle}>{membershipError}</div> : null}
+          </section>
+        ) : null}
 
         <section style={heroGridStyle}>
           {!dataset ? (
@@ -807,15 +975,19 @@ export default function App() {
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {coachRoleOptions.map((role) => {
                       const selected = coachRoles.includes(role);
+                      const maxRolesReached = !selected && coachRoles.length >= (planEntitlements?.maxCoachRoles ?? 2);
                       return (
                         <button
                           key={role}
                           type="button"
+                          disabled={maxRolesReached}
                           onClick={() => toggleCoachRole(role)}
                           style={{
                             ...rolePillStyle,
                             ...(selected ? activeRolePillStyle : {}),
-                            borderColor: selected ? 'rgba(216,253,241,0.26)' : 'rgba(255,255,255,0.07)'
+                            borderColor: selected ? 'rgba(216,253,241,0.26)' : 'rgba(255,255,255,0.07)',
+                            opacity: maxRolesReached ? 0.45 : 1,
+                            cursor: maxRolesReached ? 'not-allowed' : 'pointer'
                           }}
                         >
                           {locale === 'en' ? translateRole(role, 'en') : getRoleLabel(role)}
@@ -828,11 +1000,11 @@ export default function App() {
                       <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Current scope' : 'Alcance actual'}</div>
                       <div style={{ ...heroMetaValueStyle, fontSize: 20 }}>{coachScopeLabel}</div>
                       <div style={heroMetaSubtleStyle}>
-                        {coachRoles.length === 2
-                          ? (locale === 'en' ? 'Maximum scope selected' : 'Máximo de alcance seleccionado')
+                        {coachRoles.length >= (planEntitlements?.maxCoachRoles ?? 2)
+                          ? (locale === 'en' ? 'Maximum scope selected for this plan' : 'Máximo de alcance para este plan')
                           : locale === 'en'
-                            ? 'You can add one more role'
-                            : 'Podés sumar un rol más'}
+                            ? `You can add up to ${(planEntitlements?.maxCoachRoles ?? 2) - coachRoles.length} more role`
+                            : `Podés sumar hasta ${(planEntitlements?.maxCoachRoles ?? 2) - coachRoles.length} rol más`}
                       </div>
                     </div>
                     <div style={scopeMetaCardStyle}>
@@ -905,7 +1077,7 @@ export default function App() {
                     <label style={{ ...fieldBlockStyle, minWidth: 0 }}>
                       <span style={fieldLabelStyle}>{locale === 'en' ? 'Sample' : 'Muestra'}</span>
                       <select value={matchCount} onChange={(e) => setMatchCount(Number(e.target.value))} style={riotSearchInputStyle}>
-                        {initialMatchOptions.map((count) => (
+                        {targetCountOptions.map((count) => (
                           <option key={count} value={count}>{count} {locale === 'en' ? 'matches' : 'partidas'}</option>
                         ))}
                       </select>
@@ -939,8 +1111,8 @@ export default function App() {
                     </div>
                     <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
                       {matchCount >= 100
-                        ? (locale === 'en' ? 'A 100-match baseline gives the sharpest first read, but it can take longer because of Riot rate limits.' : 'Una base de 100 partidas da la lectura inicial más filosa, pero puede tardar más por los límites de Riot.')
-                        : (locale === 'en' ? 'Start with 20 or 50 if you want speed. Move to 100 when you want the most stable baseline.' : 'Empezá con 20 o 50 si querés velocidad. Pasá a 100 cuando quieras la base más estable.')}
+                        ? (locale === 'en' ? `A ${Math.min(100, planEntitlements?.maxStoredMatchesPerProfile ?? 100)}-match baseline gives the sharpest first read, but it can take longer because of Riot rate limits.` : `Una base de ${Math.min(100, planEntitlements?.maxStoredMatchesPerProfile ?? 100)} partidas da la lectura inicial más filosa, pero puede tardar más por los límites de Riot.`)
+                        : (locale === 'en' ? 'Start smaller if you want speed, then scale the sample when you want a more stable baseline.' : 'Empezá más chico si querés velocidad y después escalá la muestra cuando quieras una base más estable.')}
                     </div>
                   </div>
                   {!dataset && gameName && tagLine ? (
@@ -955,6 +1127,7 @@ export default function App() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <Badge tone="default">{locale === 'en' ? `${matchCount} match target` : `Objetivo de ${matchCount} partidas`}</Badge>
+                    {planEntitlements ? <Badge tone="low">{locale === 'en' ? `Plan cap ${planEntitlements.maxStoredMatchesPerProfile}` : `Tope del plan ${planEntitlements.maxStoredMatchesPerProfile}`}</Badge> : null}
                     <Badge tone="low">{locale === 'en' ? 'Coaching scope is chosen after loading the account' : 'El alcance del coaching se elige después de cargar la cuenta'}</Badge>
                   </div>
                   <div style={{ color: '#8f9bad', fontSize: 13 }}>
@@ -998,7 +1171,7 @@ export default function App() {
                             disabled={loading}
                           >
                             {action.id === 'complete'
-                              ? (locale === 'en' ? 'Complete to 100' : 'Completar a 100')
+                              ? (locale === 'en' ? `Complete to ${action.target}` : `Completar a ${action.target}`)
                               : `${action.label} ${locale === 'en' ? 'match' : 'partida'}${action.label === '+1' ? '' : 's'}`}
                           </button>
                         ))}
@@ -1022,6 +1195,7 @@ export default function App() {
                       {dataset?.remakesExcluded ? <Badge tone="medium">{locale === 'en' ? `${dataset.remakesExcluded} remakes excluded` : `${dataset.remakesExcluded} remakes excluidos`}</Badge> : null}
                       {needsSampleBackfill ? <Badge tone="medium">{locale === 'en' ? 'Needs backfill' : 'Le falta backfill'}</Badge> : <Badge tone="low">{locale === 'en' ? 'Only new matches' : 'Solo nuevas partidas'}</Badge>}
                       {currentPlatformInfo ? <Badge tone="default">{currentPlatformInfo.platform}</Badge> : null}
+                      {planEntitlements ? <Badge tone="default">{`${dataset.matches.length}/${planEntitlements.maxStoredMatchesPerProfile}`}</Badge> : null}
                     </div>
                   </div>
                 </div>
@@ -1185,6 +1359,56 @@ export default function App() {
             </div>
           ) : null}
 
+          {membership ? (
+            <div style={savedProfilesSectionStyle}>
+              <div style={{ display: 'grid', gap: 3 }}>
+                <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  {locale === 'en' ? 'Coach workspace' : 'Workspace de coach'}
+                </div>
+                <div style={{ color: '#eef4ff', fontSize: 15, fontWeight: 800 }}>
+                  {membership.plan.entitlements.canUseCoachWorkspace
+                    ? (locale === 'en' ? 'Your plan already supports player management' : 'Tu plan ya soporta gestión de jugadores')
+                    : (locale === 'en' ? 'Prepared for future coach workflows' : 'Preparado para futuros workflows de coach')}
+                </div>
+              </div>
+              {membership.plan.entitlements.canUseCoachWorkspace ? (
+                <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr .8fr', gap: 12 }}>
+                  <div style={softPanelStyle}>
+                    <div style={{ color: '#eef4ff', fontWeight: 700 }}>
+                      {locale === 'en' ? 'Roster capacity' : 'Capacidad de roster'}
+                    </div>
+                    <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
+                      {locale === 'en'
+                        ? `This plan can manage up to ${membership.plan.entitlements.maxManagedPlayers} players and reuse saved profiles as the seed of a coach desk.`
+                        : `Este plan puede gestionar hasta ${membership.plan.entitlements.maxManagedPlayers} jugadores y reutilizar perfiles guardados como semilla de un coach desk.`}
+                    </div>
+                  </div>
+                  <div style={softPanelStyle}>
+                    <div style={{ color: '#eef4ff', fontWeight: 700 }}>
+                      {locale === 'en' ? 'Current seed' : 'Semilla actual'}
+                    </div>
+                    <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
+                      {locale === 'en'
+                        ? `${membership.linkedProfiles.length} linked profiles ready to become managed players later on.`
+                        : `${membership.linkedProfiles.length} perfiles vinculados listos para convertirse después en jugadores gestionados.`}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={softPanelStyle}>
+                  <div style={{ color: '#eef4ff', fontWeight: 700 }}>
+                    {locale === 'en' ? 'Locked outside Pro Coach' : 'Bloqueado fuera de Pro Coach'}
+                  </div>
+                  <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
+                    {locale === 'en'
+                      ? 'The future coach desk will sit on top of the same profile and coaching foundation you are already using now.'
+                      : 'El futuro coach desk se va a montar sobre la misma base de perfiles y coaching que ya estás usando ahora.'}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : null}
+
           <div style={navigationPanelStyle}>
               <div style={{ display: 'grid', gap: 3 }}>
               <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Product navigation' : 'Navegación del producto'}</div>
@@ -1286,6 +1510,35 @@ const accountAccessStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.07)',
   width: 'min(100%, 560px)',
   boxShadow: '0 16px 40px rgba(0,0,0,0.14)'
+};
+
+const planSectionStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: '16px 18px',
+  borderRadius: 18,
+  background: 'linear-gradient(180deg, rgba(10,14,22,0.95), rgba(5,8,14,0.98))',
+  border: '1px solid rgba(255,255,255,0.06)'
+};
+
+const planCardsGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+  gap: 12
+};
+
+const planCardStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  padding: '16px 16px 18px',
+  borderRadius: 18,
+  background: '#090e16',
+  border: '1px solid rgba(255,255,255,0.06)'
+};
+
+const activePlanCardStyle: CSSProperties = {
+  background: 'linear-gradient(180deg, rgba(216,253,241,0.08), rgba(12,18,27,0.98))',
+  borderColor: 'rgba(216,253,241,0.18)'
 };
 
 const topBarGhostButtonStyle: CSSProperties = {
