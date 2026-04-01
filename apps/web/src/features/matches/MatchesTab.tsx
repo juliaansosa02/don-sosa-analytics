@@ -1,6 +1,6 @@
 import { Card, Badge, InfoHint } from '../../components/ui';
 import type { Dataset } from '../../types';
-import { getChampionIconUrl } from '../../lib/lol';
+import { formatChampionName, getChampionIconUrl } from '../../lib/lol';
 import { formatDecimal, formatSignedNumber } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
 
@@ -13,13 +13,13 @@ export function MatchesTab({ dataset, locale = 'es' }: { dataset: Dataset; local
         return (
           <Card
             key={match.matchId}
-            title={match.championName}
-            subtitle={`${new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')} · ${match.opponentChampionName ? `vs ${match.opponentChampionName}` : (locale === 'en' ? 'Opponent not detected' : 'Rival no detectado')}`}
+            title={formatChampionName(match.championName)}
+            subtitle={`${new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')} · ${match.opponentChampionName ? `vs ${formatChampionName(match.opponentChampionName)}` : (locale === 'en' ? 'Opponent not detected' : 'Rival no detectado')}`}
           >
             <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr .95fr', gap: 16 }}>
               <div style={{ display: 'grid', gap: 14 }}>
                 <div style={{ display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap' }}>
-                  {iconUrl ? <img src={iconUrl} alt={match.championName} width={58} height={58} style={iconStyle} /> : null}
+                  {iconUrl ? <img src={iconUrl} alt={formatChampionName(match.championName)} width={58} height={58} style={iconStyle} /> : null}
                   <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'WIN' : 'VICTORIA') : (locale === 'en' ? 'LOSS' : 'DERROTA')}</Badge>
                   <Badge>{`${match.kills}/${match.deaths}/${match.assists}`}</Badge>
                   <Badge>{`${formatDecimal(match.killParticipation)}% KP`}</Badge>

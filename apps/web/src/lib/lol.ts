@@ -15,6 +15,25 @@ const championKeyMap: Record<string, string> = {
   XinZhao: 'XinZhao'
 };
 
+const championDisplayNameMap: Record<string, string> = {
+  AurelionSol: 'Aurelion Sol',
+  Belveth: "Bel'Veth",
+  ChoGath: "Cho'Gath",
+  DrMundo: 'Dr. Mundo',
+  JarvanIV: 'Jarvan IV',
+  KhaZix: "Kha'Zix",
+  KogMaw: "Kog'Maw",
+  LeeSin: 'Lee Sin',
+  MasterYi: 'Master Yi',
+  MissFortune: 'Miss Fortune',
+  MonkeyKing: 'Wukong',
+  RekSai: "Rek'Sai",
+  TahmKench: 'Tahm Kench',
+  TwistedFate: 'Twisted Fate',
+  VelKoz: "Vel'Koz",
+  XinZhao: 'Xin Zhao'
+};
+
 const roleLabels: Record<string, string> = {
   ALL: 'Todos los roles',
   TOP: 'Top',
@@ -54,6 +73,11 @@ const rankEmblemUrlMap: Record<string, string> = {
 
 export function normalizeChampionKey(championName: string) {
   return championKeyMap[championName] ?? championName.replace(/[\s'.]/g, '');
+}
+
+export function formatChampionName(championName: string) {
+  if (!championName) return championName;
+  return championDisplayNameMap[championName] ?? championName;
 }
 
 export function getChampionIconUrl(championName: string, version?: string) {

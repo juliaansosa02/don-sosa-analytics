@@ -10,7 +10,7 @@ import { RunesTab } from '../features/runes/RunesTab';
 import { ChampionPoolTab } from '../features/champion-pool/ChampionPoolTab';
 import { MatchesTab } from '../features/matches/MatchesTab';
 import { detectLocale, translateRole, type Locale } from '../lib/i18n';
-import { getQueueBucket, getQueueLabel, getRankEmblemDataUrl, getRankPalette, getRoleLabel } from '../lib/lol';
+import { getProfileIconUrl, getQueueBucket, getQueueLabel, getRankEmblemDataUrl, getRankPalette, getRoleLabel } from '../lib/lol';
 import { buildCs15Benchmark } from '../lib/benchmarks';
 
 const tabs = [
@@ -368,6 +368,10 @@ export default function App() {
 
   const targetCountOptions = useMemo(() => buildTargetOptions(dataset?.matches.length ?? null), [dataset?.matches.length]);
   const quickRefreshActions = useMemo(() => buildQuickRefreshActions(dataset?.matches.length ?? null), [dataset?.matches.length]);
+  const profileIconUrl = useMemo(
+    () => getProfileIconUrl(dataset?.profile?.profileIconId, dataset?.ddragonVersion),
+    [dataset?.profile?.profileIconId, dataset?.ddragonVersion]
+  );
 
   useEffect(() => {
     if (!dataset || !gameName || !tagLine) {
@@ -649,18 +653,37 @@ export default function App() {
             <div style={{ display: 'grid', gap: 16 }}>
               <div style={heroIntroPanelStyle}>
                 <div style={{ display: 'grid', gap: 16 }}>
-                  <div style={{ display: 'grid', gap: 6 }}>
+                  <div style={{ display: 'grid', gap: 10 }}>
                     <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>
                       {locale === 'en' ? 'Current profile' : 'Perfil actual'}
                     </div>
-                    <h1 style={{ margin: 0, fontSize: 38, letterSpacing: '-0.05em', lineHeight: 1.05 }}>
-                      {dataset.player}<span style={{ color: '#8894ab' }}>#{dataset.tagLine}</span>
-                    </h1>
-                    <p style={{ margin: 0, color: '#96a1b4', maxWidth: 760, lineHeight: 1.65 }}>
-                      {locale === 'en'
-                        ? 'The coaching block uses this saved sample as its base. You can explore the rest of the product without spending tokens again on every visual filter change.'
-                        : 'El bloque de coaching usa esta muestra guardada como base. Podés explorar el resto del producto sin volver a gastar tokens por cada cambio visual de filtros.'}
-                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: profileIconUrl ? '88px minmax(0, 1fr)' : '1fr', gap: 16, alignItems: 'center' }}>
+                      {profileIconUrl ? (
+                        <img
+                          src={profileIconUrl}
+                          alt={dataset.player}
+                          width={88}
+                          height={88}
+                          style={{ ...profileIconStyle, width: 88, height: 88, objectFit: 'cover', boxShadow: '0 16px 32px rgba(0,0,0,0.22)' }}
+                        />
+                      ) : null}
+                      <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
+                        <h1 style={{ margin: 0, fontSize: 38, letterSpacing: '-0.05em', lineHeight: 1.05 }}>
+                          {dataset.player}<span style={{ color: '#8894ab' }}>#{dataset.tagLine}</span>
+                        </h1>
+                        {dataset.profile ? (
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <Badge>{locale === 'en' ? `Level ${dataset.profile.summonerLevel}` : `Nivel ${dataset.profile.summonerLevel}`}</Badge>
+                            {dataset.rank ? <Badge tone="low">{dataset.rank.highest.label}</Badge> : null}
+                          </div>
+                        ) : null}
+                        <p style={{ margin: 0, color: '#96a1b4', maxWidth: 760, lineHeight: 1.65 }}>
+                          {locale === 'en'
+                            ? 'The coaching block uses this saved sample as its base. You can explore the rest of the product without spending tokens again on every visual filter change.'
+                            : 'El bloque de coaching usa esta muestra guardada como base. Podés explorar el resto del producto sin volver a gastar tokens por cada cambio visual de filtros.'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                   <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.25fr repeat(2, minmax(0, 1fr))', gap: 12 }}>
                     {dataset.rank ? <RankBadge rank={dataset.rank} compact locale={locale} /> : null}
@@ -1353,31 +1376,31 @@ function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonNullable
   const emblem = getRankEmblemDataUrl(rank.highest.tier);
   const palette = getRankPalette(rank.highest.tier);
   const lpProgress = Math.max(0, Math.min(rank.highest.leaguePoints, 100));
-  const emblemSize = compact ? 74 : 92;
+  const emblemSize = compact ? 118 : 138;
   const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR`;
 
   return (
     <div title={title} style={{
       display: 'grid',
       gap: compact ? 8 : 10,
-      minWidth: compact ? 260 : 290,
-      padding: compact ? '12px 14px' : '14px 16px',
+      minWidth: compact ? 286 : 320,
+      padding: compact ? '12px 14px' : '16px 18px',
       borderRadius: 16,
       background: compact ? 'rgba(9, 14, 22, 0.86)' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
       border: `1px solid ${palette.primary}33`
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 12 : 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 10 : 14 }}>
         <img
           src={emblem}
           alt={rank.highest.label}
           width={emblemSize}
           height={emblemSize}
-          style={{ display: 'block', objectFit: 'contain', filter: `drop-shadow(0 14px 28px ${palette.primary}22)` }}
+          style={{ display: 'block', objectFit: 'contain', filter: `drop-shadow(0 16px 32px ${palette.primary}24)`, margin: compact ? '-10px -16px -8px -12px' : '-12px -18px -10px -14px' }}
         />
         <div style={{ display: 'grid', gap: 3 }}>
           <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{rank.highest.queueLabel ?? (locale === 'en' ? 'Ranked' : 'Ranked')}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: compact ? 16 : 18, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.highest.label}</span>
+            <span style={{ fontSize: compact ? 17 : 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.highest.label}</span>
             <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.highest.leaguePoints} LP`}</span>
           </div>
         </div>

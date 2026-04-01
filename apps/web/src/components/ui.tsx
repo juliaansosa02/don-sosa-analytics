@@ -1,5 +1,5 @@
 import type { CSSProperties, PropsWithChildren, ReactNode } from 'react';
-import { getChampionIconUrl } from '../lib/lol';
+import { formatChampionName, getChampionIconUrl } from '../lib/lol';
 
 export function Shell({ sidebar, children }: PropsWithChildren<{ sidebar?: ReactNode }>) {
   return (
@@ -43,7 +43,7 @@ export function Badge({ children, tone = 'default' }: PropsWithChildren<{ tone?:
     low: { background: 'rgba(126,245,199,.14)', color: '#9ff0cf' }
   } as const;
 
-  return <span style={{ display: 'inline-flex', alignItems: 'center', padding: '7px 11px', borderRadius: 999, background: tones[tone].background, color: tones[tone].color, fontSize: 12, fontWeight: 700, letterSpacing: '0.02em', border: '1px solid rgba(255,255,255,0.05)' }}>{children}</span>;
+  return <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '7px 11px', borderRadius: 999, background: tones[tone].background, color: tones[tone].color, fontSize: 12, fontWeight: 700, letterSpacing: '0.02em', lineHeight: 1.1, textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>{children}</span>;
 }
 
 export function ChampionAvatar({
@@ -58,6 +58,7 @@ export function ChampionAvatar({
   radius?: number;
 }) {
   const iconUrl = getChampionIconUrl(championName, version);
+  const displayName = formatChampionName(championName);
 
   if (!iconUrl) {
     return (
@@ -71,7 +72,7 @@ export function ChampionAvatar({
         }}
       >
         <span style={{ fontSize: Math.max(12, size * 0.28), fontWeight: 800, color: '#edf2ff' }}>
-          {championName.slice(0, 2).toUpperCase()}
+          {displayName.slice(0, 2).toUpperCase()}
         </span>
       </div>
     );
@@ -81,7 +82,7 @@ export function ChampionAvatar({
     <div style={{ ...championAvatarShellStyle, width: size, height: size, borderRadius: radius }}>
       <img
         src={iconUrl}
-        alt={championName}
+        alt={displayName}
         width={size}
         height={size}
         style={{ display: 'block', width: size, height: size, borderRadius: radius, objectFit: 'cover' }}
@@ -105,12 +106,14 @@ export function ChampionIdentity({
   size?: number;
   align?: CSSProperties['alignItems'];
 }) {
+  const displayName = formatChampionName(championName);
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: `${size}px minmax(0, 1fr)`, gap: 12, alignItems: align }}>
       <ChampionAvatar championName={championName} version={version} size={size} radius={Math.max(12, Math.round(size * 0.28))} />
       <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
         <div style={{ color: '#edf2ff', fontSize: size >= 52 ? 22 : 18, fontWeight: 800, lineHeight: 1.12 }}>
-          {championName}
+          {displayName}
         </div>
         {subtitle ? <div style={{ color: '#9aa5b7', lineHeight: 1.55 }}>{subtitle}</div> : null}
         {meta ? <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>{meta}</div> : null}

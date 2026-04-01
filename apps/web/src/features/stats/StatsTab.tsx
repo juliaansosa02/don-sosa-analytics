@@ -2,7 +2,7 @@ import { Card, Badge, InfoHint, ChampionIdentity } from '../../components/ui';
 import type { BenchmarkAggregateRecord, Dataset } from '../../types';
 import { formatDecimal, formatSignedNumber } from '../../lib/format';
 import { buildCs15ProgressionBenchmark, buildLevel15ProgressionBenchmark, type TierProgressionBenchmark } from '../../lib/benchmarks';
-import { getQueueBucket, getRoleLabel } from '../../lib/lol';
+import { formatChampionName, getQueueBucket, getRoleLabel } from '../../lib/lol';
 import { translateRole, type Locale } from '../../lib/i18n';
 
 const ROLE_BENCHMARK_MIN_SAMPLE = 30;
@@ -118,8 +118,8 @@ function resolveBenchmarkContext(dataset: Dataset, primaryRole: string, locale: 
       current: championCurrent,
       next: championNext && championNext.sampleSize >= CHAMPION_BENCHMARK_MIN_SAMPLE ? championNext : null,
       description: locale === 'en'
-        ? `Real internal base with ${championCurrent.sampleSize} matches of ${championCurrent.championName} in ${translateRole(primaryRole, 'en')} and ${queueLabel(primaryQueueBucket, locale)}.`
-        : `Base propia real con ${championCurrent.sampleSize} partidas de ${championCurrent.championName} en ${getRoleLabel(primaryRole)} y ${queueLabel(primaryQueueBucket, locale)}.`
+        ? `Real internal base with ${championCurrent.sampleSize} matches of ${formatChampionName(championCurrent.championName ?? '')} in ${translateRole(primaryRole, 'en')} and ${queueLabel(primaryQueueBucket, locale)}.`
+        : `Base propia real con ${championCurrent.sampleSize} partidas de ${formatChampionName(championCurrent.championName ?? '')} en ${getRoleLabel(primaryRole)} y ${queueLabel(primaryQueueBucket, locale)}.`
     };
   }
 

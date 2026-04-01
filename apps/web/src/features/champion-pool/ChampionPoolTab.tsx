@@ -1,7 +1,7 @@
 import { Card, Badge, InfoHint } from '../../components/ui';
 import type { Dataset } from '../../types';
 import { useMemo, useState } from 'react';
-import { getChampionIconUrl } from '../../lib/lol';
+import { formatChampionName, getChampionIconUrl } from '../../lib/lol';
 import { formatDecimal, formatInteger, formatPercent } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
 
@@ -60,9 +60,9 @@ export function ChampionPoolTab({ dataset, locale = 'es' }: { dataset: Dataset; 
             return (
               <div key={champion.championName} style={cardStyle}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  {iconUrl ? <img src={iconUrl} alt={champion.championName} width={52} height={52} style={iconStyle} /> : null}
+                  {iconUrl ? <img src={iconUrl} alt={formatChampionName(champion.championName)} width={52} height={52} style={iconStyle} /> : null}
                   <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ fontSize: 18, fontWeight: 700 }}>{champion.championName}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700 }}>{formatChampionName(champion.championName)}</div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <Badge tone={badgeTone(champion.classification)}>{(locale === 'en' ? classificationLabelEn : classificationLabel)[champion.classification] ?? champion.classification}</Badge>
                     </div>

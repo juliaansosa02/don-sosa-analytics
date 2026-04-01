@@ -1,6 +1,6 @@
 import { Card, Badge } from '../../components/ui';
 import type { Dataset } from '../../types';
-import { getChampionIconUrl, getRuneIconUrl } from '../../lib/lol';
+import { formatChampionName, getChampionIconUrl, getRuneIconUrl } from '../../lib/lol';
 import { formatDecimal, formatInteger, formatPercent } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
 
@@ -108,9 +108,9 @@ export function RunesTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
 
                       return (
                         <div key={champion.championName} style={championPillStyle}>
-                          {championIcon ? <img src={championIcon} alt={champion.championName} width={28} height={28} style={championIconStyle} /> : null}
+                          {championIcon ? <img src={championIcon} alt={formatChampionName(champion.championName)} width={28} height={28} style={championIconStyle} /> : null}
                           <div>
-                            <div style={{ fontSize: 13, fontWeight: 700 }}>{champion.championName}</div>
+                            <div style={{ fontSize: 13, fontWeight: 700 }}>{formatChampionName(champion.championName)}</div>
                             <div style={{ color: '#7a8494', fontSize: 12 }}>
                               {locale === 'en' ? `${champion.games} matches · ${formatPercent(champion.winRate)}` : `${champion.games} partidas · ${formatPercent(champion.winRate)}`}
                             </div>

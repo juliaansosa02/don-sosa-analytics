@@ -1,7 +1,7 @@
 import { Card, Badge, InfoHint } from '../../components/ui';
 import type { Dataset } from '../../types';
 import { useMemo, useState } from 'react';
-import { getChampionIconUrl, getRoleLabel } from '../../lib/lol';
+import { formatChampionName, getChampionIconUrl, getRoleLabel } from '../../lib/lol';
 import { formatDecimal, formatInteger, formatPercent, formatSignedNumber } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
 import { translateRole } from '../../lib/i18n';
@@ -94,13 +94,13 @@ export function MatchupsTab({ dataset, locale = 'es' }: { dataset: Dataset; loca
           <div style={{ color: '#8a95a8', fontSize: 13 }}>
             {championFilter === 'ALL'
               ? (locale === 'en' ? 'You are looking at all of your picks mixed together.' : 'Estás viendo todos tus picks mezclados.')
-              : (locale === 'en' ? `You are looking only at matchups when you play ${championFilter}.` : `Estás viendo solo matchups cuando jugás ${championFilter}.`)}
+              : (locale === 'en' ? `You are looking only at matchups when you play ${formatChampionName(championFilter)}.` : `Estás viendo solo matchups cuando jugás ${formatChampionName(championFilter)}.`)}
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <select value={championFilter} onChange={(event) => setChampionFilter(event.target.value)} style={filterSelectStyle}>
               {championOptions.map((champion) => (
                 <option key={champion} value={champion}>
-                  {champion === 'ALL' ? (locale === 'en' ? 'All your champions' : 'Todos tus campeones') : champion}
+                  {champion === 'ALL' ? (locale === 'en' ? 'All your champions' : 'Todos tus campeones') : formatChampionName(champion)}
                 </option>
               ))}
             </select>
@@ -120,9 +120,9 @@ export function MatchupsTab({ dataset, locale = 'es' }: { dataset: Dataset; loca
             <div key={`${matchup.opponent}-${matchup.role}`} style={matchupCardStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'start' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  {iconUrl ? <img src={iconUrl} alt={matchup.opponent} width={52} height={52} style={iconStyle} /> : null}
+                  {iconUrl ? <img src={iconUrl} alt={formatChampionName(matchup.opponent)} width={52} height={52} style={iconStyle} /> : null}
                   <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ fontSize: 18, fontWeight: 700 }}>{matchup.opponent}</div>
+                    <div style={{ fontSize: 18, fontWeight: 700 }}>{formatChampionName(matchup.opponent)}</div>
                     <div style={{ color: '#7d8696', fontSize: 13 }}>{locale === 'en' ? translateRole(matchup.role, 'en') : getRoleLabel(matchup.role)}</div>
                   </div>
                 </div>

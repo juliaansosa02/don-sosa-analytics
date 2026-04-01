@@ -3,6 +3,7 @@ import { Card, Badge, KPI, InfoHint, ChampionAvatar, ChampionIdentity } from '..
 import type { AICoachResult, Dataset } from '../../types';
 import { formatDecimal } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
+import { formatChampionName } from '../../lib/lol';
 
 const priorityColors: Record<string, string> = {
   high: 'rgba(255, 107, 107, 0.12)',
@@ -250,7 +251,7 @@ export function CoachingHome({
             />
             <KPI
               label={locale === 'en' ? 'Anchor pick' : 'Pick ancla'}
-              value={championAnchor?.championName ?? 'N/A'}
+              value={championAnchor ? formatChampionName(championAnchor.championName) : 'N/A'}
               hint={championAnchor ? `${championAnchor.winRate}% WR` : (locale === 'en' ? 'Not enough sample' : 'Sin muestra suficiente')}
               info={locale === 'en' ? 'The champion that carries the most weight inside the current filter. If your sample leans heavily on one pick, coaching needs to respect that.' : 'El campeón que más pesa dentro del filtro actual. Si tu muestra se apoya mucho en un pick, la lectura de coaching tiene que respetar eso.'}
             />
@@ -407,7 +408,7 @@ export function CoachingHome({
                   {match.opponentChampionName ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <ChampionAvatar championName={match.opponentChampionName} version={dataset.ddragonVersion} size={24} radius={8} />
-                      <Badge>{`vs ${match.opponentChampionName}`}</Badge>
+                      <Badge>{`vs ${formatChampionName(match.opponentChampionName)}`}</Badge>
                     </span>
                   ) : null}
                 </div>
