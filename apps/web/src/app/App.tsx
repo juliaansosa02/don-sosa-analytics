@@ -10,8 +10,7 @@ import { RunesTab } from '../features/runes/RunesTab';
 import { ChampionPoolTab } from '../features/champion-pool/ChampionPoolTab';
 import { MatchesTab } from '../features/matches/MatchesTab';
 import { detectLocale, translateRole, type Locale } from '../lib/i18n';
-import { getProfileIconUrl, getQueueBucket, getQueueLabel, getRankEmblemDataUrl, getRankPalette, getRoleLabel } from '../lib/lol';
-import { formatDecimal } from '../lib/format';
+import { getQueueBucket, getQueueLabel, getRankEmblemDataUrl, getRankPalette, getRoleLabel } from '../lib/lol';
 import { buildCs15Benchmark } from '../lib/benchmarks';
 
 const tabs = [
@@ -476,18 +475,25 @@ export default function App() {
           </div>
         </section>
 
-        <section style={heroStyle}>
-          <div style={{ display: 'grid', gap: 12 }}>
+        <section style={heroGridStyle}>
+          <div style={heroIntroPanelStyle}>
+            <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>Don Sosa Coach</div>
             <h1 style={{ margin: 0, fontSize: 46, letterSpacing: '-0.05em', maxWidth: 760 }}>
-              {locale === 'en'
-                ? 'A competitive read of your play, not just another stats page'
-                : 'Tu lectura competitiva para jugar mejor, no solo mirar stats'}
+              {viewDataset
+                ? `${viewDataset.player}#${viewDataset.tagLine}`
+                : (locale === 'en'
+                  ? 'A competitive read of your play, not just another stats page'
+                  : 'Tu lectura competitiva para jugar mejor, no solo mirar stats')}
             </h1>
             <p style={{ margin: 0, color: '#9099aa', maxWidth: 760, lineHeight: 1.7 }}>
-              {locale === 'en'
-                ? 'Clear diagnosis, actionable decisions and an organized view of matchups, runes, champions and review. First you understand what to fix, then you go deeper.'
-                : 'Diagnóstico claro, decisiones accionables y una vista ordenada de matchups, runas, campeones y revisión. Primero entendés qué corregir; después entrás al detalle.'}
+              {viewDataset
+                ? (locale === 'en'
+                  ? `Current ranked block for ${viewDataset.summary.matches} visible matches. The goal is to turn your sample into clear decisions, review habits and stable progress.`
+                  : `Bloque ranked actual sobre ${viewDataset.summary.matches} partidas visibles. La idea es convertir tu muestra en decisiones claras, hábitos de revisión y progreso estable.`)
+                : (locale === 'en'
+                  ? 'Clear diagnosis, actionable decisions and an organized view of matchups, runes, champions and review. First you understand what to fix, then you go deeper.'
+                  : 'Diagnóstico claro, decisiones accionables y una vista ordenada de matchups, runas, campeones y revisión. Primero entendés qué corregir; después entrás al detalle.')}
             </p>
             {loading ? (
               <div style={{ color: '#d8fdf1', fontSize: 13, lineHeight: 1.6 }}>
@@ -508,12 +514,12 @@ export default function App() {
               </div>
             ) : null}
             {viewDataset?.rank ? (
-                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <RankBadge rank={viewDataset.rank} compact locale={locale} />
-                  <div style={heroMetaChipStyle}>
-                  <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Win rate' : 'WR'}</div>
-                  <div style={heroMetaValueStyle}>{`${viewDataset.rank.highest.winRate}%`}</div>
-                  <div style={heroMetaSubtleStyle}>{`${viewDataset.rank.highest.wins}-${viewDataset.rank.highest.losses}`}</div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <RankBadge rank={viewDataset.rank} compact locale={locale} />
+                <div style={heroMetaChipStyle}>
+                  <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Visible sample' : 'Muestra visible'}</div>
+                  <div style={heroMetaValueStyle}>{viewDataset.summary.matches}</div>
+                  <div style={heroMetaSubtleStyle}>{locale === 'en' ? `${viewDataset.summary.wins}-${viewDataset.summary.losses} in this block` : `${viewDataset.summary.wins}-${viewDataset.summary.losses} en este bloque`}</div>
                 </div>
                 {csBenchmark ? (
                   <div style={heroMetaChipStyle}>
@@ -524,6 +530,7 @@ export default function App() {
                 ) : null}
               </div>
             ) : null}
+            </div>
           </div>
 
           <Card
@@ -684,41 +691,6 @@ export default function App() {
                   </button>
                 );
               })}
-            </div>
-          </section>
-        ) : null}
-
-        {viewDataset ? (
-          <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.05fr 1.95fr', gap: 12 }}>
-            <div style={accountCardStyle}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                {viewDataset.profile ? <img src={getProfileIconUrl(viewDataset.profile.profileIconId, viewDataset.ddragonVersion) ?? undefined} alt={viewDataset.player} width={56} height={56} style={profileIconStyle} /> : null}
-                <div style={{ display: 'grid', gap: 4 }}>
-                  <div style={{ fontSize: 26, fontWeight: 800 }}>{viewDataset.player}<span style={{ color: '#7d8696', fontWeight: 600 }}>#{viewDataset.tagLine}</span></div>
-                  {viewDataset.profile ? <div style={{ color: '#8f99ac', fontSize: 13 }}>{locale === 'en' ? `Level ${viewDataset.profile.summonerLevel}` : `Nivel ${viewDataset.profile.summonerLevel}`}</div> : null}
-                </div>
-              </div>
-              <div style={accountMetaRowStyle}>
-                <div style={recordPillStyle}>
-                  <div style={{ color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Record' : 'Muestra'}</div>
-                  <div style={{ color: '#edf2ff', fontSize: 14, fontWeight: 800 }}>{`${viewDataset.summary.wins}-${viewDataset.summary.losses}`}</div>
-                </div>
-                <div style={recordPillStyle}>
-                  <div style={{ color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Win rate' : 'WR'}</div>
-                  <div style={{ color: '#dff7eb', fontSize: 14, fontWeight: 800 }}>{`${viewDataset.summary.winRate}%`}</div>
-                </div>
-                <div style={recordPillStyle}>
-                  <div style={{ color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Valid matches' : 'Partidas válidas'}</div>
-                  <div style={{ color: '#edf2ff', fontSize: 14, fontWeight: 800 }}>{viewDataset.summary.matches}</div>
-                </div>
-              </div>
-              {viewDataset.rank ? <RankBadge rank={viewDataset.rank} locale={locale} /> : null}
-            </div>
-            <div className="three-col-grid" style={topStatsPanelStyle}>
-              <TopStat label={locale === 'en' ? 'Performance' : 'Rendimiento'} value={formatDecimal(viewDataset.summary.avgPerformanceScore)} hint={locale === 'en' ? 'Average execution index' : 'Índice medio de ejecución'} />
-              <TopStat label={locale === 'en' ? 'CS at 15' : 'CS a los 15'} value={formatDecimal(viewDataset.summary.avgCsAt15)} hint={locale === 'en' ? 'Average early economy' : 'Economía temprana media'} />
-              <TopStat label={locale === 'en' ? 'Gold at 15' : 'Oro a los 15'} value={Math.round(viewDataset.summary.avgGoldAt15).toLocaleString(locale === 'en' ? 'en-US' : 'es-AR')} hint={locale === 'en' ? 'Value generated before mid game' : 'Valor generado antes del mid game'} />
-              <TrendSparkline matches={viewDataset.matches} locale={locale} />
             </div>
           </section>
         ) : null}
@@ -925,16 +897,21 @@ const topBarPrimaryButtonStyle: CSSProperties = {
   cursor: 'not-allowed'
 };
 
-const heroStyle: CSSProperties = {
+const heroGridStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: '1.18fr .82fr',
   gap: 20,
+  alignItems: 'start'
+};
+
+const heroIntroPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
   padding: 28,
   borderRadius: 28,
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'radial-gradient(circle at top left, rgba(79, 56, 146, 0.34), transparent 42%), linear-gradient(180deg, rgba(17,20,31,0.96), rgba(7,10,16,0.98))',
-  boxShadow: '0 28px 80px rgba(0,0,0,0.26)',
-  alignItems: 'start'
+  boxShadow: '0 28px 80px rgba(0,0,0,0.22)'
 };
 
 const accountCardStyle: CSSProperties = {

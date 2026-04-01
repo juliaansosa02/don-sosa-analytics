@@ -83,15 +83,22 @@ export function getRankEmblemDataUrl(tier) {
     const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72" fill="none">
       <defs>
-        <linearGradient id="g" x1="36" y1="6" x2="36" y2="66" gradientUnits="userSpaceOnUse">
+        <linearGradient id="g" x1="36" y1="8" x2="36" y2="64" gradientUnits="userSpaceOnUse">
           <stop stop-color="${palette.glow}"/>
           <stop offset="1" stop-color="${palette.primary}"/>
         </linearGradient>
+        <linearGradient id="bg" x1="36" y1="10" x2="36" y2="62" gradientUnits="userSpaceOnUse">
+          <stop stop-color="${palette.secondary}"/>
+          <stop offset="1" stop-color="#060a10"/>
+        </linearGradient>
       </defs>
-      <path d="M36 6L56 14V31C56 44 47 55 36 62C25 55 16 44 16 31V14L36 6Z" fill="${palette.secondary}" stroke="url(#g)" stroke-width="2"/>
-      <path d="M36 15L48 21V31C48 38 43.5 45 36 50C28.5 45 24 38 24 31V21L36 15Z" fill="url(#g)" opacity="0.9"/>
-      <path d="M36 23L41 31L36 39L31 31L36 23Z" fill="#05080e" opacity="0.92"/>
-      <text x="36" y="58" text-anchor="middle" font-size="8" font-family="Manrope, Arial, sans-serif" fill="${palette.glow}" letter-spacing="1.2">${safeTier}</text>
+      <circle cx="36" cy="36" r="28" fill="url(#bg)" stroke="url(#g)" stroke-width="2"/>
+      <path d="M36 14L50 24L46 46L36 58L26 46L22 24L36 14Z" fill="url(#g)" opacity="0.22"/>
+      <path d="M36 18L47 26L43 43L36 52L29 43L25 26L36 18Z" fill="url(#g)" opacity="0.96"/>
+      <path d="M36 24L42 29L40 39L36 45L32 39L30 29L36 24Z" fill="#08101a"/>
+      <path d="M26 22L19 30L22 40" stroke="${palette.glow}" stroke-width="2" stroke-linecap="round" opacity="0.75"/>
+      <path d="M46 22L53 30L50 40" stroke="${palette.glow}" stroke-width="2" stroke-linecap="round" opacity="0.75"/>
+      <text x="36" y="64" text-anchor="middle" font-size="8" font-family="Manrope, Arial, sans-serif" fill="${palette.glow}" letter-spacing="1.3">${safeTier}</text>
     </svg>
   `;
     return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;

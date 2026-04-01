@@ -121,6 +121,13 @@ function buildProcessingRead(aiCoach, locale) {
         title: locale === 'en' ? 'Structured fallback' : 'Fallback estructurado'
     };
 }
+function compactCoachLine(text) {
+    const normalized = text.replace(/\s+/g, ' ').trim();
+    const firstSentence = normalized.split(/(?<=[.!?])\s+/)[0] ?? normalized;
+    if (firstSentence.length <= 170)
+        return firstSentence;
+    return `${firstSentence.slice(0, 167).trim()}...`;
+}
 export function CoachingHome({ dataset, locale = 'es', aiCoach, generatingAICoach = false, aiCoachError, onGenerateAICoach, onSendFeedback }) {
     const { summary } = dataset;
     const topProblems = summary.coaching.topProblems;
@@ -139,7 +146,7 @@ export function CoachingHome({ dataset, locale = 'es', aiCoach, generatingAICoac
                             ? 'This is the main diagnosis for the current filter, built from your data, curated coach knowledge and live patch context.'
                             : 'Este es el diagnóstico principal del filtro actual, armado con tus datos, conocimiento curado de coaches y contexto del parche actual.', children: _jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsx("div", { style: { color: '#a5b2c6', lineHeight: 1.6 }, children: locale === 'en'
                                         ? 'The rest of this page should be read through this lens first. Supporting signals and review tasks exist to make this diagnosis usable.'
-                                        : 'El resto de esta página conviene leerlo primero a través de esta lente. Las señales y tareas de revisión están para volver accionable este diagnóstico.' }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx("button", { type: "button", style: aiButtonStyle, onClick: onGenerateAICoach, disabled: !onGenerateAICoach || generatingAICoach, children: generatingAICoach ? (locale === 'en' ? 'Refreshing coaching...' : 'Actualizando coaching...') : (locale === 'en' ? 'Refresh coaching' : 'Actualizar coaching') }), aiCoach ? _jsx(Badge, { tone: aiCoach.provider === 'openai' ? 'low' : 'medium', children: aiCoach.provider === 'openai' ? 'OPENAI' : (locale === 'en' ? 'STRUCTURED FALLBACK' : 'FALLBACK ESTRUCTURADO') }) : null, aiCoach ? _jsx(Badge, { tone: "default", children: `${Math.round(aiCoach.coach.confidence * 100)}% ${locale === 'en' ? 'confidence' : 'confianza'}` }) : null, processingRead ? _jsx(Badge, { tone: processingRead.tone, children: processingRead.title }) : null, aiCoach?.continuity.mode === 'reused' ? _jsx(Badge, { tone: "default", children: locale === 'en' ? 'NO NEW MATCHES' : 'SIN PARTIDAS NUEVAS' }) : null, aiCoach?.continuity.mode === 'updated' ? _jsx(Badge, { tone: "low", children: locale === 'en' ? `+${aiCoach.continuity.newVisibleMatches} NEW` : `+${aiCoach.continuity.newVisibleMatches} NUEVAS` }) : null] }), aiCoachError ? _jsx("div", { style: { color: '#ffb3b3', lineHeight: 1.6 }, children: aiCoachError }) : null, aiCoach ? (_jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsxs("div", { style: signalCardStyle, children: [_jsx("div", { style: { color: '#edf2ff', fontSize: 18, fontWeight: 800 }, children: aiCoach.coach.mainLeak }), _jsx("div", { style: { color: '#9aa5b7', lineHeight: 1.7 }, children: aiCoach.coach.summary })] }), _jsxs("div", { style: { display: 'grid', gap: 8 }, children: [_jsx("div", { style: { color: '#93a0b4', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Immediate direction' : 'Dirección inmediata' }), _jsx("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, alignItems: 'start' }, children: aiCoach.coach.whatToDoNext3Games.slice(0, 3).map((item) => (_jsx("div", { style: compactActionStyle, children: item }, item))) })] }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: onSendFeedback ? (_jsxs(_Fragment, { children: [_jsx("button", { type: "button", style: feedbackButtonStyle, onClick: () => onSendFeedback('useful'), children: locale === 'en' ? 'Useful' : 'Útil' }), _jsx("button", { type: "button", style: feedbackButtonStyle, onClick: () => onSendFeedback('mixed'), children: locale === 'en' ? 'Mixed' : 'Mixto' }), _jsx("button", { type: "button", style: feedbackButtonStyle, onClick: () => onSendFeedback('generic'), children: locale === 'en' ? 'Generic' : 'Genérico' }), _jsx("button", { type: "button", style: feedbackButtonStyle, onClick: () => onSendFeedback('incorrect'), children: locale === 'en' ? 'Incorrect' : 'Incorrecto' })] })) : null })] })) : (_jsxs("div", { style: signalCardStyle, children: [_jsx("div", { style: { color: '#edf2ff', fontSize: 18, fontWeight: 800 }, children: generatingAICoach
+                                        : 'El resto de esta página conviene leerlo primero a través de esta lente. Las señales y tareas de revisión están para volver accionable este diagnóstico.' }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx("button", { type: "button", style: aiButtonStyle, onClick: onGenerateAICoach, disabled: !onGenerateAICoach || generatingAICoach, children: generatingAICoach ? (locale === 'en' ? 'Refreshing coaching...' : 'Actualizando coaching...') : (locale === 'en' ? 'Refresh coaching' : 'Actualizar coaching') }), aiCoach ? _jsx(Badge, { tone: aiCoach.provider === 'openai' ? 'low' : 'medium', children: aiCoach.provider === 'openai' ? 'OPENAI' : (locale === 'en' ? 'STRUCTURED FALLBACK' : 'FALLBACK ESTRUCTURADO') }) : null, aiCoach ? _jsx(Badge, { tone: "default", children: `${Math.round(aiCoach.coach.confidence * 100)}% ${locale === 'en' ? 'confidence' : 'confianza'}` }) : null, processingRead ? _jsx(Badge, { tone: processingRead.tone, children: processingRead.title }) : null, aiCoach?.continuity.mode === 'reused' ? _jsx(Badge, { tone: "default", children: locale === 'en' ? 'NO NEW MATCHES' : 'SIN PARTIDAS NUEVAS' }) : null, aiCoach?.continuity.mode === 'updated' ? _jsx(Badge, { tone: "low", children: locale === 'en' ? `+${aiCoach.continuity.newVisibleMatches} NEW` : `+${aiCoach.continuity.newVisibleMatches} NUEVAS` }) : null] }), aiCoachError ? _jsx("div", { style: { color: '#ffb3b3', lineHeight: 1.6 }, children: aiCoachError }) : null, aiCoach ? (_jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsxs("div", { style: signalCardStyle, children: [_jsx("div", { style: { color: '#edf2ff', fontSize: 18, fontWeight: 800 }, children: aiCoach.coach.mainLeak }), _jsx("div", { style: { color: '#9aa5b7', lineHeight: 1.7 }, children: aiCoach.coach.summary })] }), _jsxs("div", { style: { display: 'grid', gap: 8 }, children: [_jsx("div", { style: { color: '#93a0b4', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Immediate direction' : 'Dirección inmediata' }), _jsx("div", { style: { display: 'grid', gap: 10 }, children: aiCoach.coach.whatToDoNext3Games.slice(0, 3).map((item, index) => (_jsxs("div", { style: compactListItemStyle, children: [_jsx("div", { style: compactListIndexStyle, children: index + 1 }), _jsx("div", { style: { color: '#e2eaf7', lineHeight: 1.65 }, children: compactCoachLine(item) })] }, item))) })] }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: onSendFeedback ? (_jsxs(_Fragment, { children: [_jsx("button", { type: "button", style: feedbackButtonStyle, onClick: () => onSendFeedback('useful'), children: locale === 'en' ? 'Useful' : 'Útil' }), _jsx("button", { type: "button", style: feedbackButtonStyle, onClick: () => onSendFeedback('mixed'), children: locale === 'en' ? 'Mixed' : 'Mixto' }), _jsx("button", { type: "button", style: feedbackButtonStyle, onClick: () => onSendFeedback('generic'), children: locale === 'en' ? 'Generic' : 'Genérico' }), _jsx("button", { type: "button", style: feedbackButtonStyle, onClick: () => onSendFeedback('incorrect'), children: locale === 'en' ? 'Incorrect' : 'Incorrecto' })] })) : null })] })) : (_jsxs("div", { style: signalCardStyle, children: [_jsx("div", { style: { color: '#edf2ff', fontSize: 18, fontWeight: 800 }, children: generatingAICoach
                                                 ? (locale === 'en' ? 'Building your current coaching read...' : 'Armando tu lectura principal de coaching...')
                                                 : (locale === 'en' ? 'Waiting for the current coaching read...' : 'Esperando la lectura principal de coaching...') }), _jsx("div", { style: { color: '#9aa5b7', lineHeight: 1.7 }, children: locale === 'en'
                                                 ? 'As soon as the coach block is ready, this area becomes the main diagnosis for the entire page.'
@@ -238,6 +245,29 @@ const compactContextPanelStyle = {
     borderRadius: 16,
     background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))',
     border: '1px solid rgba(255,255,255,0.05)'
+};
+const compactListItemStyle = {
+    display: 'grid',
+    gridTemplateColumns: '28px minmax(0, 1fr)',
+    gap: 10,
+    alignItems: 'start',
+    padding: '11px 12px',
+    borderRadius: 12,
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.05)'
+};
+const compactListIndexStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    background: 'rgba(216,253,241,0.08)',
+    border: '1px solid rgba(216,253,241,0.12)',
+    color: '#d8fdf1',
+    fontSize: 13,
+    fontWeight: 800
 };
 const reviewMatchStyle = {
     display: 'grid',

@@ -143,6 +143,13 @@ function buildProcessingRead(aiCoach: AICoachResult, locale: Locale) {
   };
 }
 
+function compactCoachLine(text: string) {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  const firstSentence = normalized.split(/(?<=[.!?])\s+/)[0] ?? normalized;
+  if (firstSentence.length <= 170) return firstSentence;
+  return `${firstSentence.slice(0, 167).trim()}...`;
+}
+
 export function CoachingHome({
   dataset,
   locale = 'es',
@@ -264,9 +271,12 @@ export function CoachingHome({
                   <div style={{ color: '#93a0b4', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     {locale === 'en' ? 'Immediate direction' : 'Dirección inmediata'}
                   </div>
-                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, alignItems: 'start' }}>
-                    {aiCoach.coach.whatToDoNext3Games.slice(0, 3).map((item) => (
-                      <div key={item} style={compactActionStyle}>{item}</div>
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {aiCoach.coach.whatToDoNext3Games.slice(0, 3).map((item, index) => (
+                      <div key={item} style={compactListItemStyle}>
+                        <div style={compactListIndexStyle}>{index + 1}</div>
+                        <div style={{ color: '#e2eaf7', lineHeight: 1.65 }}>{compactCoachLine(item)}</div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -659,6 +669,31 @@ const compactContextPanelStyle = {
   borderRadius: 16,
   background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))',
   border: '1px solid rgba(255,255,255,0.05)'
+} as const;
+
+const compactListItemStyle = {
+  display: 'grid',
+  gridTemplateColumns: '28px minmax(0, 1fr)',
+  gap: 10,
+  alignItems: 'start',
+  padding: '11px 12px',
+  borderRadius: 12,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.05)'
+} as const;
+
+const compactListIndexStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: 28,
+  height: 28,
+  borderRadius: 999,
+  background: 'rgba(216,253,241,0.08)',
+  border: '1px solid rgba(216,253,241,0.12)',
+  color: '#d8fdf1',
+  fontSize: 13,
+  fontWeight: 800
 } as const;
 
 const reviewMatchStyle = {
