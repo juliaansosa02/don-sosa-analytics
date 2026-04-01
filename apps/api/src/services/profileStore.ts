@@ -2,11 +2,15 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { env } from '../config/env.js';
+import { buildLegacyProfileStorageKey, buildProfileKeyCandidates, buildProfileStorageKey, normalizeRiotPlatform } from '../lib/riotRouting.js';
 import { ensureWrite } from '../utils/fs.js';
 
 interface StoredProfileDataset {
   player: string;
   tagLine: string;
+  summary?: {
+    platform?: string;
+  };
 }
 
 const profilesDir = fileURLToPath(new URL('../../data/profiles', import.meta.url));
@@ -14,14 +18,12 @@ const tableName = 'profile_snapshots';
 const pool = env.DATABASE_URL ? new Pool({ connectionString: env.DATABASE_URL }) : null;
 let tableReady: Promise<void> | null = null;
 
-function normalizeKey(gameName: string, tagLine: string) {
-  return `${gameName.trim().toLowerCase()}-${tagLine.trim().toLowerCase()}`
-    .replace(/[^a-z0-9-_]+/g, '-')
-    .replace(/-+/g, '-');
+function profilePath(gameName: string, tagLine: string, platform?: string | null) {
+  return `${profilesDir}/${buildProfileStorageKey(gameName, tagLine, platform)}.json`;
 }
 
-function profilePath(gameName: string, tagLine: string) {
-  return `${profilesDir}/${normalizeKey(gameName, tagLine)}.json`;
+function legacyProfilePath(gameName: string, tagLine: string) {
+  return `${profilesDir}/${buildLegacyProfileStorageKey(gameName, tagLine)}.json`;
 }
 
 async function ensureTable() {
@@ -42,16 +44,25 @@ async function ensureTable() {
 }
 
 async function saveProfileSnapshotToFile(dataset: unknown & StoredProfileDataset) {
-  await ensureWrite(profilePath(dataset.player, dataset.tagLine), JSON.stringify(dataset, null, 2));
+  await ensureWrite(profilePath(dataset.player, dataset.tagLine, dataset.summary?.platform), JSON.stringify(dataset, null, 2));
 }
 
-async function loadProfileSnapshotFromFile<T>(gameName: string, tagLine: string) {
-  try {
-    const raw = await readFile(profilePath(gameName, tagLine), 'utf8');
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
+async function loadProfileSnapshotFromFile<T>(gameName: string, tagLine: string, platform?: string) {
+  const candidates = [
+    profilePath(gameName, tagLine, platform),
+    legacyProfilePath(gameName, tagLine)
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      const raw = await readFile(candidate, 'utf8');
+      return JSON.parse(raw) as T;
+    } catch {
+      continue;
+    }
   }
+
+  return null;
 }
 
 export async function saveProfileSnapshot(dataset: unknown & StoredProfileDataset) {
@@ -61,7 +72,7 @@ export async function saveProfileSnapshot(dataset: unknown & StoredProfileDatase
   }
 
   await ensureTable();
-  const profileKey = normalizeKey(dataset.player, dataset.tagLine);
+  const profileKey = buildProfileStorageKey(dataset.player, dataset.tagLine, dataset.summary?.platform);
   await pool.query(
     `INSERT INTO ${tableName} (profile_key, player, tag_line, payload, updated_at)
      VALUES ($1, $2, $3, $4::jsonb, NOW())
@@ -71,16 +82,20 @@ export async function saveProfileSnapshot(dataset: unknown & StoredProfileDatase
   );
 }
 
-export async function loadProfileSnapshot<T>(gameName: string, tagLine: string) {
+export async function loadProfileSnapshot<T>(gameName: string, tagLine: string, platform?: string) {
   if (!pool) {
-    return loadProfileSnapshotFromFile<T>(gameName, tagLine);
+    return loadProfileSnapshotFromFile<T>(gameName, tagLine, normalizeRiotPlatform(platform));
   }
 
   await ensureTable();
-  const profileKey = normalizeKey(gameName, tagLine);
-  const result = await pool.query<{ payload: T }>(
-    `SELECT payload FROM ${tableName} WHERE profile_key = $1 LIMIT 1`,
-    [profileKey]
+  const candidates = buildProfileKeyCandidates(gameName, tagLine, platform);
+  const result = await pool.query<{ payload: T; profile_key: string }>(
+    `SELECT profile_key, payload
+     FROM ${tableName}
+     WHERE profile_key = ANY($1::text[])
+     ORDER BY array_position($1::text[], profile_key)
+     LIMIT 1`,
+    [candidates]
   );
   return result.rows[0]?.payload ?? null;
 }

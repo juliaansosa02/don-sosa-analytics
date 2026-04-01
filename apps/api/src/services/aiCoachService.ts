@@ -246,6 +246,8 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
     player: {
       gameName: dataset.player,
       tagLine: dataset.tagLine,
+      platform: dataset.summary.platform,
+      regionalRoute: dataset.summary.region,
       locale: input.locale,
       roleFilter: input.roleFilter,
       coachRoles,
@@ -565,7 +567,7 @@ function isRecoverableOpenAIError(error: unknown) {
 }
 
 export async function generateAICoach(input: AICoachRequest) {
-  const dataset = await loadProfileSnapshot<StoredDataset>(input.gameName, input.tagLine);
+  const dataset = await loadProfileSnapshot<StoredDataset>(input.gameName, input.tagLine, input.platform);
   if (!dataset) {
     throw new Error(input.locale === 'en' ? 'No cached analysis was found for that account yet.' : 'Todavía no existe un análisis guardado para esa cuenta.');
   }
@@ -574,6 +576,7 @@ export async function generateAICoach(input: AICoachRequest) {
   const previousGeneration = await loadLatestAICoachingGenerationForRequest({
     gameName: input.gameName,
     tagLine: input.tagLine,
+    platform: input.platform,
     locale: input.locale,
     roleFilter: input.roleFilter,
     queueFilter: input.queueFilter,
@@ -583,7 +586,8 @@ export async function generateAICoach(input: AICoachRequest) {
   const newVisibleMatchIds = context.sample.visibleMatchIds.filter((matchId) => !previousVisibleMatchIds.includes(matchId));
   const monthlyUsage = await loadAICoachUsageForMonth({
     gameName: input.gameName,
-    tagLine: input.tagLine
+    tagLine: input.tagLine,
+    platform: input.platform
   });
 
   if (previousGeneration?.context_payload?.sample?.sampleSignature === context.sample.sampleSignature) {

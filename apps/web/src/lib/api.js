@@ -21,7 +21,7 @@ export async function collectProfile(gameName, tagLine, count = 100, options) {
         const startResponse = await fetch(`${API_BASE}/analytics/collect/start`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ gameName, tagLine, count, knownMatchIds: options?.knownMatchIds ?? [], locale: options?.locale ?? 'es' }),
+            body: JSON.stringify({ gameName, tagLine, platform: options?.platform, count, knownMatchIds: options?.knownMatchIds ?? [], locale: options?.locale ?? 'es' }),
             signal: controller.signal
         });
         if (!startResponse.ok) {
@@ -59,8 +59,8 @@ export async function collectProfile(gameName, tagLine, count = 100, options) {
         window.clearTimeout(timeout);
     }
 }
-export async function fetchCachedProfile(gameName, tagLine, locale = 'es') {
-    const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?locale=${locale}`);
+export async function fetchCachedProfile(gameName, tagLine, platform, locale = 'es') {
+    const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?locale=${locale}&platform=${encodeURIComponent(platform)}`);
     if (response.status === 404) {
         return null;
     }

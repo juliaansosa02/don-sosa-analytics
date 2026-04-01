@@ -10,7 +10,7 @@ import { RunesTab } from '../features/runes/RunesTab';
 import { ChampionPoolTab } from '../features/champion-pool/ChampionPoolTab';
 import { MatchesTab } from '../features/matches/MatchesTab';
 import { detectLocale, translateRole, type Locale } from '../lib/i18n';
-import { getProfileIconUrl, getQueueBucket, getQueueLabel, getRankEmblemDataUrl, getRankPalette, getRoleLabel } from '../lib/lol';
+import { buildProfileIdentityKey, getProfileIconUrl, getQueueBucket, getQueueLabel, getRankEmblemDataUrl, getRankPalette, getRiotPlatformInfo, getRoleLabel, guessDefaultRiotPlatform, supportedRiotPlatforms, type RiotPlatform } from '../lib/lol';
 import { buildCs15Benchmark } from '../lib/benchmarks';
 
 const tabs = [
@@ -33,6 +33,7 @@ interface ProgressState {
 interface SavedProfileRecord {
   gameName: string;
   tagLine: string;
+  platform?: string;
   matchCount: number;
   lastSyncedAt: number;
   matches: number;
@@ -44,12 +45,49 @@ interface SavedProfileRecord {
 const savedProfilesStorageKey = 'don-sosa:saved-profiles';
 const initialMatchOptions = [20, 50, 100];
 
-function datasetStorageKey(gameName: string, tagLine: string) {
+function legacyDatasetStorageKey(gameName: string, tagLine: string) {
   return `don-sosa:dataset:${gameName}#${tagLine}`.toLowerCase();
 }
 
-function coachScopeStorageKey(gameName: string, tagLine: string) {
+function datasetStorageKey(gameName: string, tagLine: string, platform?: string | null) {
+  return `don-sosa:dataset:${buildProfileIdentityKey(gameName, tagLine, platform)}`.toLowerCase();
+}
+
+function legacyCoachScopeStorageKey(gameName: string, tagLine: string) {
   return `don-sosa:coach-scope:${gameName}#${tagLine}`.toLowerCase();
+}
+
+function coachScopeStorageKey(gameName: string, tagLine: string, platform?: string | null) {
+  return `don-sosa:coach-scope:${buildProfileIdentityKey(gameName, tagLine, platform)}`.toLowerCase();
+}
+
+function lastProfileIdentityKey(gameName: string, tagLine: string, platform?: string | null) {
+  return buildProfileIdentityKey(gameName, tagLine, platform).toLowerCase();
+}
+
+function readCachedDataset(gameName: string, tagLine: string, platform?: string | null) {
+  const keys = [
+    datasetStorageKey(gameName, tagLine, platform),
+    legacyDatasetStorageKey(gameName, tagLine)
+  ];
+
+  for (const key of keys) {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) continue;
+
+    try {
+      return JSON.parse(raw) as Dataset;
+    } catch {
+      window.localStorage.removeItem(key);
+    }
+  }
+
+  return null;
+}
+
+function removeCachedDataset(gameName: string, tagLine: string, platform?: string | null) {
+  window.localStorage.removeItem(datasetStorageKey(gameName, tagLine, platform));
+  window.localStorage.removeItem(legacyDatasetStorageKey(gameName, tagLine));
 }
 
 function mergeDatasets(current: Dataset | null, incoming: Dataset, locale: Locale): Dataset {
@@ -163,6 +201,7 @@ function extractRankTierFromLabel(rankLabel?: string) {
 
 export default function App() {
   const [locale] = useState<Locale>(() => detectLocale());
+  const [platform, setPlatform] = useState<RiotPlatform>(() => guessDefaultRiotPlatform(detectLocale()));
   const [activeTab, setActiveTab] = useState<TabId>('coach');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [coachRoles, setCoachRoles] = useState<string[]>([]);
@@ -184,17 +223,19 @@ export default function App() {
   const [lastAICoachRequestKey, setLastAICoachRequestKey] = useState<string | null>(null);
   const [lastGeneratedCoachScopeKey, setLastGeneratedCoachScopeKey] = useState<string | null>(null);
 
-  async function hydrateFromServer(gameNameValue: string, tagLineValue: string) {
+  async function hydrateFromServer(gameNameValue: string, tagLineValue: string, platformValue: string) {
     try {
-      const serverDataset = await fetchCachedProfile(gameNameValue, tagLineValue, locale);
+      const serverDataset = await fetchCachedProfile(gameNameValue, tagLineValue, platformValue, locale);
       if (!serverDataset) return false;
 
       setDataset(serverDataset);
+      setPlatform((serverDataset.summary.platform as RiotPlatform) ?? (platformValue as RiotPlatform));
       setShowAccountControls(false);
-      window.localStorage.setItem(datasetStorageKey(gameNameValue, tagLineValue), JSON.stringify(serverDataset));
+      window.localStorage.setItem(datasetStorageKey(gameNameValue, tagLineValue, serverDataset.summary.platform), JSON.stringify(serverDataset));
       window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({
         gameName: gameNameValue,
         tagLine: tagLineValue,
+        platform: serverDataset.summary.platform,
         matchCount
       }));
       persistSavedProfile(serverDataset, matchCount);
@@ -211,7 +252,17 @@ export default function App() {
     const rawProfiles = window.localStorage.getItem(savedProfilesStorageKey);
     if (rawProfiles) {
       try {
-        setSavedProfiles(JSON.parse(rawProfiles) as SavedProfileRecord[]);
+        const parsedProfiles = JSON.parse(rawProfiles) as SavedProfileRecord[];
+        const normalizedProfiles = parsedProfiles.map((profile) => {
+          if (profile.platform) return profile;
+          const cachedDataset = readCachedDataset(profile.gameName, profile.tagLine);
+          return {
+            ...profile,
+            platform: cachedDataset?.summary.platform
+          };
+        });
+        setSavedProfiles(normalizedProfiles);
+        window.localStorage.setItem(savedProfilesStorageKey, JSON.stringify(normalizedProfiles));
       } catch {
         window.localStorage.removeItem(savedProfilesStorageKey);
       }
@@ -221,23 +272,27 @@ export default function App() {
     if (!savedProfile) return;
 
     try {
-      const parsed = JSON.parse(savedProfile) as { gameName?: string; tagLine?: string; matchCount?: number };
+      const parsed = JSON.parse(savedProfile) as { gameName?: string; tagLine?: string; platform?: string; matchCount?: number };
       if (parsed.gameName) setGameName(parsed.gameName);
       if (parsed.tagLine) setTagLine(parsed.tagLine);
+      if (parsed.platform && supportedRiotPlatforms.includes(parsed.platform as RiotPlatform)) {
+        setPlatform(parsed.platform as RiotPlatform);
+      }
       if (parsed.matchCount) setMatchCount(parsed.matchCount);
       if (parsed.gameName && parsed.tagLine) {
-        const savedDataset = window.localStorage.getItem(datasetStorageKey(parsed.gameName, parsed.tagLine));
+        const savedDataset = readCachedDataset(parsed.gameName, parsed.tagLine, parsed.platform);
         if (savedDataset) {
           try {
-            setDataset(JSON.parse(savedDataset) as Dataset);
+            setDataset(savedDataset);
+            setPlatform((savedDataset.summary.platform as RiotPlatform) ?? guessDefaultRiotPlatform(locale));
             setShowAccountControls(false);
           } catch {
-            window.localStorage.removeItem(datasetStorageKey(parsed.gameName, parsed.tagLine));
+            removeCachedDataset(parsed.gameName, parsed.tagLine, parsed.platform);
             setShowAccountControls(true);
           }
         } else {
           setShowAccountControls(true);
-          void hydrateFromServer(parsed.gameName, parsed.tagLine);
+          void hydrateFromServer(parsed.gameName, parsed.tagLine, parsed.platform ?? guessDefaultRiotPlatform(locale));
         }
       }
     } catch {
@@ -301,16 +356,17 @@ export default function App() {
   }, [dataset, roleFilter, queueFilter, windowFilter, locale]);
 
   const coachRequestKey = useMemo(() => {
-    if (!coachDataset || !gameName || !tagLine || !coachScopeKey) return null;
+    if (!coachDataset || !gameName || !tagLine || !coachScopeKey || !platform) return null;
     return [
       gameName.trim().toLowerCase(),
       tagLine.trim().toLowerCase(),
+      platform.trim().toLowerCase(),
       locale,
       coachScopeKey,
       coachDataset.summary.matches,
       coachDataset.matches[0]?.matchId ?? 'no-latest-match'
     ].join('|');
-  }, [coachDataset, gameName, tagLine, locale, coachScopeKey]);
+  }, [coachDataset, gameName, tagLine, platform, locale, coachScopeKey]);
 
   const coachScopeDirty = useMemo(() => {
     if (!coachScopeKey) return false;
@@ -373,9 +429,13 @@ export default function App() {
     () => getProfileIconUrl(dataset?.profile?.profileIconId, dataset?.ddragonVersion),
     [dataset?.profile?.profileIconId, dataset?.ddragonVersion]
   );
+  const currentPlatformInfo = useMemo(
+    () => getRiotPlatformInfo(dataset?.summary.platform ?? platform),
+    [dataset?.summary.platform, platform]
+  );
 
   useEffect(() => {
-    if (!dataset || !gameName || !tagLine) {
+    if (!dataset || !gameName || !tagLine || !platform) {
       setCoachRoles([]);
       setLastGeneratedCoachScopeKey(null);
       return;
@@ -384,7 +444,8 @@ export default function App() {
     const defaultRoles = buildDefaultCoachRoles(dataset);
 
     try {
-      const raw = window.localStorage.getItem(coachScopeStorageKey(gameName, tagLine));
+      const raw = window.localStorage.getItem(coachScopeStorageKey(gameName, tagLine, platform))
+        ?? window.localStorage.getItem(legacyCoachScopeStorageKey(gameName, tagLine));
       if (!raw) {
         setCoachRoles(defaultRoles);
         setLastGeneratedCoachScopeKey(null);
@@ -403,7 +464,7 @@ export default function App() {
       setCoachRoles(defaultRoles);
       setLastGeneratedCoachScopeKey(null);
     }
-  }, [dataset, gameName, tagLine, coachRoleOptions]);
+  }, [dataset, gameName, tagLine, platform, coachRoleOptions]);
 
   useEffect(() => {
     if (!availableRoles.includes(roleFilter)) {
@@ -416,7 +477,7 @@ export default function App() {
     setAICoachError(null);
     setLastAICoachRequestKey(null);
     setLastGeneratedCoachScopeKey(null);
-  }, [gameName, tagLine, locale, dataset?.summary.matches]);
+  }, [gameName, tagLine, platform, locale, dataset?.summary.matches]);
 
   useEffect(() => {
     if (activeTab !== 'coach' || !coachRequestKey || aiCoachLoading || coachScopeDirty) return;
@@ -428,6 +489,7 @@ export default function App() {
     const nextRecord: SavedProfileRecord = {
       gameName: nextDataset.player,
       tagLine: nextDataset.tagLine,
+      platform: nextDataset.summary.platform,
       matchCount: nextMatchCount,
       lastSyncedAt: Date.now(),
       matches: nextDataset.summary.matches,
@@ -438,7 +500,7 @@ export default function App() {
 
     const nextProfiles = [
       nextRecord,
-      ...savedProfiles.filter((profile) => `${profile.gameName}#${profile.tagLine}`.toLowerCase() !== `${nextRecord.gameName}#${nextRecord.tagLine}`.toLowerCase())
+      ...savedProfiles.filter((profile) => buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform) !== buildProfileIdentityKey(nextRecord.gameName, nextRecord.tagLine, nextRecord.platform))
     ].slice(0, 8);
 
     setSavedProfiles(nextProfiles);
@@ -448,29 +510,32 @@ export default function App() {
   function loadSavedProfile(profile: SavedProfileRecord) {
     setGameName(profile.gameName);
     setTagLine(profile.tagLine);
+    setPlatform((profile.platform as RiotPlatform) ?? guessDefaultRiotPlatform(locale));
     setMatchCount(profile.matchCount);
     setError(null);
     setSyncMessage(null);
 
-    const cachedDataset = window.localStorage.getItem(datasetStorageKey(profile.gameName, profile.tagLine));
+    const cachedDataset = readCachedDataset(profile.gameName, profile.tagLine, profile.platform);
     if (cachedDataset) {
       try {
-        setDataset(JSON.parse(cachedDataset) as Dataset);
+        setDataset(cachedDataset);
+        setPlatform((cachedDataset.summary.platform as RiotPlatform) ?? (profile.platform as RiotPlatform) ?? guessDefaultRiotPlatform(locale));
         setShowAccountControls(false);
         window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({
           gameName: profile.gameName,
           tagLine: profile.tagLine,
+          platform: profile.platform,
           matchCount: profile.matchCount
         }));
         return;
       } catch {
-        window.localStorage.removeItem(datasetStorageKey(profile.gameName, profile.tagLine));
+        removeCachedDataset(profile.gameName, profile.tagLine, profile.platform);
       }
     }
 
     setDataset(null);
     setShowAccountControls(true);
-    void hydrateFromServer(profile.gameName, profile.tagLine);
+    void hydrateFromServer(profile.gameName, profile.tagLine, profile.platform ?? guessDefaultRiotPlatform(locale));
   }
 
   async function runAnalysis(requestedCount = matchCount) {
@@ -480,10 +545,10 @@ export default function App() {
     setProgress({ stage: 'queued', current: 0, total: 1, message: locale === 'en' ? 'Preparing analysis' : 'Preparando análisis' });
 
     try {
-      const cachedDataset = window.localStorage.getItem(datasetStorageKey(gameName, tagLine));
-      const previousDataset = cachedDataset ? (JSON.parse(cachedDataset) as Dataset) : null;
+      const previousDataset = readCachedDataset(gameName, tagLine, platform);
       const shouldRefreshFullSample = !previousDataset || previousDataset.matches.length < requestedCount;
       const result = await collectProfile(gameName, tagLine, requestedCount, {
+        platform,
         locale,
         onProgress: (nextProgress) => setProgress(nextProgress),
         knownMatchIds: shouldRefreshFullSample ? [] : previousDataset.matches.map((match) => match.matchId)
@@ -512,8 +577,9 @@ export default function App() {
           : `Se cargaron ${mergedDataset.summary.matches} partidas válidas para construir tu primera muestra.`);
       }
       setMatchCount(requestedCount);
-      window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({ gameName, tagLine, matchCount: requestedCount }));
-      window.localStorage.setItem(datasetStorageKey(gameName, tagLine), JSON.stringify(mergedDataset));
+      setPlatform((mergedDataset.summary.platform as RiotPlatform) ?? platform);
+      window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({ gameName, tagLine, platform: mergedDataset.summary.platform, matchCount: requestedCount }));
+      window.localStorage.setItem(datasetStorageKey(gameName, tagLine, mergedDataset.summary.platform), JSON.stringify(mergedDataset));
       persistSavedProfile(mergedDataset, requestedCount);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
@@ -535,8 +601,8 @@ export default function App() {
         ? current.filter((item) => item !== normalizedRole)
         : [...current, normalizedRole].slice(0, 2);
 
-      if (gameName && tagLine) {
-        window.localStorage.setItem(coachScopeStorageKey(gameName, tagLine), JSON.stringify(next));
+      if (gameName && tagLine && platform) {
+        window.localStorage.setItem(coachScopeStorageKey(gameName, tagLine, platform), JSON.stringify(next));
       }
 
       return next;
@@ -544,7 +610,7 @@ export default function App() {
   }
 
   async function handleGenerateAICoach(force = false) {
-    if (!gameName || !tagLine || !coachRequestKey) return;
+    if (!gameName || !tagLine || !platform || !coachRequestKey) return;
     if (!coachRoles.length) {
       setAICoachError(locale === 'en' ? 'Choose at least one role for coaching before generating the analysis.' : 'Elegí al menos un rol para coaching antes de generar el análisis.');
       return;
@@ -559,6 +625,7 @@ export default function App() {
       const result = await generateAICoach({
         gameName,
         tagLine,
+        platform,
         locale,
         roleFilter: coachScopeKey,
         coachRoles,
@@ -567,7 +634,7 @@ export default function App() {
       });
       setAICoach(result);
       setLastGeneratedCoachScopeKey(coachScopeKey);
-      window.localStorage.setItem(coachScopeStorageKey(gameName, tagLine), JSON.stringify(coachRoles));
+      window.localStorage.setItem(coachScopeStorageKey(gameName, tagLine, platform), JSON.stringify(coachRoles));
     } catch (err) {
       setAICoachError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -676,7 +743,7 @@ export default function App() {
                         {dataset.profile ? (
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                             <Badge>{locale === 'en' ? `Level ${dataset.profile.summonerLevel}` : `Nivel ${dataset.profile.summonerLevel}`}</Badge>
-                            {dataset.rank ? <Badge tone="low">{dataset.rank.highest.label}</Badge> : null}
+                            {currentPlatformInfo ? <Badge tone="default">{`${currentPlatformInfo.platform} · ${currentPlatformInfo.shortLabel}`}</Badge> : null}
                           </div>
                         ) : null}
                         <p style={{ margin: 0, color: '#96a1b4', maxWidth: 760, lineHeight: 1.65 }}>
@@ -687,7 +754,7 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.25fr repeat(2, minmax(0, 1fr))', gap: 12 }}>
+                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, .92fr) repeat(2, minmax(0, 1fr))', gap: 12 }}>
                     {dataset.rank ? <RankBadge rank={dataset.rank} compact locale={locale} /> : null}
                     <div style={heroMetaChipStyle}>
                       <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Block' : 'Bloque'}</div>
@@ -795,6 +862,35 @@ export default function App() {
                     </select>
                   </label>
                 </div>
+                <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 12 }}>
+                  <label style={fieldBlockStyle}>
+                    <span style={fieldLabelStyle}>{locale === 'en' ? 'Riot platform' : 'Platform de Riot'}</span>
+                    <select value={platform} onChange={(e) => setPlatform(e.target.value as RiotPlatform)} style={selectStyle}>
+                      {supportedRiotPlatforms.map((platformCode) => {
+                        const info = getRiotPlatformInfo(platformCode);
+                        return (
+                          <option key={platformCode} value={platformCode}>
+                            {info ? `${info.platform} · ${info.label}` : platformCode}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
+                  <div style={softPanelStyle}>
+                    <div style={{ color: '#eef4ff', fontWeight: 700 }}>
+                      {locale === 'en' ? 'Routing context' : 'Contexto de routing'}
+                    </div>
+                    <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
+                      {currentPlatformInfo
+                        ? (locale === 'en'
+                          ? `${currentPlatformInfo.label} uses Riot regional route ${currentPlatformInfo.regionalRoute}. UI language stays independent from this selection.`
+                          : `${currentPlatformInfo.label} usa el regional route ${currentPlatformInfo.regionalRoute} de Riot. El idioma de la UI sigue separado de esta elección.`)
+                        : (locale === 'en'
+                          ? 'Choose the Riot platform where this account actually plays.'
+                          : 'Elegí la platform de Riot donde realmente juega esta cuenta.')}
+                    </div>
+                  </div>
+                </div>
 
                 <div style={softPanelStyle}>
                   <div style={{ display: 'grid', gap: 4 }}>
@@ -835,6 +931,13 @@ export default function App() {
                       ? `Saved sample: ${dataset.matches.length} matches. Choose whether you want to add a little, a lot or complete the block.`
                       : `Muestra guardada: ${dataset.matches.length} partidas. Elegí si querés sumar un poco, bastante o completar el bloque.`}
                   </div>
+                  {currentPlatformInfo ? (
+                    <div style={{ color: '#748198', fontSize: 12 }}>
+                      {locale === 'en'
+                        ? `Platform ${currentPlatformInfo.platform} · ${currentPlatformInfo.label}`
+                        : `Platform ${currentPlatformInfo.platform} · ${currentPlatformInfo.label}`}
+                    </div>
+                  ) : null}
                 </div>
                 {syncMessage ? <div style={syncMessageStyle}>{syncMessage}</div> : null}
                 <div style={{ display: 'grid', gap: 10 }}>
@@ -874,6 +977,7 @@ export default function App() {
                       <Badge tone="default">{coachScopeLabel}</Badge>
                       {dataset?.remakesExcluded ? <Badge tone="medium">{locale === 'en' ? `${dataset.remakesExcluded} remakes excluded` : `${dataset.remakesExcluded} remakes excluidos`}</Badge> : null}
                       {needsSampleBackfill ? <Badge tone="medium">{locale === 'en' ? 'Needs backfill' : 'Le falta backfill'}</Badge> : <Badge tone="low">{locale === 'en' ? 'Only new matches' : 'Solo nuevas partidas'}</Badge>}
+                      {currentPlatformInfo ? <Badge tone="default">{currentPlatformInfo.platform}</Badge> : null}
                     </div>
                   </div>
                 </div>
@@ -900,12 +1004,13 @@ export default function App() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
               {savedProfiles.map((profile) => {
-                const isActive = `${profile.gameName}#${profile.tagLine}`.toLowerCase() === `${gameName}#${tagLine}`.toLowerCase();
+                const isActive = buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform) === buildProfileIdentityKey(gameName, tagLine, platform);
                 const rankTier = extractRankTierFromLabel(profile.rankLabel);
                 const profileIcon = getProfileIconUrl(profile.profileIconId, profile.ddragonVersion ?? dataset?.ddragonVersion);
+                const savedPlatformInfo = getRiotPlatformInfo(profile.platform);
                 return (
                   <button
-                    key={`${profile.gameName}#${profile.tagLine}`}
+                    key={buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform)}
                     type="button"
                     onClick={() => loadSavedProfile(profile)}
                     style={{
@@ -927,9 +1032,12 @@ export default function App() {
                         <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
                           <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                            {rankTier ? <RankEmblem tier={rankTier} label={profile.rankLabel ?? ''} size={24} /> : null}
+                            {rankTier ? <RankEmblem tier={rankTier} label={profile.rankLabel ?? ''} size={34} /> : null}
                             <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible')}</div>
                           </div>
+                          {savedPlatformInfo ? (
+                            <div style={{ color: '#6f7c93', fontSize: 11 }}>{`${savedPlatformInfo.platform} · ${savedPlatformInfo.shortLabel}`}</div>
+                          ) : null}
                         </div>
                       </div>
                       <Badge tone={isActive ? 'low' : 'default'}>{locale === 'en' ? `${profile.matches} matches` : `${profile.matches} partidas`}</Badge>
@@ -1386,14 +1494,14 @@ function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonNullable
     <div title={title} style={{
       display: 'grid',
       gap: compact ? 8 : 10,
-      minWidth: compact ? 220 : 248,
+      minWidth: 0,
       padding: compact ? '12px 14px' : '16px 18px',
       borderRadius: 16,
       background: compact ? 'rgba(9, 14, 22, 0.86)' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
       border: `1px solid ${palette.primary}33`
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: `${compact ? 72 : 82}px minmax(0, 1fr)`, alignItems: 'center', gap: compact ? 8 : 12 }}>
-        <RankEmblem tier={rank.highest.tier} label={rank.highest.label} size={compact ? 72 : 82} />
+      <div style={{ display: 'grid', gridTemplateColumns: `${compact ? 94 : 104}px minmax(0, 1fr)`, alignItems: 'center', gap: compact ? 4 : 10 }}>
+        <RankEmblem tier={rank.highest.tier} label={rank.highest.label} size={compact ? 94 : 104} />
         <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
           <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{rank.highest.queueLabel ?? (locale === 'en' ? 'Ranked' : 'Ranked')}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
@@ -1419,7 +1527,7 @@ function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonNullable
 function RankEmblem({ tier, label, size }: { tier?: string; label: string; size: number }) {
   const emblem = getRankEmblemDataUrl(tier);
   const palette = getRankPalette(tier);
-  const assetSize = Math.round(size * 2.35);
+  const assetSize = Math.round(size * 3);
 
   return (
     <div
@@ -1444,7 +1552,7 @@ function RankEmblem({ tier, label, size }: { tier?: string; label: string; size:
           width: assetSize,
           height: assetSize,
           objectFit: 'contain',
-          marginTop: Math.round(size * 0.06)
+          marginTop: Math.round(size * 0.04)
         }}
       />
     </div>

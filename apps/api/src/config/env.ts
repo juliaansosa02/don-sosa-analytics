@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   RIOT_API_KEY: z.string().min(1),
-  RIOT_PLATFORM: z.string().default('la2'),
+  RIOT_PLATFORM: z.string().default('LA2'),
   RIOT_REGION: z.string().default('americas'),
   PORT: z.coerce.number().default(8787),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),

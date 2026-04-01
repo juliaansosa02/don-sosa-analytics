@@ -6,11 +6,13 @@ import { buildRuneIndex, getLatestDDragonVersion } from './dataDragon.js';
 import { buildBenchmarkCatalog, updateBenchmarkStore } from './benchmarkStore.js';
 import { exportSnapshot } from './exporter.js';
 import { loadProfileSnapshot, saveProfileSnapshot } from './profileStore.js';
-import { riotClient } from './riotClient.js';
+import { normalizeRiotPlatform, resolveRiotPlatform } from '../lib/riotRouting.js';
+import { createRiotClient } from './riotClient.js';
 
 export interface CollectionParams {
   gameName: string;
   tagLine: string;
+  platform?: string;
   count?: number;
   locale?: SummaryLocale;
   knownMatchIds?: string[];
@@ -77,6 +79,7 @@ const defaultOutputDir = fileURLToPath(new URL('../../data/output', import.meta.
 export async function collectPlayerSnapshot({
   gameName,
   tagLine,
+  platform,
   count = env.MATCH_COUNT,
   locale = 'es',
   knownMatchIds = [],
@@ -84,7 +87,16 @@ export async function collectPlayerSnapshot({
   onProgress
 }: CollectionParams) {
   onProgress?.({ stage: 'setup', current: 0, total: 1, message: locale === 'en' ? 'Preparing analysis' : 'Preparando análisis' });
-  const existingDataset = await loadProfileSnapshot<StoredCollectionDataset>(gameName, tagLine);
+  const normalizedPlatform = normalizeRiotPlatform(platform || env.RIOT_PLATFORM);
+  const routing = resolveRiotPlatform(normalizedPlatform);
+  if (!routing) {
+    throw new Error(locale === 'en'
+      ? `Unsupported Riot platform "${platform}".`
+      : `La platform de Riot "${platform}" no está soportada.`);
+  }
+
+  const riotClient = createRiotClient(routing);
+  const existingDataset = await loadProfileSnapshot<StoredCollectionDataset>(gameName, tagLine, routing.platform);
   const [runeIndex, ddragonVersion] = await Promise.all([
     buildRuneIndex(),
     getLatestDDragonVersion()
@@ -162,8 +174,8 @@ export async function collectPlayerSnapshot({
     outputDir,
     account.gameName,
     account.tagLine,
-    env.RIOT_REGION,
-    env.RIOT_PLATFORM,
+    routing.regionalRoute,
+    routing.platform,
     eligibleSnapshots
   );
 
@@ -178,8 +190,8 @@ export async function collectPlayerSnapshot({
     summary: buildAggregateSummary(
       account.gameName,
       account.tagLine,
-      env.RIOT_REGION,
-      env.RIOT_PLATFORM,
+      routing.regionalRoute,
+      routing.platform,
       eligibleSnapshots,
       locale
     )

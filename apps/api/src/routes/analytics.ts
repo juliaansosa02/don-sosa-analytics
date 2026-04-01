@@ -1,7 +1,8 @@
 import { buildAggregateSummary, type SummaryLocale } from '@don-sosa/core';
 import { Router } from 'express';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import { HttpError } from '../lib/http.js';
+import { supportedRiotPlatformTuple } from '../lib/riotRouting.js';
 import { collectPlayerSnapshot } from '../services/collectionService.js';
 import { createJob, getJob, updateJob } from '../services/jobStore.js';
 import { loadProfileSnapshot } from '../services/profileStore.js';
@@ -9,16 +10,38 @@ import { loadProfileSnapshot } from '../services/profileStore.js';
 type CachedProfileDataset = Awaited<ReturnType<typeof collectPlayerSnapshot>>;
 
 const bodySchema = z.object({
-  gameName: z.string().min(1),
-  tagLine: z.string().min(1),
+  gameName: z.string().trim().min(1).max(32),
+  tagLine: z.string().trim().transform((value) => value.replace(/^#+/, '')).pipe(z.string().min(1).max(16)),
+  platform: z.string().trim().transform((value) => value.toUpperCase()).pipe(z.enum(supportedRiotPlatformTuple)),
   count: z.number().int().positive().max(100).optional(),
   knownMatchIds: z.array(z.string().min(1)).max(500).optional(),
   locale: z.enum(['es', 'en']).optional()
 });
 
+const profileQuerySchema = z.object({
+  locale: z.enum(['es', 'en']).optional(),
+  platform: z.string().trim().transform((value) => value.toUpperCase()).pipe(z.enum(supportedRiotPlatformTuple)).optional()
+});
+
 export const analyticsRouter = Router();
 
 function formatCollectionError(error: unknown, locale: SummaryLocale = 'es') {
+  if (error instanceof ZodError) {
+    const firstIssue = error.issues[0];
+    const field = String(firstIssue?.path[0] ?? '');
+    if (field === 'platform') {
+      return locale === 'en'
+        ? 'Choose a valid Riot server platform such as EUW1, EUN1, KR, NA1, LA1, LA2, BR1, JP1, OC1, TR1 or RU.'
+        : 'Elegí una platform válida de Riot como EUW1, EUN1, KR, NA1, LA1, LA2, BR1, JP1, OC1, TR1 o RU.';
+    }
+
+    if (field === 'gameName' || field === 'tagLine') {
+      return locale === 'en'
+        ? 'Check the Riot ID fields and try again. The game name and tag must be valid and not empty.'
+        : 'Revisá los campos del Riot ID y volvé a intentar. El game name y el tag tienen que ser válidos y no estar vacíos.';
+    }
+  }
+
   if (error instanceof HttpError) {
     if (error.status === 403) {
       return locale === 'en'
@@ -103,13 +126,19 @@ analyticsRouter.get('/collect/:jobId', (req, res) => {
 });
 
 analyticsRouter.get('/profile/:gameName/:tagLine', async (req, res) => {
-  const dataset = await loadProfileSnapshot<CachedProfileDataset>(req.params.gameName, req.params.tagLine);
+  const query = profileQuerySchema.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ error: formatCollectionError(query.error, req.query.locale === 'en' ? 'en' : 'es') });
+    return;
+  }
+
+  const dataset = await loadProfileSnapshot<CachedProfileDataset>(req.params.gameName, req.params.tagLine, query.data.platform);
   if (!dataset) {
     res.status(404).json({ error: 'No cached profile found' });
     return;
   }
 
-  const locale = req.query.locale === 'en' ? 'en' : 'es';
+  const locale = query.data.locale === 'en' ? 'en' : 'es';
   res.json({
     ...dataset,
     summary: buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, dataset.matches, locale)

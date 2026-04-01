@@ -44,6 +44,31 @@ const roleLabels: Record<string, string> = {
   NONE: 'Sin rol'
 };
 
+export const riotPlatformConfig = {
+  BR1: { platform: 'BR1', regionalRoute: 'americas', label: 'Brazil', shortLabel: 'BR' },
+  EUN1: { platform: 'EUN1', regionalRoute: 'europe', label: 'Europe Nordic & East', shortLabel: 'EUNE' },
+  EUW1: { platform: 'EUW1', regionalRoute: 'europe', label: 'Europe West', shortLabel: 'EUW' },
+  JP1: { platform: 'JP1', regionalRoute: 'asia', label: 'Japan', shortLabel: 'JP' },
+  KR: { platform: 'KR', regionalRoute: 'asia', label: 'Korea', shortLabel: 'KR' },
+  LA1: { platform: 'LA1', regionalRoute: 'americas', label: 'Latin America North', shortLabel: 'LAN' },
+  LA2: { platform: 'LA2', regionalRoute: 'americas', label: 'Latin America South', shortLabel: 'LAS' },
+  ME1: { platform: 'ME1', regionalRoute: 'europe', label: 'Middle East', shortLabel: 'ME' },
+  NA1: { platform: 'NA1', regionalRoute: 'americas', label: 'North America', shortLabel: 'NA' },
+  OC1: { platform: 'OC1', regionalRoute: 'sea', label: 'Oceania', shortLabel: 'OCE' },
+  PH2: { platform: 'PH2', regionalRoute: 'sea', label: 'Philippines', shortLabel: 'PH' },
+  RU: { platform: 'RU', regionalRoute: 'europe', label: 'Russia', shortLabel: 'RU' },
+  SG2: { platform: 'SG2', regionalRoute: 'sea', label: 'Singapore, Malaysia & Indonesia', shortLabel: 'SG' },
+  TH2: { platform: 'TH2', regionalRoute: 'sea', label: 'Thailand', shortLabel: 'TH' },
+  TR1: { platform: 'TR1', regionalRoute: 'europe', label: 'Turkey', shortLabel: 'TR' },
+  TW2: { platform: 'TW2', regionalRoute: 'sea', label: 'Taiwan, Hong Kong & Macao', shortLabel: 'TW' },
+  VN2: { platform: 'VN2', regionalRoute: 'sea', label: 'Vietnam', shortLabel: 'VN' }
+} as const;
+
+export type RiotPlatform = keyof typeof riotPlatformConfig;
+export type RiotRegionalRoute = (typeof riotPlatformConfig)[RiotPlatform]['regionalRoute'];
+
+export const supportedRiotPlatforms = Object.keys(riotPlatformConfig) as RiotPlatform[];
+
 const rankTierPalette: Record<string, { primary: string; secondary: string; glow: string }> = {
   UNRANKED: { primary: '#6b7483', secondary: '#202734', glow: '#8f9bb2' },
   IRON: { primary: '#8b5f53', secondary: '#2b1d1a', glow: '#b17f72' },
@@ -88,6 +113,48 @@ export function getChampionIconUrl(championName: string, version?: string) {
 export function getProfileIconUrl(profileIconId?: number, version?: string) {
   if (!version || typeof profileIconId !== 'number') return null;
   return `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/${profileIconId}.png`;
+}
+
+export function normalizeRiotPlatform(value?: string | null) {
+  return value?.trim().toUpperCase() ?? '';
+}
+
+export function isSupportedRiotPlatform(value?: string | null): value is RiotPlatform {
+  const normalized = normalizeRiotPlatform(value);
+  return normalized in riotPlatformConfig;
+}
+
+export function getRiotPlatformInfo(platform?: string | null) {
+  const normalized = normalizeRiotPlatform(platform);
+  return riotPlatformConfig[normalized as RiotPlatform] ?? null;
+}
+
+export function buildProfileIdentityKey(gameName: string, tagLine: string, platform?: string | null) {
+  return `${normalizeRiotPlatform(platform) || 'unknown'}:${gameName.trim().toLowerCase()}#${tagLine.trim().toLowerCase()}`;
+}
+
+export function guessDefaultRiotPlatform(locale: 'es' | 'en') {
+  const language = typeof navigator !== 'undefined' ? navigator.language.toLowerCase() : locale;
+  const timezone = typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone ?? '' : '';
+
+  if (language.startsWith('ko') || timezone.includes('Seoul')) return 'KR';
+  if (language.startsWith('ja') || timezone.includes('Tokyo')) return 'JP1';
+  if (language.startsWith('tr') || timezone.includes('Istanbul')) return 'TR1';
+  if (language.startsWith('ru') || timezone.includes('Moscow')) return 'RU';
+  if (language.startsWith('pt') || timezone.includes('Sao_Paulo')) return 'BR1';
+  if (timezone.includes('Mexico_City')) return 'LA1';
+  if (timezone.includes('Buenos_Aires') || timezone.includes('Santiago') || timezone.includes('Lima') || timezone.includes('Bogota')) return 'LA2';
+  if (timezone.includes('Sydney') || timezone.includes('Auckland')) return 'OC1';
+  if (timezone.includes('Manila')) return 'PH2';
+  if (timezone.includes('Bangkok')) return 'TH2';
+  if (timezone.includes('Taipei') || timezone.includes('Hong_Kong')) return 'TW2';
+  if (timezone.includes('Ho_Chi_Minh')) return 'VN2';
+  if (timezone.includes('Singapore') || timezone.includes('Kuala_Lumpur') || timezone.includes('Jakarta')) return 'SG2';
+  if (timezone.includes('New_York') || timezone.includes('Chicago') || timezone.includes('Los_Angeles')) return 'NA1';
+  if (timezone.includes('Berlin') || timezone.includes('Madrid') || timezone.includes('Paris') || timezone.includes('London') || timezone.includes('Rome')) return 'EUW1';
+  if (timezone.includes('Warsaw') || timezone.includes('Helsinki') || timezone.includes('Athens')) return 'EUN1';
+
+  return locale === 'es' ? 'LA2' : 'EUW1';
 }
 
 export function getRuneIconUrl(icon?: string) {

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { supportedRiotPlatformTuple } from '../lib/riotRouting.js';
 
 export const knowledgeCardSchema = z.object({
   id: z.string().min(1),
@@ -30,6 +31,7 @@ export type KnowledgeCard = z.infer<typeof knowledgeCardSchema>;
 export const aiCoachRequestSchema = z.object({
   gameName: z.string().min(1),
   tagLine: z.string().min(1),
+  platform: z.string().trim().transform((value) => value.toUpperCase()).pipe(z.enum(supportedRiotPlatformTuple)).default('LA2'),
   locale: z.enum(['es', 'en']).default('es'),
   roleFilter: z.string().default('ALL'),
   coachRoles: z.array(z.string().min(1)).max(2).default([]),
@@ -90,6 +92,8 @@ export interface AICoachContext {
   player: {
     gameName: string;
     tagLine: string;
+    platform: string;
+    regionalRoute: string;
     locale: 'es' | 'en';
     roleFilter: string;
     coachRoles: string[];

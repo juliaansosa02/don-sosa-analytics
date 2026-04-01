@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import { env } from '../config/env.js';
+import { buildProfileKeyCandidates, buildProfileStorageKey } from '../lib/riotRouting.js';
 import { ensureWrite } from '../utils/fs.js';
 import type { AICoachFeedback, AICoachOutput, AICoachRequest, AICoachContext } from './aiCoachSchemas.js';
 
@@ -47,12 +48,6 @@ async function ensureTables() {
   await tableReady;
 }
 
-function normalizeProfileKey(gameName: string, tagLine: string) {
-  return `${gameName.trim().toLowerCase()}-${tagLine.trim().toLowerCase()}`
-    .replace(/[^a-z0-9-_]+/g, '-')
-    .replace(/-+/g, '-');
-}
-
 function buildMonthRange(monthKey?: string) {
   const now = monthKey ? new Date(`${monthKey}-01T00:00:00.000Z`) : new Date();
   const year = now.getUTCFullYear();
@@ -72,7 +67,7 @@ export async function saveAICoachingGeneration(input: {
   coach: AICoachOutput;
 }) {
   const id = randomUUID();
-  const profileKey = normalizeProfileKey(input.request.gameName, input.request.tagLine);
+  const profileKey = buildProfileStorageKey(input.request.gameName, input.request.tagLine, input.request.platform);
   const createdAt = new Date().toISOString();
 
   if (!pool) {
@@ -143,12 +138,13 @@ export async function loadAICoachingGeneration(id: string) {
 export async function loadLatestAICoachingGenerationForRequest(input: {
   gameName: string;
   tagLine: string;
+  platform?: string;
   locale: string;
   roleFilter: string;
   queueFilter: string;
   windowFilter: string;
 }) {
-  const profileKey = normalizeProfileKey(input.gameName, input.tagLine);
+  const profileKeyCandidates = buildProfileKeyCandidates(input.gameName, input.tagLine, input.platform);
 
   if (!pool) {
     try {
@@ -181,7 +177,7 @@ export async function loadLatestAICoachingGenerationForRequest(input: {
       return generations
         .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
         .filter((entry) => (
-          entry.profileKey === profileKey &&
+          profileKeyCandidates.includes(entry.profileKey) &&
           entry.request.locale === input.locale &&
           entry.request.roleFilter === input.roleFilter &&
           entry.request.queueFilter === input.queueFilter &&
@@ -216,14 +212,14 @@ export async function loadLatestAICoachingGenerationForRequest(input: {
   }>(
     `SELECT id, provider, model, context_payload, retrieval_payload, response_payload
      FROM ai_coaching_generations
-     WHERE profile_key = $1
+     WHERE profile_key = ANY($1::text[])
        AND locale = $2
        AND role_filter = $3
        AND queue_filter = $4
        AND window_filter = $5
      ORDER BY created_at DESC
      LIMIT 1`,
-    [profileKey, input.locale, input.roleFilter, input.queueFilter, input.windowFilter]
+    [profileKeyCandidates, input.locale, input.roleFilter, input.queueFilter, input.windowFilter]
   );
 
   return result.rows[0] ?? null;
@@ -232,9 +228,10 @@ export async function loadLatestAICoachingGenerationForRequest(input: {
 export async function loadAICoachUsageForMonth(input: {
   gameName: string;
   tagLine: string;
+  platform?: string;
   monthKey?: string;
 }) {
-  const profileKey = normalizeProfileKey(input.gameName, input.tagLine);
+  const profileKeyCandidates = buildProfileKeyCandidates(input.gameName, input.tagLine, input.platform);
   const { monthKey, start, end } = buildMonthRange(input.monthKey);
 
   if (!pool) {
@@ -262,7 +259,7 @@ export async function loadAICoachUsageForMonth(input: {
       const monthGenerations = generations.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
         .filter((entry) => {
           const createdAt = entry.createdAt ? Date.parse(entry.createdAt) : NaN;
-          return entry.profileKey === profileKey && Number.isFinite(createdAt) && createdAt >= start.getTime() && createdAt < end.getTime();
+          return profileKeyCandidates.includes(entry.profileKey) && Number.isFinite(createdAt) && createdAt >= start.getTime() && createdAt < end.getTime();
         });
 
       const openaiGenerations = monthGenerations.filter((entry) => entry.provider === 'openai');
@@ -309,12 +306,12 @@ export async function loadAICoachUsageForMonth(input: {
            END
          ),
          0
-       )::text AS estimated_cost_usd
+     )::text AS estimated_cost_usd
      FROM ai_coaching_generations
-     WHERE profile_key = $1
+     WHERE profile_key = ANY($1::text[])
        AND created_at >= $2
        AND created_at < $3`,
-    [profileKey, start.toISOString(), end.toISOString()]
+    [profileKeyCandidates, start.toISOString(), end.toISOString()]
   );
 
   const row = result.rows[0];

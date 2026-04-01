@@ -38,6 +38,7 @@ export async function collectProfile(
   tagLine: string,
   count = 100,
   options?: {
+    platform?: string;
     locale?: Locale;
     onProgress?: (progress: { stage: string; current: number; total: number; message: string }) => void;
     knownMatchIds?: string[];
@@ -50,7 +51,7 @@ export async function collectProfile(
     const startResponse = await fetch(`${API_BASE}/analytics/collect/start`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameName, tagLine, count, knownMatchIds: options?.knownMatchIds ?? [], locale: options?.locale ?? 'es' }),
+      body: JSON.stringify({ gameName, tagLine, platform: options?.platform, count, knownMatchIds: options?.knownMatchIds ?? [], locale: options?.locale ?? 'es' }),
       signal: controller.signal
     });
 
@@ -96,8 +97,8 @@ export async function collectProfile(
   }
 }
 
-export async function fetchCachedProfile(gameName: string, tagLine: string, locale: Locale = 'es'): Promise<Dataset | null> {
-  const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?locale=${locale}`);
+export async function fetchCachedProfile(gameName: string, tagLine: string, platform: string, locale: Locale = 'es'): Promise<Dataset | null> {
+  const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?locale=${locale}&platform=${encodeURIComponent(platform)}`);
   if (response.status === 404) {
     return null;
   }
@@ -112,6 +113,7 @@ export async function fetchCachedProfile(gameName: string, tagLine: string, loca
 export async function generateAICoach(input: {
   gameName: string;
   tagLine: string;
+  platform: string;
   locale: Locale;
   roleFilter: string;
   coachRoles: string[];
