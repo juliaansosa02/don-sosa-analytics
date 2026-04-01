@@ -6,13 +6,142 @@ import { env } from '../config/env.js';
 import { loadProfileSnapshot } from './profileStore.js';
 import { retrieveKnowledgeCards } from './knowledgeBase.js';
 import { getPatchContextForCoach } from './patchNotes.js';
-import { aiCoachOutputSchema, type AICoachContext, type AICoachContinuity, type AICoachOutput, type AICoachRequest } from './aiCoachSchemas.js';
-import { loadLatestAICoachingGenerationForRequest, saveAICoachingGeneration } from './aiCoachStore.js';
+import { aiCoachOutputSchema, type AICoachContext, type AICoachContinuity, type AICoachOutput, type AICoachProcessing, type AICoachRequest } from './aiCoachSchemas.js';
+import { loadAICoachUsageForMonth, loadLatestAICoachingGenerationForRequest, saveAICoachingGeneration } from './aiCoachStore.js';
 import type { collectPlayerSnapshot } from './collectionService.js';
 
 type StoredDataset = Awaited<ReturnType<typeof collectPlayerSnapshot>>;
 
 const openai = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
+
+function roundUsd(value: number) {
+  return Number(value.toFixed(4));
+}
+
+function getModelPricingPer1M(model: string) {
+  const pricingMap: Record<string, { input: number; output: number }> = {
+    'gpt-5.4-nano': { input: 0.2, output: 1.25 },
+    'gpt-5.4-mini': { input: 0.75, output: 4.5 },
+    'gpt-5.4': { input: 2.5, output: 15 },
+    'gpt-4.1-mini': { input: 0.4, output: 1.6 },
+    'gpt-4o-mini': { input: 0.15, output: 0.6 }
+  };
+
+  return pricingMap[model] ?? null;
+}
+
+function estimateCostUsd(model: string, usage: { inputTokens: number; outputTokens: number }) {
+  const pricing = getModelPricingPer1M(model);
+  if (!pricing) return 0;
+
+  return roundUsd(
+    ((usage.inputTokens / 1_000_000) * pricing.input) +
+    ((usage.outputTokens / 1_000_000) * pricing.output)
+  );
+}
+
+function buildBudgetSnapshot(monthlyUsage: {
+  monthKey: string;
+  openaiGenerations: number;
+  premiumGenerations: number;
+  estimatedCostUsd: number;
+}) {
+  const remainingBudgetUsd = Math.max(0, env.AI_COACH_MONTHLY_BUDGET_USD - monthlyUsage.estimatedCostUsd);
+
+  return {
+    monthKey: monthlyUsage.monthKey,
+    estimatedCostUsd: roundUsd(monthlyUsage.estimatedCostUsd),
+    budgetUsd: env.AI_COACH_MONTHLY_BUDGET_USD,
+    remainingBudgetUsd: roundUsd(remainingBudgetUsd),
+    openaiRuns: monthlyUsage.openaiGenerations,
+    premiumRuns: monthlyUsage.premiumGenerations
+  };
+}
+
+function getProcessingReason(locale: 'es' | 'en', key: 'cached' | 'fresh_premium' | 'fresh_economy' | 'updated_premium' | 'updated_economy' | 'budget_cap' | 'provider_draft' | 'quota_fallback') {
+  const messages = {
+    en: {
+      cached: 'The visible sample did not change, so the latest saved coaching block was reused.',
+      fresh_premium: 'This is a new or strategically important coaching block, so the higher-quality model was used.',
+      fresh_economy: 'A fresh coaching block was generated with the economy model to preserve budget.',
+      updated_premium: 'The sample changed enough to justify a higher-quality refresh.',
+      updated_economy: 'The coaching block was updated with the lower-cost model because the new sample delta was small.',
+      budget_cap: 'The monthly AI budget for this profile is exhausted, so the system used structured fallback coaching instead of spending more tokens.',
+      provider_draft: 'Draft mode was requested, so the system skipped OpenAI and used structured coaching.',
+      quota_fallback: 'OpenAI was temporarily unavailable, so the system fell back to structured coaching.'
+    },
+    es: {
+      cached: 'La muestra visible no cambió, así que se reutilizó el último bloque de coaching guardado.',
+      fresh_premium: 'Este es un bloque nuevo o estratégicamente importante, así que se usó el modelo de mayor calidad.',
+      fresh_economy: 'Se generó un bloque nuevo con el modelo económico para preservar presupuesto.',
+      updated_premium: 'La muestra cambió lo suficiente como para justificar una actualización de mayor calidad.',
+      updated_economy: 'El bloque se actualizó con el modelo de menor costo porque el cambio en la muestra fue chico.',
+      budget_cap: 'El presupuesto mensual de IA para este perfil se agotó, así que el sistema usó coaching estructurado en vez de gastar más tokens.',
+      provider_draft: 'Se pidió modo draft, así que el sistema omitió OpenAI y usó coaching estructurado.',
+      quota_fallback: 'OpenAI no estuvo disponible temporalmente, así que el sistema cayó a coaching estructurado.'
+    }
+  } as const;
+
+  return messages[locale][key];
+}
+
+function decideProcessingPolicy(input: AICoachRequest, context: AICoachContext, monthlyUsage: {
+  monthKey: string;
+  openaiGenerations: number;
+  premiumGenerations: number;
+  estimatedCostUsd: number;
+}, newVisibleMatchCount: number, hasPreviousGeneration: boolean): AICoachProcessing {
+  const budget = buildBudgetSnapshot(monthlyUsage);
+
+  if (input.providerMode === 'draft' || !openai) {
+    return {
+      mode: 'structured_fallback',
+      tier: 'fallback',
+      selectedModel: null,
+      reason: getProcessingReason(input.locale, 'provider_draft'),
+      budget
+    };
+  }
+
+  const hardBudgetReached = budget.remainingBudgetUsd <= 0
+    || monthlyUsage.openaiGenerations >= env.AI_COACH_MAX_MONTHLY_OPENAI_RUNS;
+
+  if (hardBudgetReached) {
+    return {
+      mode: 'structured_fallback',
+      tier: 'fallback',
+      selectedModel: null,
+      reason: getProcessingReason(input.locale, 'budget_cap'),
+      budget
+    };
+  }
+
+  const premiumDesired = !hasPreviousGeneration
+    ? context.player.visibleMatches >= env.AI_COACH_PREMIUM_MIN_VISIBLE_MATCHES
+    : newVisibleMatchCount >= env.AI_COACH_PREMIUM_MIN_NEW_MATCHES;
+
+  const premiumAllowed = premiumDesired
+    && monthlyUsage.premiumGenerations < env.AI_COACH_MAX_MONTHLY_PREMIUM_RUNS
+    && budget.remainingBudgetUsd >= env.AI_COACH_PREMIUM_MIN_REMAINING_BUDGET_USD;
+
+  if (premiumAllowed) {
+    return {
+      mode: 'premium_openai',
+      tier: 'premium',
+      selectedModel: env.openAIPremiumModel,
+      reason: getProcessingReason(input.locale, hasPreviousGeneration ? 'updated_premium' : 'fresh_premium'),
+      budget
+    };
+  }
+
+  return {
+    mode: 'economy_openai',
+    tier: 'economy',
+    selectedModel: env.openAIEconomyModel,
+    reason: getProcessingReason(input.locale, hasPreviousGeneration ? 'updated_economy' : 'fresh_economy'),
+    budget
+  };
+}
 
 function getQueueBucket(queueId: number) {
   if (queueId === 420 || queueId === 440) return queueId === 420 ? 'RANKED_SOLO' : 'RANKED_FLEX';
@@ -354,6 +483,7 @@ function buildUserPrompt(
 async function generateWithOpenAI(
   context: AICoachContext,
   localCards: Awaited<ReturnType<typeof retrieveKnowledgeCards>>,
+  model: string,
   previousCoaching?: {
     coach: AICoachOutput;
     previousVisibleMatchIds: string[];
@@ -362,7 +492,7 @@ async function generateWithOpenAI(
   if (!openai) return null;
 
   const response = await openai.responses.parse({
-    model: env.OPENAI_MODEL,
+    model,
     input: [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: buildUserPrompt(context, localCards, previousCoaching) }
@@ -379,7 +509,13 @@ async function generateWithOpenAI(
     }
   });
 
-  return response.output_parsed;
+  return {
+    output: response.output_parsed,
+    usage: {
+      inputTokens: response.usage?.input_tokens ?? 0,
+      outputTokens: response.usage?.output_tokens ?? 0
+    }
+  };
 }
 
 function isRecoverableOpenAIError(error: unknown) {
@@ -413,6 +549,10 @@ export async function generateAICoach(input: AICoachRequest) {
   });
   const previousVisibleMatchIds = previousGeneration?.context_payload?.sample?.visibleMatchIds ?? [];
   const newVisibleMatchIds = context.sample.visibleMatchIds.filter((matchId) => !previousVisibleMatchIds.includes(matchId));
+  const monthlyUsage = await loadAICoachUsageForMonth({
+    gameName: input.gameName,
+    tagLine: input.tagLine
+  });
 
   if (previousGeneration?.context_payload?.sample?.sampleSignature === context.sample.sampleSignature) {
     const continuity: AICoachContinuity = {
@@ -420,6 +560,13 @@ export async function generateAICoach(input: AICoachRequest) {
       newVisibleMatches: 0,
       previousGenerationId: previousGeneration.id,
       previousVisibleMatches: previousVisibleMatchIds.length
+    };
+    const processing: AICoachProcessing = {
+      mode: 'cached_reuse',
+      tier: 'cached',
+      selectedModel: previousGeneration.model,
+      reason: getProcessingReason(input.locale, 'cached'),
+      budget: buildBudgetSnapshot(monthlyUsage)
     };
 
     return {
@@ -429,7 +576,8 @@ export async function generateAICoach(input: AICoachRequest) {
       context: previousGeneration.context_payload,
       retrieval: previousGeneration.retrieval_payload,
       coach: previousGeneration.response_payload,
-      continuity
+      continuity,
+      processing
     };
   }
 
@@ -443,6 +591,11 @@ export async function generateAICoach(input: AICoachRequest) {
 
   let provider: 'draft' | 'openai' = 'draft';
   let coach = normalizeCoachOutput(context, buildDraftCoach(context, localKnowledge));
+  let selectedModel: string | null = null;
+  let estimatedCostUsd = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let processing = decideProcessingPolicy(input, context, monthlyUsage, newVisibleMatchIds.length, Boolean(previousGeneration));
   const previousCoaching = previousGeneration
     ? {
         coach: previousGeneration.response_payload,
@@ -450,12 +603,25 @@ export async function generateAICoach(input: AICoachRequest) {
       }
     : null;
 
-  if (input.providerMode !== 'draft' && openai) {
+  if (processing.mode !== 'structured_fallback' && openai && processing.selectedModel) {
     try {
-      const modelOutput = await generateWithOpenAI(context, localKnowledge, previousCoaching);
-      if (modelOutput) {
+      const modelOutput = await generateWithOpenAI(context, localKnowledge, processing.selectedModel, previousCoaching);
+      if (modelOutput?.output) {
         provider = 'openai';
-        coach = normalizeCoachOutput(context, modelOutput);
+        selectedModel = processing.selectedModel;
+        coach = normalizeCoachOutput(context, modelOutput.output);
+        inputTokens = modelOutput.usage.inputTokens;
+        outputTokens = modelOutput.usage.outputTokens;
+        estimatedCostUsd = estimateCostUsd(processing.selectedModel, modelOutput.usage);
+        processing = {
+          ...processing,
+          budget: buildBudgetSnapshot({
+            ...monthlyUsage,
+            openaiGenerations: monthlyUsage.openaiGenerations + 1,
+            premiumGenerations: monthlyUsage.premiumGenerations + (processing.tier === 'premium' ? 1 : 0),
+            estimatedCostUsd: monthlyUsage.estimatedCostUsd + estimatedCostUsd
+          })
+        };
       }
     } catch (error) {
       if (!isRecoverableOpenAIError(error)) {
@@ -463,6 +629,13 @@ export async function generateAICoach(input: AICoachRequest) {
       }
 
       console.warn('OpenAI unavailable for AI coach, falling back to structured draft mode:', error instanceof Error ? error.message : error);
+      processing = {
+        mode: 'structured_fallback',
+        tier: 'fallback',
+        selectedModel: null,
+        reason: getProcessingReason(input.locale, 'quota_fallback'),
+        budget: buildBudgetSnapshot(monthlyUsage)
+      };
     }
   }
 
@@ -470,11 +643,17 @@ export async function generateAICoach(input: AICoachRequest) {
     request: input,
     context,
     provider,
-    model: provider === 'openai' ? env.OPENAI_MODEL : null,
+    model: provider === 'openai' ? selectedModel : null,
     retrieval: {
       localKnowledgeCount: localKnowledge.length,
       localKnowledgeIds: localKnowledge.map((entry) => entry.card.id),
-      usedVectorStore: Boolean(env.OPENAI_VECTOR_STORE_ID && provider === 'openai')
+      usedVectorStore: Boolean(env.OPENAI_VECTOR_STORE_ID && provider === 'openai'),
+      policyMode: processing.mode,
+      policyTier: processing.tier,
+      policyReason: processing.reason,
+      inputTokens,
+      outputTokens,
+      estimatedCostUsd
     },
     coach
   });
@@ -488,14 +667,21 @@ export async function generateAICoach(input: AICoachRequest) {
   return {
     generationId,
     provider,
-    model: provider === 'openai' ? env.OPENAI_MODEL : null,
+    model: provider === 'openai' ? selectedModel : null,
     context,
     retrieval: {
       localKnowledgeCount: localKnowledge.length,
       localKnowledgeIds: localKnowledge.map((entry) => entry.card.id),
-      usedVectorStore: Boolean(env.OPENAI_VECTOR_STORE_ID && provider === 'openai')
+      usedVectorStore: Boolean(env.OPENAI_VECTOR_STORE_ID && provider === 'openai'),
+      policyMode: processing.mode,
+      policyTier: processing.tier,
+      policyReason: processing.reason,
+      inputTokens,
+      outputTokens,
+      estimatedCostUsd
     },
     coach,
-    continuity
+    continuity,
+    processing
   };
 }

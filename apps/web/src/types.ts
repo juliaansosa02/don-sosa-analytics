@@ -68,6 +68,20 @@ export interface AICoachResult {
     previousGenerationId: string | null;
     previousVisibleMatches: number;
   };
+  processing: {
+    mode: 'premium_openai' | 'economy_openai' | 'structured_fallback' | 'cached_reuse';
+    tier: 'premium' | 'economy' | 'fallback' | 'cached';
+    selectedModel: string | null;
+    reason: string;
+    budget: {
+      monthKey: string;
+      estimatedCostUsd: number;
+      budgetUsd: number;
+      remainingBudgetUsd: number;
+      openaiRuns: number;
+      premiumRuns: number;
+    };
+  };
   context: {
     player: {
       visibleMatches: number;

@@ -53,6 +53,16 @@ function normalizeProfileKey(gameName: string, tagLine: string) {
     .replace(/-+/g, '-');
 }
 
+function buildMonthRange(monthKey?: string) {
+  const now = monthKey ? new Date(`${monthKey}-01T00:00:00.000Z`) : new Date();
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  const start = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+  const end = new Date(Date.UTC(year, month + 1, 1, 0, 0, 0, 0));
+  const normalizedMonthKey = `${start.getUTCFullYear()}-${String(start.getUTCMonth() + 1).padStart(2, '0')}`;
+  return { monthKey: normalizedMonthKey, start, end };
+}
+
 export async function saveAICoachingGeneration(input: {
   request: AICoachRequest;
   context: AICoachContext;
@@ -217,4 +227,102 @@ export async function loadLatestAICoachingGenerationForRequest(input: {
   );
 
   return result.rows[0] ?? null;
+}
+
+export async function loadAICoachUsageForMonth(input: {
+  gameName: string;
+  tagLine: string;
+  monthKey?: string;
+}) {
+  const profileKey = normalizeProfileKey(input.gameName, input.tagLine);
+  const { monthKey, start, end } = buildMonthRange(input.monthKey);
+
+  if (!pool) {
+    try {
+      const files = await readdir(generationsDir);
+      const generations = await Promise.all(files
+        .filter((file) => file.endsWith('.json'))
+        .map(async (file) => {
+          try {
+            const raw = await readFile(`${generationsDir}/${file}`, 'utf8');
+            return JSON.parse(raw) as {
+              profileKey: string;
+              provider: 'draft' | 'openai';
+              createdAt?: string;
+              retrieval?: {
+                estimatedCostUsd?: number;
+                policyTier?: 'premium' | 'economy' | 'fallback' | 'cached';
+              };
+            };
+          } catch {
+            return null;
+          }
+        }));
+
+      const monthGenerations = generations.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+        .filter((entry) => {
+          const createdAt = entry.createdAt ? Date.parse(entry.createdAt) : NaN;
+          return entry.profileKey === profileKey && Number.isFinite(createdAt) && createdAt >= start.getTime() && createdAt < end.getTime();
+        });
+
+      const openaiGenerations = monthGenerations.filter((entry) => entry.provider === 'openai');
+      const premiumGenerations = openaiGenerations.filter((entry) => entry.retrieval?.policyTier === 'premium');
+      const estimatedCostUsd = openaiGenerations.reduce((sum, entry) => sum + Number(entry.retrieval?.estimatedCostUsd ?? 0), 0);
+
+      return {
+        monthKey,
+        totalGenerations: monthGenerations.length,
+        openaiGenerations: openaiGenerations.length,
+        premiumGenerations: premiumGenerations.length,
+        estimatedCostUsd: Number(estimatedCostUsd.toFixed(4))
+      };
+    } catch {
+      return {
+        monthKey,
+        totalGenerations: 0,
+        openaiGenerations: 0,
+        premiumGenerations: 0,
+        estimatedCostUsd: 0
+      };
+    }
+  }
+
+  await ensureTables();
+  const result = await pool.query<{
+    total_generations: string;
+    openai_generations: string;
+    premium_generations: string;
+    estimated_cost_usd: string;
+  }>(
+    `SELECT
+       COUNT(*)::text AS total_generations,
+       COUNT(*) FILTER (WHERE provider = 'openai')::text AS openai_generations,
+       COUNT(*) FILTER (
+         WHERE provider = 'openai'
+           AND COALESCE(retrieval_payload->>'policyTier', '') = 'premium'
+       )::text AS premium_generations,
+       COALESCE(
+         SUM(
+           CASE
+             WHEN provider = 'openai' THEN COALESCE(NULLIF(retrieval_payload->>'estimatedCostUsd', '')::numeric, 0)
+             ELSE 0
+           END
+         ),
+         0
+       )::text AS estimated_cost_usd
+     FROM ai_coaching_generations
+     WHERE profile_key = $1
+       AND created_at >= $2
+       AND created_at < $3`,
+    [profileKey, start.toISOString(), end.toISOString()]
+  );
+
+  const row = result.rows[0];
+  return {
+    monthKey,
+    totalGenerations: Number(row?.total_generations ?? 0),
+    openaiGenerations: Number(row?.openai_generations ?? 0),
+    premiumGenerations: Number(row?.premium_generations ?? 0),
+    estimatedCostUsd: Number(Number(row?.estimated_cost_usd ?? 0).toFixed(4))
+  };
 }

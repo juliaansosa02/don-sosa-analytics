@@ -113,6 +113,36 @@ function buildContinuityRead(aiCoach: AICoachResult, locale: Locale) {
   };
 }
 
+function buildProcessingRead(aiCoach: AICoachResult, locale: Locale) {
+  const { processing } = aiCoach;
+
+  if (processing.tier === 'premium') {
+    return {
+      tone: 'low' as const,
+      title: locale === 'en' ? 'Premium AI pass' : 'Pasada premium de IA'
+    };
+  }
+
+  if (processing.tier === 'economy') {
+    return {
+      tone: 'medium' as const,
+      title: locale === 'en' ? 'Economy AI pass' : 'Pasada económica de IA'
+    };
+  }
+
+  if (processing.tier === 'cached') {
+    return {
+      tone: 'default' as const,
+      title: locale === 'en' ? 'No extra AI spend' : 'Sin gasto extra de IA'
+    };
+  }
+
+  return {
+    tone: 'default' as const,
+    title: locale === 'en' ? 'Structured fallback' : 'Fallback estructurado'
+  };
+}
+
 export function CoachingHome({
   dataset,
   locale = 'es',
@@ -140,6 +170,7 @@ export function CoachingHome({
   const patternCard = buildPatternCard(dataset);
   const matchupAlert = summary.insights.find((insight) => insight.focusMetric === 'matchup_review');
   const continuityRead = aiCoach ? buildContinuityRead(aiCoach, locale) : null;
+  const processingRead = aiCoach ? buildProcessingRead(aiCoach, locale) : null;
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
@@ -218,6 +249,7 @@ export function CoachingHome({
                 </button>
                 {aiCoach ? <Badge tone={aiCoach.provider === 'openai' ? 'low' : 'medium'}>{aiCoach.provider === 'openai' ? 'OPENAI' : (locale === 'en' ? 'STRUCTURED FALLBACK' : 'FALLBACK ESTRUCTURADO')}</Badge> : null}
                 {aiCoach ? <Badge tone="default">{`${Math.round(aiCoach.coach.confidence * 100)}% ${locale === 'en' ? 'confidence' : 'confianza'}`}</Badge> : null}
+                {processingRead ? <Badge tone={processingRead.tone}>{processingRead.title}</Badge> : null}
                 {aiCoach?.continuity.mode === 'reused' ? <Badge tone="default">{locale === 'en' ? 'NO NEW MATCHES' : 'SIN PARTIDAS NUEVAS'}</Badge> : null}
                 {aiCoach?.continuity.mode === 'updated' ? <Badge tone="low">{locale === 'en' ? `+${aiCoach.continuity.newVisibleMatches} NEW` : `+${aiCoach.continuity.newVisibleMatches} NUEVAS`}</Badge> : null}
               </div>
@@ -247,6 +279,34 @@ export function CoachingHome({
                         ) : null}
                       </div>
                       <div style={{ color: '#d7e1f0' }}>{continuityRead.body}</div>
+                    </div>
+                  </InfoCard>
+                ) : null}
+                {aiCoach ? (
+                  <InfoCard
+                    title={locale === 'en' ? 'AI budget and quality' : 'Presupuesto y calidad de IA'}
+                    info={locale === 'en'
+                      ? 'The system uses stronger AI only when it adds value, cheaper AI for smaller updates, and structured fallback when it is smarter to save spend.'
+                      : 'El sistema usa IA más fuerte solo cuando agrega valor, IA más barata para updates chicos y fallback estructurado cuando conviene ahorrar gasto.'}
+                  >
+                    <div style={{ display: 'grid', gap: 10 }}>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {processingRead ? <Badge tone={processingRead.tone}>{processingRead.title}</Badge> : null}
+                        {aiCoach.processing.selectedModel ? <Badge tone="default">{aiCoach.processing.selectedModel}</Badge> : null}
+                      </div>
+                      <div style={{ color: '#d7e1f0' }}>{aiCoach.processing.reason}</div>
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        <div style={signalActionStyle}>
+                          {locale === 'en'
+                            ? `This month: $${aiCoach.processing.budget.estimatedCostUsd.toFixed(2)} used out of $${aiCoach.processing.budget.budgetUsd.toFixed(2)} budget for this profile.`
+                            : `Este mes: US$${aiCoach.processing.budget.estimatedCostUsd.toFixed(2)} usados de un presupuesto de US$${aiCoach.processing.budget.budgetUsd.toFixed(2)} para este perfil.`}
+                        </div>
+                        <div style={signalActionStyle}>
+                          {locale === 'en'
+                            ? `${aiCoach.processing.budget.openaiRuns} AI runs, ${aiCoach.processing.budget.premiumRuns} premium runs, $${aiCoach.processing.budget.remainingBudgetUsd.toFixed(2)} remaining.`
+                            : `${aiCoach.processing.budget.openaiRuns} corridas de IA, ${aiCoach.processing.budget.premiumRuns} premium, US$${aiCoach.processing.budget.remainingBudgetUsd.toFixed(2)} restantes.`}
+                        </div>
+                      </div>
                     </div>
                   </InfoCard>
                 ) : null}

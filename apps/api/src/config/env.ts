@@ -11,7 +11,15 @@ const envSchema = z.object({
   DATABASE_URL: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   OPENAI_MODEL: z.string().default('gpt-4.1-mini'),
+  OPENAI_ECONOMY_MODEL: z.string().optional(),
+  OPENAI_PREMIUM_MODEL: z.string().optional(),
   OPENAI_VECTOR_STORE_ID: z.string().optional(),
+  AI_COACH_MONTHLY_BUDGET_USD: z.coerce.number().default(1.5),
+  AI_COACH_MAX_MONTHLY_OPENAI_RUNS: z.coerce.number().default(60),
+  AI_COACH_MAX_MONTHLY_PREMIUM_RUNS: z.coerce.number().default(10),
+  AI_COACH_PREMIUM_MIN_NEW_MATCHES: z.coerce.number().default(4),
+  AI_COACH_PREMIUM_MIN_VISIBLE_MATCHES: z.coerce.number().default(12),
+  AI_COACH_PREMIUM_MIN_REMAINING_BUDGET_USD: z.coerce.number().default(0.5),
   CURRENT_LOL_PATCH: z.string().optional(),
   PATCH_NOTES_AUTO_SYNC: z.coerce.boolean().default(true),
   PATCH_NOTES_SYNC_INTERVAL_HOURS: z.coerce.number().default(12),
@@ -27,5 +35,7 @@ const parsed = envSchema.parse(process.env);
 
 export const env = {
   ...parsed,
+  openAIEconomyModel: parsed.OPENAI_ECONOMY_MODEL ?? parsed.OPENAI_MODEL,
+  openAIPremiumModel: parsed.OPENAI_PREMIUM_MODEL ?? (parsed.OPENAI_MODEL === 'gpt-4.1-nano' ? 'gpt-4.1-mini' : parsed.OPENAI_MODEL),
   corsOrigins: parsed.CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
 };

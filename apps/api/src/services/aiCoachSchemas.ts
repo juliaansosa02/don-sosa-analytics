@@ -174,3 +174,20 @@ export interface AICoachContinuity {
   previousGenerationId: string | null;
   previousVisibleMatches: number;
 }
+
+export interface AICoachProcessingBudget {
+  monthKey: string;
+  estimatedCostUsd: number;
+  budgetUsd: number;
+  remainingBudgetUsd: number;
+  openaiRuns: number;
+  premiumRuns: number;
+}
+
+export interface AICoachProcessing {
+  mode: 'premium_openai' | 'economy_openai' | 'structured_fallback' | 'cached_reuse';
+  tier: 'premium' | 'economy' | 'fallback' | 'cached';
+  selectedModel: string | null;
+  reason: string;
+  budget: AICoachProcessingBudget;
+}
