@@ -230,7 +230,7 @@ export function CoachingHome({
         </Card>
       </section>
 
-      <section className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr 1fr', gap: 16, alignItems: 'start' }}>
+      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.24fr) minmax(320px, 0.76fr)', gap: 16, alignItems: 'start' }}>
         <Card
           title={locale === 'en' ? 'Current coaching read' : 'Lectura principal de coaching'}
           subtitle={locale === 'en'
@@ -260,132 +260,16 @@ export function CoachingHome({
                   <div style={{ color: '#edf2ff', fontSize: 18, fontWeight: 800 }}>{aiCoach.coach.mainLeak}</div>
                   <div style={{ color: '#9aa5b7', lineHeight: 1.7 }}>{aiCoach.coach.summary}</div>
                 </div>
-                {continuityRead ? (
-                  <InfoCard
-                    title={locale === 'en' ? 'Coaching continuity' : 'Continuidad del coaching'}
-                    info={locale === 'en'
-                      ? 'Shows whether this block was generated for the first time, updated with new matches or simply reused because nothing changed.'
-                      : 'Muestra si este bloque se generó por primera vez, se actualizó con partidas nuevas o simplemente se reutilizó porque no cambió nada.'}
-                  >
-                    <div style={{ display: 'grid', gap: 10 }}>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <Badge tone={continuityRead.tone}>{continuityRead.title}</Badge>
-                        {aiCoach.continuity.previousVisibleMatches > 0 ? (
-                          <Badge tone="default">
-                            {locale === 'en'
-                              ? `${aiCoach.continuity.previousVisibleMatches} matches in previous block`
-                              : `${aiCoach.continuity.previousVisibleMatches} partidas en el bloque anterior`}
-                          </Badge>
-                        ) : null}
-                      </div>
-                      <div style={{ color: '#d7e1f0' }}>{continuityRead.body}</div>
-                    </div>
-                  </InfoCard>
-                ) : null}
-                {aiCoach ? (
-                  <InfoCard
-                    title={locale === 'en' ? 'AI budget and quality' : 'Presupuesto y calidad de IA'}
-                    info={locale === 'en'
-                      ? 'The system uses stronger AI only when it adds value, cheaper AI for smaller updates, and structured fallback when it is smarter to save spend.'
-                      : 'El sistema usa IA más fuerte solo cuando agrega valor, IA más barata para updates chicos y fallback estructurado cuando conviene ahorrar gasto.'}
-                  >
-                    <div style={{ display: 'grid', gap: 10 }}>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        {processingRead ? <Badge tone={processingRead.tone}>{processingRead.title}</Badge> : null}
-                        {aiCoach.processing.selectedModel ? <Badge tone="default">{aiCoach.processing.selectedModel}</Badge> : null}
-                      </div>
-                      <div style={{ color: '#d7e1f0' }}>{aiCoach.processing.reason}</div>
-                      <div style={{ display: 'grid', gap: 8 }}>
-                        <div style={signalActionStyle}>
-                          {locale === 'en'
-                            ? `This month: $${aiCoach.processing.budget.estimatedCostUsd.toFixed(2)} used out of $${aiCoach.processing.budget.budgetUsd.toFixed(2)} budget for this profile.`
-                            : `Este mes: US$${aiCoach.processing.budget.estimatedCostUsd.toFixed(2)} usados de un presupuesto de US$${aiCoach.processing.budget.budgetUsd.toFixed(2)} para este perfil.`}
-                        </div>
-                        <div style={signalActionStyle}>
-                          {locale === 'en'
-                            ? `${aiCoach.processing.budget.openaiRuns} AI runs, ${aiCoach.processing.budget.premiumRuns} premium runs, $${aiCoach.processing.budget.remainingBudgetUsd.toFixed(2)} remaining.`
-                            : `${aiCoach.processing.budget.openaiRuns} corridas de IA, ${aiCoach.processing.budget.premiumRuns} premium, US$${aiCoach.processing.budget.remainingBudgetUsd.toFixed(2)} restantes.`}
-                        </div>
-                      </div>
-                    </div>
-                  </InfoCard>
-                ) : null}
-                <InfoCard
-                  title={locale === 'en' ? 'Patch context' : 'Contexto de parche'}
-                  info={locale === 'en'
-                    ? 'Official Riot patch context used to adjust the coaching emphasis when your pool or matchup changed recently.'
-                    : 'Contexto oficial de parche de Riot usado para ajustar el énfasis del coaching cuando tu pool o matchup cambió recientemente.'}
-                >
-                  <div style={{ display: 'grid', gap: 10 }}>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <Badge tone="default">{`Patch ${aiCoach.context.patchContext.currentPatch}`}</Badge>
-                      <Badge tone="medium">{locale === 'en' ? 'Official Riot source' : 'Fuente oficial Riot'}</Badge>
-                    </div>
-                    <div style={{ color: '#d7e1f0' }}>{aiCoach.context.patchContext.note}</div>
-                    {aiCoach.context.patchContext.summary.length ? (
-                      <div style={{ display: 'grid', gap: 8 }}>
-                        {aiCoach.context.patchContext.summary.slice(0, 2).map((item) => (
-                          <div key={item}>{item}</div>
-                        ))}
-                      </div>
-                    ) : null}
-                    {aiCoach.context.patchContext.relevantChampionUpdates.length ? (
-                      <div style={{ display: 'grid', gap: 8 }}>
-                        {aiCoach.context.patchContext.relevantChampionUpdates.slice(0, 2).map((update) => (
-                          <div key={`${update.championName}-${update.summary}`} style={signalActionStyle}>
-                            <strong>{update.championName}</strong>
-                            {`: ${update.summary}`}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                    {aiCoach.context.patchContext.relevantSystemUpdates.length ? (
-                      <div style={{ display: 'grid', gap: 8 }}>
-                        {aiCoach.context.patchContext.relevantSystemUpdates.slice(0, 1).map((update) => (
-                          <div key={`${update.category}-${update.summary}`} style={signalActionStyle}>
-                            <strong>{update.category}</strong>
-                            {`: ${update.summary}`}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                    <a
-                      href={aiCoach.context.patchContext.sourceUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: '#8dd8ff', textDecoration: 'none', fontWeight: 700 }}
-                    >
-                      {locale === 'en' ? 'Open official patch notes' : 'Abrir patch notes oficiales'}
-                    </a>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <div style={{ color: '#93a0b4', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    {locale === 'en' ? 'Immediate direction' : 'Dirección inmediata'}
                   </div>
-                </InfoCard>
-                <InfoCard title={locale === 'en' ? 'Why it happens' : 'Por qué pasa'} info={locale === 'en' ? 'Model explanation grounded in your current coaching block and retrieved coach knowledge.' : 'Explicación del modelo apoyada en tu bloque actual y en conocimiento curado recuperado.'}>
-                  {aiCoach.coach.whyItHappens}
-                </InfoCard>
-                <InfoCard title={locale === 'en' ? 'What to review' : 'Qué revisar'} info={locale === 'en' ? 'The exact clips or moments worth checking before you queue again.' : 'Los clips o momentos exactos que conviene revisar antes de volver a jugar.'}>
-                  <div style={{ display: 'grid', gap: 8 }}>
-                    {aiCoach.coach.whatToReview.map((item) => (
-                      <div key={item}>{item}</div>
+                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, alignItems: 'start' }}>
+                    {aiCoach.coach.whatToDoNext3Games.slice(0, 3).map((item) => (
+                      <div key={item} style={compactActionStyle}>{item}</div>
                     ))}
                   </div>
-                </InfoCard>
-                <InfoCard title={locale === 'en' ? 'Next 3 games' : 'Próximas 3 partidas'} info={locale === 'en' ? 'Habits to hold immediately in your next block.' : 'Hábitos para sostener inmediatamente en tu siguiente bloque.'}>
-                  <div style={{ display: 'grid', gap: 8 }}>
-                    {aiCoach.coach.whatToDoNext3Games.map((item) => (
-                      <div key={item}>{item}</div>
-                    ))}
-                  </div>
-                </InfoCard>
-                {aiCoach.coach.championSpecificNote ? (
-                  <InfoCard title={locale === 'en' ? 'Champion note' : 'Nota de campeón'} info={locale === 'en' ? 'Specific read tied to your current anchor pick.' : 'Lectura específica atada a tu pick ancla actual.'}>
-                    {aiCoach.coach.championSpecificNote}
-                  </InfoCard>
-                ) : null}
-                {aiCoach.coach.matchupSpecificNote ? (
-                  <InfoCard title={locale === 'en' ? 'Matchup note' : 'Nota de matchup'} info={locale === 'en' ? 'Specific preparation clue for the matchup pattern the system found.' : 'Pista específica de preparación para el patrón de matchup que encontró el sistema.'}>
-                    {aiCoach.coach.matchupSpecificNote}
-                  </InfoCard>
-                ) : null}
+                </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {onSendFeedback ? (
                     <>
@@ -414,6 +298,7 @@ export function CoachingHome({
           </div>
         </Card>
 
+        <div style={{ display: 'grid', gap: 16 }}>
         <Card title={locale === 'en' ? 'What is already giving you level' : 'Qué ya te está dando nivel'} subtitle={locale === 'en' ? 'Not everything is about fixing issues: you also need to repeat what is already working' : 'No todo es corregir: también hay que repetir lo que sí funciona'}>
           <div style={{ display: 'grid', gap: 10 }}>
             {positiveLanes.map((insight) => (
@@ -479,7 +364,74 @@ export function CoachingHome({
             )}
           </div>
         </Card>
+        </div>
       </section>
+
+      {aiCoach ? (
+        <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.05fr .95fr', gap: 16, alignItems: 'start' }}>
+          <Card title={locale === 'en' ? 'Execution plan' : 'Plan de ejecución'} subtitle={locale === 'en' ? 'The reasoning behind the diagnosis and the exact review material to open next.' : 'El razonamiento detrás del diagnóstico y el material exacto que conviene revisar ahora.'}>
+            <div style={{ display: 'grid', gap: 12 }}>
+              <InfoCard title={locale === 'en' ? 'Why it happens' : 'Por qué pasa'} info={locale === 'en' ? 'Model explanation grounded in your current coaching block and retrieved coach knowledge.' : 'Explicación del modelo apoyada en tu bloque actual y en conocimiento curado recuperado.'}>
+                {aiCoach.coach.whyItHappens}
+              </InfoCard>
+              <InfoCard title={locale === 'en' ? 'What to review' : 'Qué revisar'} info={locale === 'en' ? 'Only the clips or moments that are worth checking before you queue again.' : 'Solo los clips o momentos que realmente conviene revisar antes de volver a jugar.'}>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {aiCoach.coach.whatToReview.map((item) => (
+                    <div key={item} style={compactActionStyle}>{item}</div>
+                  ))}
+                </div>
+              </InfoCard>
+            </div>
+          </Card>
+
+          <Card title={locale === 'en' ? 'Specific notes' : 'Notas específicas'} subtitle={locale === 'en' ? 'Champion, matchup and live context that can change the read.' : 'Campeón, matchup y contexto actual que pueden cambiar la lectura.'}>
+            <div style={{ display: 'grid', gap: 12 }}>
+              {continuityRead ? (
+                <div style={compactContextPanelStyle}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                    <Badge tone={continuityRead.tone}>{continuityRead.title}</Badge>
+                    {aiCoach.continuity.previousVisibleMatches > 0 ? (
+                      <Badge tone="default">
+                        {locale === 'en' ? `${aiCoach.continuity.previousVisibleMatches} matches before` : `${aiCoach.continuity.previousVisibleMatches} partidas antes`}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <div style={{ color: '#d7e1f0', lineHeight: 1.65 }}>{continuityRead.body}</div>
+                </div>
+              ) : null}
+              <InfoCard title={locale === 'en' ? 'Patch context' : 'Contexto de parche'} info={locale === 'en' ? 'Official Riot patch context used to adjust emphasis when your pool or matchup changed recently.' : 'Contexto oficial de Riot usado para ajustar el énfasis cuando tu pool o matchup cambió recientemente.'}>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Badge tone="default">{`Patch ${aiCoach.context.patchContext.currentPatch}`}</Badge>
+                    <Badge tone="medium">{locale === 'en' ? 'Official Riot source' : 'Fuente oficial Riot'}</Badge>
+                  </div>
+                  <div style={{ color: '#d7e1f0', lineHeight: 1.65 }}>{aiCoach.context.patchContext.note}</div>
+                  {aiCoach.context.patchContext.summary.length ? (
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      {aiCoach.context.patchContext.summary.slice(0, 2).map((item) => (
+                        <div key={item} style={compactActionStyle}>{item}</div>
+                      ))}
+                    </div>
+                  ) : null}
+                  <a href={aiCoach.context.patchContext.sourceUrl} target="_blank" rel="noreferrer" style={{ color: '#8dd8ff', textDecoration: 'none', fontWeight: 700 }}>
+                    {locale === 'en' ? 'Open official patch notes' : 'Abrir patch notes oficiales'}
+                  </a>
+                </div>
+              </InfoCard>
+              {aiCoach.coach.championSpecificNote ? (
+                <InfoCard title={locale === 'en' ? 'Champion note' : 'Nota de campeón'} info={locale === 'en' ? 'Specific read tied to your current anchor pick.' : 'Lectura específica atada a tu pick ancla actual.'}>
+                  {aiCoach.coach.championSpecificNote}
+                </InfoCard>
+              ) : null}
+              {aiCoach.coach.matchupSpecificNote ? (
+                <InfoCard title={locale === 'en' ? 'Matchup note' : 'Nota de matchup'} info={locale === 'en' ? 'Specific preparation clue for the matchup pattern the system found.' : 'Pista específica de preparación para el patrón de matchup que encontró el sistema.'}>
+                  {aiCoach.coach.matchupSpecificNote}
+                </InfoCard>
+              ) : null}
+            </div>
+          </Card>
+        </section>
+      ) : null}
 
       <section style={{ display: 'grid', gap: 14 }}>
         <div>
@@ -691,6 +643,22 @@ const signalActionStyle = {
   border: '1px solid rgba(103,214,164,0.12)',
   color: '#dff7eb',
   lineHeight: 1.6
+} as const;
+
+const compactActionStyle = {
+  padding: '11px 12px',
+  borderRadius: 12,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.05)',
+  color: '#e2eaf7',
+  lineHeight: 1.6
+} as const;
+
+const compactContextPanelStyle = {
+  padding: '14px 15px',
+  borderRadius: 16,
+  background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))',
+  border: '1px solid rgba(255,255,255,0.05)'
 } as const;
 
 const reviewMatchStyle = {
