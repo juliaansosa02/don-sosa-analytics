@@ -155,6 +155,11 @@ function formatQueueSummary(dataset: Dataset, locale: Locale) {
   return locale === 'en' ? 'Mixed queue' : 'Cola mixta';
 }
 
+function extractRankTierFromLabel(rankLabel?: string) {
+  if (!rankLabel) return undefined;
+  return rankLabel.split(' ')[0]?.toUpperCase();
+}
+
 export default function App() {
   const [locale] = useState<Locale>(() => detectLocale());
   const [activeTab, setActiveTab] = useState<TabId>('coach');
@@ -871,6 +876,8 @@ export default function App() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
               {savedProfiles.map((profile) => {
                 const isActive = `${profile.gameName}#${profile.tagLine}`.toLowerCase() === `${gameName}#${tagLine}`.toLowerCase();
+                const rankTier = extractRankTierFromLabel(profile.rankLabel);
+                const rankEmblem = rankTier ? getRankEmblemDataUrl(rankTier) : null;
                 return (
                   <button
                     key={`${profile.gameName}#${profile.tagLine}`}
@@ -882,9 +889,20 @@ export default function App() {
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
-                      <div style={{ display: 'grid', gap: 4, textAlign: 'left' }}>
-                        <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
-                        <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible')}</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: rankEmblem ? '32px minmax(0, 1fr)' : '1fr', gap: 10, alignItems: 'center', textAlign: 'left', minWidth: 0 }}>
+                        {rankEmblem ? (
+                          <img
+                            src={rankEmblem}
+                            alt={profile.rankLabel ?? ''}
+                            width={32}
+                            height={32}
+                            style={{ display: 'block', width: 32, height: 32, objectFit: 'contain' }}
+                          />
+                        ) : null}
+                        <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+                          <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
+                          <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible')}</div>
+                        </div>
                       </div>
                       <Badge tone={isActive ? 'low' : 'default'}>{locale === 'en' ? `${profile.matches} matches` : `${profile.matches} partidas`}</Badge>
                     </div>
@@ -1335,31 +1353,32 @@ function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonNullable
   const emblem = getRankEmblemDataUrl(rank.highest.tier);
   const palette = getRankPalette(rank.highest.tier);
   const lpProgress = Math.max(0, Math.min(rank.highest.leaguePoints, 100));
+  const emblemSize = compact ? 74 : 92;
   const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR`;
 
   return (
     <div title={title} style={{
       display: 'grid',
-      gap: compact ? 6 : 8,
-      minWidth: compact ? 220 : 250,
-      padding: compact ? '10px 12px' : '12px 14px',
-      borderRadius: 14,
+      gap: compact ? 8 : 10,
+      minWidth: compact ? 260 : 290,
+      padding: compact ? '12px 14px' : '14px 16px',
+      borderRadius: 16,
       background: compact ? 'rgba(9, 14, 22, 0.86)' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
       border: `1px solid ${palette.primary}33`
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: compact ? 12 : 14 }}>
         <img
           src={emblem}
           alt={rank.highest.label}
-          width={compact ? 52 : 68}
-          height={compact ? 52 : 68}
-          style={{ display: 'block', objectFit: 'contain', filter: `drop-shadow(0 10px 24px ${palette.primary}22)` }}
+          width={emblemSize}
+          height={emblemSize}
+          style={{ display: 'block', objectFit: 'contain', filter: `drop-shadow(0 14px 28px ${palette.primary}22)` }}
         />
-        <div style={{ display: 'grid', gap: 2 }}>
+        <div style={{ display: 'grid', gap: 3 }}>
           <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{rank.highest.queueLabel ?? (locale === 'en' ? 'Ranked' : 'Ranked')}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: compact ? 13 : 15, fontWeight: 800, color: '#edf2ff' }}>{rank.highest.label}</span>
-            <span style={{ color: palette.glow, fontSize: 12, fontWeight: 700 }}>{`${rank.highest.leaguePoints} LP`}</span>
+            <span style={{ fontSize: compact ? 16 : 18, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.highest.label}</span>
+            <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.highest.leaguePoints} LP`}</span>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react';
-import { Card, Badge, KPI, InfoHint } from '../../components/ui';
+import { Card, Badge, KPI, InfoHint, ChampionAvatar, ChampionIdentity } from '../../components/ui';
 import type { AICoachResult, Dataset } from '../../types';
 import { formatDecimal } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
@@ -74,6 +74,11 @@ function buildPositiveLanes(dataset: Dataset, locale: Locale) {
       locale === 'en' ? 'Compare your solid games against your losses on the same pick before opening more variables.' : 'Compará tus partidas sólidas contra tus derrotas del mismo pick antes de abrir más variables.'
     ]
   }];
+}
+
+function extractChampionMention(text: string, dataset: Dataset) {
+  const lowerText = text.toLowerCase();
+  return dataset.summary.championPool.find((champion) => lowerText.includes(champion.championName.toLowerCase()))?.championName ?? null;
 }
 
 function buildContinuityRead(aiCoach: AICoachResult, locale: Locale) {
@@ -189,6 +194,10 @@ export function CoachingHome({
     patchSummary,
     continuityRead?.body
   ].filter(Boolean).slice(0, 3) as string[];
+  const positiveLaneViews = positiveLanes.map((insight) => ({
+    insight,
+    championName: extractChampionMention(`${insight.problem} ${insight.title} ${insight.actions.join(' ')}`, dataset) ?? championAnchor?.championName ?? null
+  }));
   const coachMetaItems = [
     {
       label: locale === 'en' ? 'Current block' : 'Bloque actual',
@@ -353,12 +362,22 @@ export function CoachingHome({
         <div style={{ display: 'grid', gap: 16 }}>
         <Card title={locale === 'en' ? 'What is already giving you level' : 'Qué ya te está dando nivel'} subtitle={locale === 'en' ? 'Not everything is about fixing issues: you also need to repeat what is already working' : 'No todo es corregir: también hay que repetir lo que sí funciona'}>
           <div style={{ display: 'grid', gap: 10 }}>
-            {positiveLanes.map((insight) => (
+            {positiveLaneViews.map(({ insight, championName }) => (
               <div key={insight.id} style={signalCardStyle}>
-                <div style={{ display: 'grid', gap: 5 }}>
-                  <div style={{ color: '#edf2ff', fontSize: 18, fontWeight: 800 }}>{insight.problem}</div>
-                  <div style={{ color: '#9aa5b7', lineHeight: 1.6 }}>{insight.title}</div>
-                </div>
+                {championName ? (
+                  <ChampionIdentity
+                    championName={championName}
+                    version={dataset.ddragonVersion}
+                    subtitle={insight.title}
+                    size={56}
+                  />
+                ) : (
+                  <div style={{ display: 'grid', gap: 5 }}>
+                    <div style={{ color: '#edf2ff', fontSize: 18, fontWeight: 800 }}>{insight.problem}</div>
+                    <div style={{ color: '#9aa5b7', lineHeight: 1.6 }}>{insight.title}</div>
+                  </div>
+                )}
+                {championName ? <div style={{ color: '#edf2ff', fontSize: 20, fontWeight: 800, lineHeight: 1.2 }}>{insight.problem}</div> : null}
                 <div style={{ display: 'grid', gap: 8 }}>
                   {insight.actions.map((action) => (
                     <div key={action} style={signalActionStyle}>{action}</div>
@@ -374,16 +393,23 @@ export function CoachingHome({
             {reviewQueue.length ? reviewQueue.map((match) => (
               <div key={match.matchId} style={reviewMatchStyle}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                  <div style={{ display: 'grid', gap: 4 }}>
-                    <div style={{ color: '#edf2ff', fontWeight: 800 }}>{match.championName}</div>
-                    <div style={{ color: '#8190a4', fontSize: 12 }}>{new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}</div>
-                  </div>
+                  <ChampionIdentity
+                    championName={match.championName}
+                    version={dataset.ddragonVersion}
+                    subtitle={new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
+                    size={52}
+                  />
                   <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota')}</Badge>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <Badge>{`${formatDecimal(match.timeline.csAt15)} CS@15`}</Badge>
                   <Badge>{locale === 'en' ? `${formatDecimal(match.timeline.deathsPre14)} deaths pre14` : `${formatDecimal(match.timeline.deathsPre14)} muertes pre14`}</Badge>
-                  {match.opponentChampionName ? <Badge>{`vs ${match.opponentChampionName}`}</Badge> : null}
+                  {match.opponentChampionName ? (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <ChampionAvatar championName={match.opponentChampionName} version={dataset.ddragonVersion} size={24} radius={8} />
+                      <Badge>{`vs ${match.opponentChampionName}`}</Badge>
+                    </span>
+                  ) : null}
                 </div>
                 <div style={{ color: '#9aa5b7', lineHeight: 1.6 }}>
                   {buildReviewCue(dataset, match, locale)}
@@ -400,10 +426,14 @@ export function CoachingHome({
             {championAnchor ? (
               <>
                 <InfoCard title={locale === 'en' ? 'Main pick' : 'Pick principal'} info={locale === 'en' ? 'The champion that most shapes the current coaching read.' : 'El campeón que más condiciona la lectura actual de coaching.'}>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ fontSize: 22, fontWeight: 800 }}>{championAnchor.championName}</div>
-                    <div style={{ color: '#9aa5b7' }}>{locale === 'en' ? `${championAnchor.games} matches · ${championAnchor.winRate}% WR · ${formatDecimal(championAnchor.avgCsAt15)} CS@15` : `${championAnchor.games} partidas · ${championAnchor.winRate}% WR · ${formatDecimal(championAnchor.avgCsAt15)} CS@15`}</div>
-                  </div>
+                  <ChampionIdentity
+                    championName={championAnchor.championName}
+                    version={dataset.ddragonVersion}
+                    subtitle={locale === 'en'
+                      ? `${championAnchor.games} matches · ${championAnchor.winRate}% WR · ${formatDecimal(championAnchor.avgCsAt15)} CS@15`
+                      : `${championAnchor.games} partidas · ${championAnchor.winRate}% WR · ${formatDecimal(championAnchor.avgCsAt15)} CS@15`}
+                    size={60}
+                  />
                 </InfoCard>
                 <InfoCard title={locale === 'en' ? 'What to watch' : 'Qué mirar'} info={locale === 'en' ? 'The goal is to separate whether your main pick is already organizing the game well or hiding a problem.' : 'La idea es separar si tu pick principal ya te ordena bien la partida o si está ocultando un problema.'}>
                   {matchupAlert

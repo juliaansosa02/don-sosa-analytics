@@ -1,4 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { getChampionIconUrl } from '../lib/lol';
 export function Shell({ sidebar, children }) {
     return (_jsxs("div", { className: "app-shell", style: { display: 'grid', gridTemplateColumns: sidebar ? 'minmax(280px, 320px) minmax(0, 1fr)' : '1fr', minHeight: '100vh', background: 'radial-gradient(circle at top left, rgba(56, 44, 116, 0.16), transparent 28%), #04070c' }, children: [sidebar ? _jsx("aside", { className: "app-sidebar", style: { borderRight: '1px solid rgba(255,255,255,0.07)', padding: 24, background: '#05080e' }, children: sidebar }) : null, _jsx("main", { style: { padding: 28 }, children: children })] }));
 }
@@ -16,6 +17,21 @@ export function Badge({ children, tone = 'default' }) {
         low: { background: 'rgba(126,245,199,.14)', color: '#9ff0cf' }
     };
     return _jsx("span", { style: { display: 'inline-flex', alignItems: 'center', padding: '7px 11px', borderRadius: 999, background: tones[tone].background, color: tones[tone].color, fontSize: 12, fontWeight: 700, letterSpacing: '0.02em', border: '1px solid rgba(255,255,255,0.05)' }, children: children });
+}
+export function ChampionAvatar({ championName, version, size = 44, radius = 14 }) {
+    const iconUrl = getChampionIconUrl(championName, version);
+    if (!iconUrl) {
+        return (_jsx("div", { "aria-hidden": "true", style: {
+                ...championAvatarShellStyle,
+                width: size,
+                height: size,
+                borderRadius: radius
+            }, children: _jsx("span", { style: { fontSize: Math.max(12, size * 0.28), fontWeight: 800, color: '#edf2ff' }, children: championName.slice(0, 2).toUpperCase() }) }));
+    }
+    return (_jsx("div", { style: { ...championAvatarShellStyle, width: size, height: size, borderRadius: radius }, children: _jsx("img", { src: iconUrl, alt: championName, width: size, height: size, style: { display: 'block', width: size, height: size, borderRadius: radius, objectFit: 'cover' } }) }));
+}
+export function ChampionIdentity({ championName, version, subtitle, meta, size = 46, align = 'start' }) {
+    return (_jsxs("div", { style: { display: 'grid', gridTemplateColumns: `${size}px minmax(0, 1fr)`, gap: 12, alignItems: align }, children: [_jsx(ChampionAvatar, { championName: championName, version: version, size: size, radius: Math.max(12, Math.round(size * 0.28)) }), _jsxs("div", { style: { display: 'grid', gap: 3, minWidth: 0 }, children: [_jsx("div", { style: { color: '#edf2ff', fontSize: size >= 52 ? 22 : 18, fontWeight: 800, lineHeight: 1.12 }, children: championName }), subtitle ? _jsx("div", { style: { color: '#9aa5b7', lineHeight: 1.55 }, children: subtitle }) : null, meta ? _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }, children: meta }) : null] })] }));
 }
 export function InfoHint({ text }) {
     return (_jsxs("span", { className: "info-hint", style: hintWrapperStyle, title: text, children: [_jsx("span", { style: hintIconStyle, children: "?" }), _jsx("span", { className: "info-hint-tooltip", style: hintTooltipStyle, children: text })] }));
@@ -63,4 +79,13 @@ const hintTooltipStyle = {
     pointerEvents: 'none',
     zIndex: 20,
     transition: 'opacity 120ms ease, transform 120ms ease'
+};
+const championAvatarShellStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    border: '1px solid rgba(255,255,255,0.08)',
+    background: 'linear-gradient(180deg, rgba(17,22,33,0.96), rgba(7,11,18,0.98))',
+    boxShadow: '0 14px 30px rgba(0,0,0,0.22)'
 };

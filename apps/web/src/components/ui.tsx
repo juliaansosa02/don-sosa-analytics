@@ -1,4 +1,5 @@
-import type { PropsWithChildren, ReactNode } from 'react';
+import type { CSSProperties, PropsWithChildren, ReactNode } from 'react';
+import { getChampionIconUrl } from '../lib/lol';
 
 export function Shell({ sidebar, children }: PropsWithChildren<{ sidebar?: ReactNode }>) {
   return (
@@ -43,6 +44,79 @@ export function Badge({ children, tone = 'default' }: PropsWithChildren<{ tone?:
   } as const;
 
   return <span style={{ display: 'inline-flex', alignItems: 'center', padding: '7px 11px', borderRadius: 999, background: tones[tone].background, color: tones[tone].color, fontSize: 12, fontWeight: 700, letterSpacing: '0.02em', border: '1px solid rgba(255,255,255,0.05)' }}>{children}</span>;
+}
+
+export function ChampionAvatar({
+  championName,
+  version,
+  size = 44,
+  radius = 14
+}: {
+  championName: string;
+  version?: string;
+  size?: number;
+  radius?: number;
+}) {
+  const iconUrl = getChampionIconUrl(championName, version);
+
+  if (!iconUrl) {
+    return (
+      <div
+        aria-hidden="true"
+        style={{
+          ...championAvatarShellStyle,
+          width: size,
+          height: size,
+          borderRadius: radius
+        }}
+      >
+        <span style={{ fontSize: Math.max(12, size * 0.28), fontWeight: 800, color: '#edf2ff' }}>
+          {championName.slice(0, 2).toUpperCase()}
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ ...championAvatarShellStyle, width: size, height: size, borderRadius: radius }}>
+      <img
+        src={iconUrl}
+        alt={championName}
+        width={size}
+        height={size}
+        style={{ display: 'block', width: size, height: size, borderRadius: radius, objectFit: 'cover' }}
+      />
+    </div>
+  );
+}
+
+export function ChampionIdentity({
+  championName,
+  version,
+  subtitle,
+  meta,
+  size = 46,
+  align = 'start'
+}: {
+  championName: string;
+  version?: string;
+  subtitle?: string;
+  meta?: ReactNode;
+  size?: number;
+  align?: CSSProperties['alignItems'];
+}) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `${size}px minmax(0, 1fr)`, gap: 12, alignItems: align }}>
+      <ChampionAvatar championName={championName} version={version} size={size} radius={Math.max(12, Math.round(size * 0.28))} />
+      <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
+        <div style={{ color: '#edf2ff', fontSize: size >= 52 ? 22 : 18, fontWeight: 800, lineHeight: 1.12 }}>
+          {championName}
+        </div>
+        {subtitle ? <div style={{ color: '#9aa5b7', lineHeight: 1.55 }}>{subtitle}</div> : null}
+        {meta ? <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>{meta}</div> : null}
+      </div>
+    </div>
+  );
 }
 
 export function InfoHint({ text }: { text: string }) {
@@ -99,4 +173,14 @@ const hintTooltipStyle = {
   pointerEvents: 'none',
   zIndex: 20,
   transition: 'opacity 120ms ease, transform 120ms ease'
+} as const;
+
+const championAvatarShellStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  overflow: 'hidden',
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'linear-gradient(180deg, rgba(17,22,33,0.96), rgba(7,11,18,0.98))',
+  boxShadow: '0 14px 30px rgba(0,0,0,0.22)'
 } as const;

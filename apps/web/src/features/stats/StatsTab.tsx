@@ -1,4 +1,4 @@
-import { Card, Badge, InfoHint } from '../../components/ui';
+import { Card, Badge, InfoHint, ChampionIdentity } from '../../components/ui';
 import type { BenchmarkAggregateRecord, Dataset } from '../../types';
 import { formatDecimal, formatSignedNumber } from '../../lib/format';
 import { buildCs15ProgressionBenchmark, buildLevel15ProgressionBenchmark, type TierProgressionBenchmark } from '../../lib/benchmarks';
@@ -250,12 +250,14 @@ export function StatsTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
           <div style={{ display: 'grid', gap: 10 }}>
             {recentMatches.map((match) => (
               <div key={match.matchId} style={recentMatchRowStyle}>
-                <div style={{ display: 'grid', gap: 2 }}>
-                  <div style={{ color: '#edf2ff', fontWeight: 700 }}>{match.championName}</div>
-                  <div style={{ color: '#8190a4', fontSize: 12 }}>{new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}</div>
-                </div>
+                <ChampionIdentity
+                  championName={match.championName}
+                  version={dataset.ddragonVersion}
+                  subtitle={new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
+                  size={42}
+                />
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'end' }}>
-                  <Badge tone={match.win ? 'low' : 'high'}>{match.win ? 'Win' : 'Loss'}</Badge>
+                  <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota')}</Badge>
                   <Badge>{`${formatDecimal(match.timeline.csAt15)} CS@15`}</Badge>
                   <Badge>{locale === 'en' ? `${formatDecimal(match.timeline.levelAt15 ?? 0)} lvl@15` : `${formatDecimal(match.timeline.levelAt15 ?? 0)} lvl@15`}</Badge>
                 </div>
