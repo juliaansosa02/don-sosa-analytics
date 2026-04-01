@@ -32,6 +32,7 @@ export const aiCoachRequestSchema = z.object({
   tagLine: z.string().min(1),
   locale: z.enum(['es', 'en']).default('es'),
   roleFilter: z.string().default('ALL'),
+  coachRoles: z.array(z.string().min(1)).max(2).default([]),
   queueFilter: z.enum(['ALL', 'RANKED', 'RANKED_SOLO', 'RANKED_FLEX', 'OTHER']).default('ALL'),
   windowFilter: z.enum(['ALL', 'LAST_20', 'LAST_8']).default('ALL'),
   providerMode: z.enum(['auto', 'openai', 'draft']).default('auto')
@@ -91,6 +92,8 @@ export interface AICoachContext {
     tagLine: string;
     locale: 'es' | 'en';
     roleFilter: string;
+    coachRoles: string[];
+    roleScopeLabel: string;
     queueFilter: 'ALL' | 'RANKED' | 'RANKED_SOLO' | 'RANKED_FLEX' | 'OTHER';
     windowFilter: 'ALL' | 'LAST_20' | 'LAST_8';
     visibleMatches: number;

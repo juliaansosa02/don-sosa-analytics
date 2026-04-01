@@ -290,15 +290,18 @@ export function CoachingHome({
                 : 'Este es el bloque de coaching que debería ordenar el resto de tu sesión. Los filtros y tabs de detalle siguen disponibles, pero ya no fragmentan este diagnóstico central.'}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <button type="button" style={aiButtonStyle} onClick={onGenerateAICoach} disabled={!onGenerateAICoach || generatingAICoach}>
-                  {generatingAICoach ? (locale === 'en' ? 'Refreshing coaching...' : 'Actualizando coaching...') : (locale === 'en' ? 'Refresh coaching' : 'Actualizar coaching')}
-                </button>
-                {aiCoach ? <Badge tone={aiCoach.provider === 'openai' ? 'low' : 'medium'}>{aiCoach.provider === 'openai' ? 'OPENAI' : (locale === 'en' ? 'STRUCTURED FALLBACK' : 'FALLBACK ESTRUCTURADO')}</Badge> : null}
-                {aiCoach ? <Badge tone="default">{`${Math.round(aiCoach.coach.confidence * 100)}% ${locale === 'en' ? 'confidence' : 'confianza'}`}</Badge> : null}
-                {processingRead ? <Badge tone={processingRead.tone}>{processingRead.title}</Badge> : null}
-                {aiCoach?.continuity.mode === 'reused' ? <Badge tone="default">{locale === 'en' ? 'NO NEW MATCHES' : 'SIN PARTIDAS NUEVAS'}</Badge> : null}
-                {aiCoach?.continuity.mode === 'updated' ? <Badge tone="low">{locale === 'en' ? `+${aiCoach.continuity.newVisibleMatches} NEW` : `+${aiCoach.continuity.newVisibleMatches} NUEVAS`}</Badge> : null}
-              </div>
+              <button type="button" style={aiButtonStyle} onClick={onGenerateAICoach} disabled={!onGenerateAICoach || generatingAICoach}>
+                {generatingAICoach ? (locale === 'en' ? 'Refreshing coaching...' : 'Actualizando coaching...') : (locale === 'en' ? 'Refresh coaching' : 'Actualizar coaching')}
+              </button>
+              {aiCoach?.context.player?.roleScopeLabel ? <Badge tone="default">{aiCoach.context.player.roleScopeLabel}</Badge> : null}
+              {aiCoach ? (
+                <span title={processingRead ? processingRead.title : undefined}>
+                  <Badge tone="default">{`${Math.round(aiCoach.coach.confidence * 100)}% ${locale === 'en' ? 'confidence' : 'confianza'}`}</Badge>
+                </span>
+              ) : null}
+              {aiCoach?.continuity.mode === 'reused' ? <Badge tone="default">{locale === 'en' ? 'Reused block' : 'Bloque reutilizado'}</Badge> : null}
+              {aiCoach?.continuity.mode === 'updated' ? <Badge tone="low">{locale === 'en' ? `+${aiCoach.continuity.newVisibleMatches} new` : `+${aiCoach.continuity.newVisibleMatches} nuevas`}</Badge> : null}
+            </div>
             {aiCoachError ? <div style={{ color: '#ffb3b3', lineHeight: 1.6 }}>{aiCoachError}</div> : null}
             {aiCoach ? (
               <div style={{ display: 'grid', gap: 12 }}>

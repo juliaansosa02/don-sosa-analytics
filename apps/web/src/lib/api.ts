@@ -114,6 +114,7 @@ export async function generateAICoach(input: {
   tagLine: string;
   locale: Locale;
   roleFilter: string;
+  coachRoles: string[];
   queueFilter: 'ALL' | 'RANKED' | 'RANKED_SOLO' | 'RANKED_FLEX' | 'OTHER';
   windowFilter: 'ALL' | 'LAST_20' | 'LAST_8';
 }): Promise<AICoachResult> {

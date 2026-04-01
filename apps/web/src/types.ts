@@ -85,6 +85,8 @@ export interface AICoachResult {
   context: {
     player: {
       visibleMatches: number;
+      coachRoles?: string[];
+      roleScopeLabel?: string;
     };
     patchContext: {
       currentPatch: string;

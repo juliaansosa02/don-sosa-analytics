@@ -47,6 +47,10 @@ function datasetStorageKey(gameName: string, tagLine: string) {
   return `don-sosa:dataset:${gameName}#${tagLine}`.toLowerCase();
 }
 
+function coachScopeStorageKey(gameName: string, tagLine: string) {
+  return `don-sosa:coach-scope:${gameName}#${tagLine}`.toLowerCase();
+}
+
 function mergeDatasets(current: Dataset | null, incoming: Dataset, locale: Locale): Dataset {
   if (!current) return incoming;
 
@@ -68,6 +72,38 @@ function mergeDatasets(current: Dataset | null, incoming: Dataset, locale: Local
 
 function normalizeTagLineInput(value: string) {
   return value.replace(/^#+/, '').trim();
+}
+
+function serializeCoachRoles(roles: string[]) {
+  return [...new Set(roles.map((role) => role.trim().toUpperCase()).filter(Boolean))].sort().join('+');
+}
+
+function formatCoachScopeLabel(roles: string[], locale: Locale) {
+  if (!roles.length) return locale === 'en' ? 'Choose 1 or 2 roles' : 'Elegí 1 o 2 roles';
+  return roles.map((role) => (locale === 'en' ? translateRole(role, 'en') : getRoleLabel(role))).join(' + ');
+}
+
+function buildDefaultCoachRoles(dataset: Dataset) {
+  const roleCounts = new Map<string, number>();
+
+  for (const match of dataset.matches) {
+    const role = (match.role || 'NONE').toUpperCase();
+    if (!role || role === 'NONE') continue;
+    roleCounts.set(role, (roleCounts.get(role) ?? 0) + 1);
+  }
+
+  const rankedRoles = Array.from(roleCounts.entries()).sort((a, b) => b[1] - a[1]);
+  const [primary, secondary] = rankedRoles;
+  if (!primary) return [];
+  if (!secondary) return [primary[0]];
+
+  const total = rankedRoles.reduce((sum, [, count]) => sum + count, 0);
+  const primaryShare = primary[1] / Math.max(total, 1);
+  if (primaryShare >= 0.7 || primary[1] >= secondary[1] * 2) {
+    return [primary[0]];
+  }
+
+  return [primary[0], secondary[0]];
 }
 
 function buildTargetOptions(currentMatches: number | null) {
@@ -123,6 +159,7 @@ export default function App() {
   const [locale] = useState<Locale>(() => detectLocale());
   const [activeTab, setActiveTab] = useState<TabId>('coach');
   const [roleFilter, setRoleFilter] = useState('ALL');
+  const [coachRoles, setCoachRoles] = useState<string[]>([]);
   const [queueFilter, setQueueFilter] = useState<'ALL' | 'RANKED' | 'RANKED_SOLO' | 'RANKED_FLEX' | 'OTHER'>('ALL');
   const [windowFilter, setWindowFilter] = useState<'ALL' | 'LAST_20' | 'LAST_8'>('ALL');
   const [matchCount, setMatchCount] = useState(50);
@@ -139,6 +176,7 @@ export default function App() {
   const [aiCoachLoading, setAICoachLoading] = useState(false);
   const [aiCoachError, setAICoachError] = useState<string | null>(null);
   const [lastAICoachRequestKey, setLastAICoachRequestKey] = useState<string | null>(null);
+  const [lastGeneratedCoachScopeKey, setLastGeneratedCoachScopeKey] = useState<string | null>(null);
 
   async function hydrateFromServer(gameNameValue: string, tagLineValue: string) {
     try {
@@ -208,6 +246,14 @@ export default function App() {
     return ['ALL', ...roles];
   }, [dataset]);
 
+  const coachRoleOptions = useMemo(
+    () => availableRoles.filter((role) => role !== 'ALL' && role !== 'NONE'),
+    [availableRoles]
+  );
+
+  const coachScopeKey = useMemo(() => serializeCoachRoles(coachRoles), [coachRoles]);
+  const coachScopeLabel = useMemo(() => formatCoachScopeLabel(coachRoles, locale), [coachRoles, locale]);
+
   const availableQueueFilters = useMemo(() => {
     if (!dataset) return ['ALL'] as const;
     const buckets = new Set(dataset.matches.map((match) => getQueueBucket(match.queueId)));
@@ -249,15 +295,22 @@ export default function App() {
   }, [dataset, roleFilter, queueFilter, windowFilter, locale]);
 
   const coachRequestKey = useMemo(() => {
-    if (!coachDataset || !gameName || !tagLine) return null;
+    if (!coachDataset || !gameName || !tagLine || !coachScopeKey) return null;
     return [
       gameName.trim().toLowerCase(),
       tagLine.trim().toLowerCase(),
       locale,
+      coachScopeKey,
       coachDataset.summary.matches,
       coachDataset.matches[0]?.matchId ?? 'no-latest-match'
     ].join('|');
-  }, [coachDataset, gameName, tagLine, locale]);
+  }, [coachDataset, gameName, tagLine, locale, coachScopeKey]);
+
+  const coachScopeDirty = useMemo(() => {
+    if (!coachScopeKey) return false;
+    if (!lastGeneratedCoachScopeKey) return false;
+    return coachScopeKey !== lastGeneratedCoachScopeKey;
+  }, [coachScopeKey, lastGeneratedCoachScopeKey]);
 
   const renderedTab = useMemo(() => {
     if (activeTab === 'coach') {
@@ -312,6 +365,37 @@ export default function App() {
   const quickRefreshActions = useMemo(() => buildQuickRefreshActions(dataset?.matches.length ?? null), [dataset?.matches.length]);
 
   useEffect(() => {
+    if (!dataset || !gameName || !tagLine) {
+      setCoachRoles([]);
+      setLastGeneratedCoachScopeKey(null);
+      return;
+    }
+
+    const defaultRoles = buildDefaultCoachRoles(dataset);
+
+    try {
+      const raw = window.localStorage.getItem(coachScopeStorageKey(gameName, tagLine));
+      if (!raw) {
+        setCoachRoles(defaultRoles);
+        setLastGeneratedCoachScopeKey(null);
+        return;
+      }
+
+      const parsed = JSON.parse(raw) as string[];
+      const nextRoles = parsed
+        .map((role) => role.trim().toUpperCase())
+        .filter((role) => coachRoleOptions.includes(role))
+        .slice(0, 2);
+
+      setCoachRoles(nextRoles.length ? nextRoles : defaultRoles);
+      setLastGeneratedCoachScopeKey(null);
+    } catch {
+      setCoachRoles(defaultRoles);
+      setLastGeneratedCoachScopeKey(null);
+    }
+  }, [dataset, gameName, tagLine, coachRoleOptions]);
+
+  useEffect(() => {
     if (!availableRoles.includes(roleFilter)) {
       setRoleFilter('ALL');
     }
@@ -321,13 +405,14 @@ export default function App() {
     setAICoach(null);
     setAICoachError(null);
     setLastAICoachRequestKey(null);
+    setLastGeneratedCoachScopeKey(null);
   }, [gameName, tagLine, locale, dataset?.summary.matches]);
 
   useEffect(() => {
-    if (activeTab !== 'coach' || !coachRequestKey || aiCoachLoading) return;
+    if (activeTab !== 'coach' || !coachRequestKey || aiCoachLoading || coachScopeDirty) return;
     if (lastAICoachRequestKey === coachRequestKey) return;
     void handleGenerateAICoach();
-  }, [activeTab, coachRequestKey, aiCoachLoading, lastAICoachRequestKey]);
+  }, [activeTab, coachRequestKey, aiCoachLoading, lastAICoachRequestKey, coachScopeDirty]);
 
   function persistSavedProfile(nextDataset: Dataset, nextMatchCount: number) {
     const nextRecord: SavedProfileRecord = {
@@ -432,8 +517,27 @@ export default function App() {
     await runAnalysis(matchCount);
   }
 
+  function toggleCoachRole(role: string) {
+    const normalizedRole = role.trim().toUpperCase();
+    setCoachRoles((current) => {
+      const next = current.includes(normalizedRole)
+        ? current.filter((item) => item !== normalizedRole)
+        : [...current, normalizedRole].slice(0, 2);
+
+      if (gameName && tagLine) {
+        window.localStorage.setItem(coachScopeStorageKey(gameName, tagLine), JSON.stringify(next));
+      }
+
+      return next;
+    });
+  }
+
   async function handleGenerateAICoach(force = false) {
     if (!gameName || !tagLine || !coachRequestKey) return;
+    if (!coachRoles.length) {
+      setAICoachError(locale === 'en' ? 'Choose at least one role for coaching before generating the analysis.' : 'Elegí al menos un rol para coaching antes de generar el análisis.');
+      return;
+    }
     if (!force && lastAICoachRequestKey === coachRequestKey) return;
 
     setLastAICoachRequestKey(coachRequestKey);
@@ -445,11 +549,14 @@ export default function App() {
         gameName,
         tagLine,
         locale,
-        roleFilter: 'ALL',
+        roleFilter: coachScopeKey,
+        coachRoles,
         queueFilter: 'ALL',
         windowFilter: 'ALL'
       });
       setAICoach(result);
+      setLastGeneratedCoachScopeKey(coachScopeKey);
+      window.localStorage.setItem(coachScopeStorageKey(gameName, tagLine), JSON.stringify(coachRoles));
     } catch (err) {
       setAICoachError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -499,8 +606,8 @@ export default function App() {
         </section>
 
         <section style={heroGridStyle}>
-          <div style={heroIntroPanelStyle}>
-            {!dataset ? (
+          {!dataset ? (
+            <div style={heroIntroPanelStyle}>
               <div style={{ display: 'grid', gap: 12 }}>
                 <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>Don Sosa Coach</div>
                 <h1 style={{ margin: 0, fontSize: 46, letterSpacing: '-0.05em', maxWidth: 760 }}>
@@ -532,44 +639,102 @@ export default function App() {
                   </div>
                 ) : null}
               </div>
-            ) : (
-              <div style={{ display: 'grid', gap: 16 }}>
-                <div style={{ display: 'grid', gap: 6 }}>
-                  <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>
-                    {locale === 'en' ? 'Current profile' : 'Perfil actual'}
-                  </div>
-                  <h1 style={{ margin: 0, fontSize: 38, letterSpacing: '-0.05em', lineHeight: 1.05 }}>
-                    {dataset.player}<span style={{ color: '#8894ab' }}>#{dataset.tagLine}</span>
-                  </h1>
-                  <p style={{ margin: 0, color: '#96a1b4', maxWidth: 760, lineHeight: 1.65 }}>
-                    {locale === 'en'
-                      ? 'Main account overview for the saved block. Coaching uses this full sample as its base so you can explore the rest of the product without re-spending tokens on every filter change.'
-                      : 'Vista principal de la cuenta sobre el bloque guardado. El coaching usa esta muestra completa como base para que puedas explorar el resto del producto sin volver a gastar tokens cada vez que cambies un filtro.'}
-                  </p>
-                </div>
-                <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr repeat(3, minmax(0, 1fr))', gap: 12 }}>
-                  {dataset.rank ? <RankBadge rank={dataset.rank} compact locale={locale} /> : null}
-                  <div style={heroMetaChipStyle}>
-                    <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Block' : 'Bloque'}</div>
-                    <div style={heroMetaValueStyle}>{dataset.summary.matches}</div>
-                    <div style={heroMetaSubtleStyle}>{locale === 'en' ? 'valid matches saved' : 'partidas válidas guardadas'}</div>
-                  </div>
-                  <div style={heroMetaChipStyle}>
-                    <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Win rate' : 'WR'}</div>
-                    <div style={heroMetaValueStyle}>{dataset.summary.winRate}%</div>
-                    <div style={heroMetaSubtleStyle}>{`${dataset.summary.wins}-${dataset.summary.losses}`}</div>
-                  </div>
-                  <div style={heroMetaChipStyle}>
-                    <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Focus' : 'Foco'}</div>
-                    <div style={{ ...heroMetaValueStyle, color: csBenchmark?.status === 'above' ? '#9ff0cf' : csBenchmark?.status === 'below' ? '#ffb3b3' : '#dce8fb' }}>
-                      {csBenchmark ? csBenchmark.label : formatQueueSummary(dataset, locale)}
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gap: 16 }}>
+              <div style={heroIntroPanelStyle}>
+                <div style={{ display: 'grid', gap: 16 }}>
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>
+                      {locale === 'en' ? 'Current profile' : 'Perfil actual'}
                     </div>
-                    <div style={heroMetaSubtleStyle}>{csBenchmark ? (locale === 'en' ? 'CS at 15 benchmark' : 'benchmark de CS a los 15') : (locale === 'en' ? 'main ranked context' : 'contexto ranked principal')}</div>
+                    <h1 style={{ margin: 0, fontSize: 38, letterSpacing: '-0.05em', lineHeight: 1.05 }}>
+                      {dataset.player}<span style={{ color: '#8894ab' }}>#{dataset.tagLine}</span>
+                    </h1>
+                    <p style={{ margin: 0, color: '#96a1b4', maxWidth: 760, lineHeight: 1.65 }}>
+                      {locale === 'en'
+                        ? 'The coaching block uses this saved sample as its base. You can explore the rest of the product without spending tokens again on every visual filter change.'
+                        : 'El bloque de coaching usa esta muestra guardada como base. Podés explorar el resto del producto sin volver a gastar tokens por cada cambio visual de filtros.'}
+                    </p>
+                  </div>
+                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.25fr repeat(2, minmax(0, 1fr))', gap: 12 }}>
+                    {dataset.rank ? <RankBadge rank={dataset.rank} compact locale={locale} /> : null}
+                    <div style={heroMetaChipStyle}>
+                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Block' : 'Bloque'}</div>
+                      <div style={heroMetaValueStyle}>{dataset.summary.matches}</div>
+                      <div style={heroMetaSubtleStyle}>{locale === 'en' ? 'valid matches saved' : 'partidas válidas guardadas'}</div>
+                    </div>
+                    <div style={heroMetaChipStyle}>
+                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Win rate' : 'WR'}</div>
+                      <div style={heroMetaValueStyle}>{dataset.summary.winRate}%</div>
+                      <div style={heroMetaSubtleStyle}>{`${dataset.summary.wins}-${dataset.summary.losses}`}</div>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+
+              <Card
+                title={locale === 'en' ? 'Coaching scope' : 'Alcance del coaching'}
+                subtitle={locale === 'en'
+                  ? 'Choose the one or two roles you truly want to improve. The AI block is generated only from this scope.'
+                  : 'Elegí el o los dos roles que de verdad querés mejorar. El bloque de IA se genera solo sobre este alcance.'}
+              >
+                <div style={{ display: 'grid', gap: 14 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    {coachRoleOptions.map((role) => {
+                      const selected = coachRoles.includes(role);
+                      return (
+                        <button
+                          key={role}
+                          type="button"
+                          onClick={() => toggleCoachRole(role)}
+                          style={{
+                            ...rolePillStyle,
+                            ...(selected ? activeRolePillStyle : {}),
+                            borderColor: selected ? 'rgba(216,253,241,0.26)' : 'rgba(255,255,255,0.07)'
+                          }}
+                        >
+                          {locale === 'en' ? translateRole(role, 'en') : getRoleLabel(role)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr repeat(2, minmax(0, 1fr))', gap: 12 }}>
+                    <div style={scopeMetaCardStyle}>
+                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Current scope' : 'Alcance actual'}</div>
+                      <div style={{ ...heroMetaValueStyle, fontSize: 20 }}>{coachScopeLabel}</div>
+                      <div style={heroMetaSubtleStyle}>
+                        {coachRoles.length === 2
+                          ? (locale === 'en' ? 'Maximum scope selected' : 'Máximo de alcance seleccionado')
+                          : locale === 'en'
+                            ? 'You can add one more role'
+                            : 'Podés sumar un rol más'}
+                      </div>
+                    </div>
+                    <div style={scopeMetaCardStyle}>
+                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Token policy' : 'Política de tokens'}</div>
+                      <div style={{ ...heroMetaValueStyle, fontSize: 20 }}>{locale === 'en' ? 'Manual refresh' : 'Refresh manual'}</div>
+                      <div style={heroMetaSubtleStyle}>
+                        {locale === 'en' ? 'Changing this scope does not regenerate coaching until you refresh.' : 'Cambiar este alcance no regenera coaching hasta que vos actualices.'}
+                      </div>
+                    </div>
+                    <div style={scopeMetaCardStyle}>
+                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Current queue read' : 'Lectura de colas'}</div>
+                      <div style={{ ...heroMetaValueStyle, fontSize: 20 }}>{formatQueueSummary(dataset, locale)}</div>
+                      <div style={heroMetaSubtleStyle}>{locale === 'en' ? 'Saved ranked context' : 'Contexto ranked guardado'}</div>
+                    </div>
+                  </div>
+                  {coachScopeDirty ? (
+                    <div style={scopeStatusStyle}>
+                      {locale === 'en'
+                        ? `The coaching scope changed to ${coachScopeLabel}. Refresh the coaching block when you want this role selection to become the new main read.`
+                        : `El alcance del coaching cambió a ${coachScopeLabel}. Actualizá el bloque cuando quieras que esta selección de roles pase a ser la lectura principal.`}
+                    </div>
+                  ) : null}
+                </div>
+              </Card>
+            </div>
+          )}
 
           <Card
             title={showAccountControls ? (locale === 'en' ? 'Load Riot account' : 'Cargar cuenta de Riot') : (locale === 'en' ? 'Active account' : 'Cuenta activa')}
@@ -624,7 +789,7 @@ export default function App() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <Badge tone="default">{locale === 'en' ? `${matchCount} match target` : `Objetivo de ${matchCount} partidas`}</Badge>
-                    <Badge tone="default">{locale === 'en' ? `Current read: ${translateRole(roleFilter, 'en')}` : `Lectura actual: ${getRoleLabel(roleFilter)}`}</Badge>
+                    <Badge tone="low">{locale === 'en' ? 'Coaching scope is chosen after loading the account' : 'El alcance del coaching se elige después de cargar la cuenta'}</Badge>
                   </div>
                   <button type="submit" style={buttonStyle}>{loading ? (locale === 'en' ? 'Analyzing...' : 'Analizando...') : (locale === 'en' ? 'Build first analysis' : 'Construir primer análisis')}</button>
                 </div>
@@ -674,9 +839,9 @@ export default function App() {
                     </select>
                   </div>
                   <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={fieldLabelStyle}>{locale === 'en' ? 'Current context' : 'Contexto actual'}</div>
+                    <div style={fieldLabelStyle}>{locale === 'en' ? 'Coaching scope' : 'Alcance del coaching'}</div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <Badge tone="default">{locale === 'en' ? `${translateRole(roleFilter, 'en')}` : `${getRoleLabel(roleFilter)}`}</Badge>
+                      <Badge tone="default">{coachScopeLabel}</Badge>
                       {dataset?.remakesExcluded ? <Badge tone="medium">{locale === 'en' ? `${dataset.remakesExcluded} remakes excluded` : `${dataset.remakesExcluded} remakes excluidos`}</Badge> : null}
                       {needsSampleBackfill ? <Badge tone="medium">{locale === 'en' ? 'Needs backfill' : 'Le falta backfill'}</Badge> : <Badge tone="low">{locale === 'en' ? 'Only new matches' : 'Solo nuevas partidas'}</Badge>}
                     </div>
@@ -846,6 +1011,7 @@ export default function App() {
                 {activeTab === 'coach' ? (
                   <>
                     <Badge>{locale === 'en' ? `${dataset?.summary.matches ?? 0} matches in the saved coaching block` : `${dataset?.summary.matches ?? 0} partidas en el bloque guardado de coaching`}</Badge>
+                    <Badge>{coachScopeLabel}</Badge>
                     <Badge tone="low">{locale === 'en' ? 'Filters do not spend AI here' : 'Acá los filtros no gastan IA'}</Badge>
                   </>
                 ) : (
@@ -1169,7 +1335,7 @@ function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonNullable
   const emblem = getRankEmblemDataUrl(rank.highest.tier);
   const palette = getRankPalette(rank.highest.tier);
   const lpProgress = Math.max(0, Math.min(rank.highest.leaguePoints, 100));
-  const title = `Solo/Duo: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR`;
+  const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR`;
 
   return (
     <div title={title} style={{
@@ -1182,9 +1348,15 @@ function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonNullable
       border: `1px solid ${palette.primary}33`
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <img src={emblem} alt={rank.highest.label} width={compact ? 28 : 36} height={compact ? 28 : 36} style={{ display: 'block' }} />
+        <img
+          src={emblem}
+          alt={rank.highest.label}
+          width={compact ? 52 : 68}
+          height={compact ? 52 : 68}
+          style={{ display: 'block', objectFit: 'contain', filter: `drop-shadow(0 10px 24px ${palette.primary}22)` }}
+        />
         <div style={{ display: 'grid', gap: 2 }}>
-          <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{rank.highest.queueLabel ?? 'Ranked'}</div>
+          <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{rank.highest.queueLabel ?? (locale === 'en' ? 'Ranked' : 'Ranked')}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontSize: compact ? 13 : 15, fontWeight: 800, color: '#edf2ff' }}>{rank.highest.label}</span>
             <span style={{ color: palette.glow, fontSize: 12, fontWeight: 700 }}>{`${rank.highest.leaguePoints} LP`}</span>
@@ -1293,6 +1465,22 @@ const heroMetaValueStyle: CSSProperties = {
 const heroMetaSubtleStyle: CSSProperties = {
   color: '#8d98ad',
   fontSize: 12
+};
+
+const scopeMetaCardStyle: CSSProperties = {
+  ...heroMetaChipStyle,
+  gap: 6,
+  minHeight: 92,
+  alignContent: 'start'
+};
+
+const scopeStatusStyle: CSSProperties = {
+  padding: '12px 14px',
+  borderRadius: 16,
+  border: '1px solid rgba(216,253,241,0.12)',
+  background: 'rgba(14, 35, 29, 0.6)',
+  color: '#d9f8eb',
+  lineHeight: 1.6
 };
 
 const footerStyle: CSSProperties = {

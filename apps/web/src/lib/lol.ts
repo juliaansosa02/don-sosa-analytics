@@ -39,6 +39,19 @@ const rankTierPalette: Record<string, { primary: string; secondary: string; glow
   CHALLENGER: { primary: '#8cecff', secondary: '#102b34', glow: '#c2f7ff' }
 };
 
+const rankEmblemUrlMap: Record<string, string> = {
+  IRON: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-iron.png',
+  BRONZE: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-bronze.png',
+  SILVER: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-silver.png',
+  GOLD: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-gold.png',
+  PLATINUM: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-platinum.png',
+  EMERALD: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-emerald.png',
+  DIAMOND: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-diamond.png',
+  MASTER: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-master.png',
+  GRANDMASTER: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-grandmaster.png',
+  CHALLENGER: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-challenger.png'
+};
+
 export function normalizeChampionKey(championName: string) {
   return championKeyMap[championName] ?? championName.replace(/[\s'.]/g, '');
 }
@@ -85,8 +98,11 @@ export function getRankPalette(tier?: string) {
 }
 
 export function getRankEmblemDataUrl(tier?: string) {
-  const palette = getRankPalette(tier);
   const tierKey = tier ?? 'UNRANKED';
+  const emblemUrl = rankEmblemUrlMap[tierKey];
+  if (emblemUrl) return emblemUrl;
+
+  const palette = getRankPalette(tier);
   const safeTier = tierKey.slice(0, 2).toUpperCase();
   const coreShapeMap: Record<string, string> = {
     IRON: 'M36 20L48 28V44L36 52L24 44V28L36 20Z',

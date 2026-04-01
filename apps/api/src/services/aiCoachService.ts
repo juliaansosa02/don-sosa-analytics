@@ -148,10 +148,37 @@ function getQueueBucket(queueId: number) {
   return 'OTHER';
 }
 
+function normalizeCoachRoles(input: AICoachRequest) {
+  const explicitRoles = Array.from(new Set((input.coachRoles ?? [])
+    .map((role) => role.trim().toUpperCase())
+    .filter((role) => role && role !== 'ALL' && role !== 'NONE'))).sort();
+
+  if (explicitRoles.length) return explicitRoles.slice(0, 2);
+
+  const singleRole = input.roleFilter.trim().toUpperCase();
+  if (singleRole && singleRole !== 'ALL' && singleRole !== 'NONE') {
+    return [singleRole];
+  }
+
+  return [];
+}
+
+function buildRoleScopeLabel(roles: string[], locale: 'es' | 'en') {
+  if (!roles.length) {
+    return locale === 'en' ? 'all roles' : 'todos los roles';
+  }
+
+  const labels = roles.map((role) => getRoleLabel(role, locale));
+  return labels.join(locale === 'en' ? ' + ' : ' + ');
+}
+
 function filterMatches(dataset: StoredDataset, input: AICoachRequest) {
   let matches = [...dataset.matches];
+  const coachRoles = normalizeCoachRoles(input);
 
-  if (input.roleFilter !== 'ALL') {
+  if (coachRoles.length) {
+    matches = matches.filter((match) => coachRoles.includes((match.role || 'NONE').toUpperCase()));
+  } else if (input.roleFilter !== 'ALL') {
     matches = matches.filter((match) => (match.role || 'NONE') === input.roleFilter);
   }
 
@@ -198,6 +225,8 @@ function buildMatchupAlert(matches: StoredDataset['matches']) {
 
 async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest): Promise<AICoachContext> {
   const matches = filterMatches(dataset, input);
+  const coachRoles = normalizeCoachRoles(input);
+  const roleScopeLabel = buildRoleScopeLabel(coachRoles, input.locale);
   const summary = buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, matches, input.locale);
   const anchorChampion = summary.championPool[0]?.championName ?? null;
   const matchupAlert = buildMatchupAlert(matches);
@@ -206,6 +235,7 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
   const sampleSignature = createHash('sha1')
     .update(JSON.stringify({
       roleFilter: input.roleFilter,
+      coachRoles,
       queueFilter: input.queueFilter,
       windowFilter: input.windowFilter,
       matchIds: matches.map((match) => match.matchId)
@@ -218,6 +248,8 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       tagLine: dataset.tagLine,
       locale: input.locale,
       roleFilter: input.roleFilter,
+      coachRoles,
+      roleScopeLabel,
       queueFilter: input.queueFilter,
       windowFilter: input.windowFilter,
       visibleMatches: summary.matches,
@@ -371,7 +403,7 @@ function buildPersonalizedMainLeak(context: AICoachContext, coach: AICoachOutput
     : locale === 'en'
       ? 'your current pick'
       : 'tu pick actual';
-  const roleText = getRoleLabel(context.player.roleFilter, locale);
+  const roleText = context.player.roleScopeLabel || getRoleLabel(context.player.roleFilter, locale);
 
   if (!topProblem) return coach.mainLeak;
 
