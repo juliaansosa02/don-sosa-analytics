@@ -5,7 +5,7 @@ import { createParticipantSnapshot } from '../analysis/participantFactory.js';
 import { buildRuneIndex, getLatestDDragonVersion } from './dataDragon.js';
 import { buildBenchmarkCatalog, updateBenchmarkStore } from './benchmarkStore.js';
 import { exportSnapshot } from './exporter.js';
-import { saveProfileSnapshot } from './profileStore.js';
+import { loadProfileSnapshot, saveProfileSnapshot } from './profileStore.js';
 import { riotClient } from './riotClient.js';
 
 export interface CollectionParams {
@@ -17,6 +17,8 @@ export interface CollectionParams {
   outputDir?: string;
   onProgress?: (progress: { stage: string; current: number; total: number; message: string }) => void;
 }
+
+type StoredCollectionDataset = Awaited<ReturnType<typeof collectPlayerSnapshot>>;
 
 function queueLabel(queueType?: string) {
   if (queueType === 'RANKED_SOLO_5x5') return 'Solo/Duo';
@@ -82,6 +84,7 @@ export async function collectPlayerSnapshot({
   onProgress
 }: CollectionParams) {
   onProgress?.({ stage: 'setup', current: 0, total: 1, message: locale === 'en' ? 'Preparing analysis' : 'Preparando análisis' });
+  const existingDataset = await loadProfileSnapshot<StoredCollectionDataset>(gameName, tagLine);
   const [runeIndex, ddragonVersion] = await Promise.all([
     buildRuneIndex(),
     getLatestDDragonVersion()
@@ -90,7 +93,11 @@ export async function collectPlayerSnapshot({
   const summoner = await riotClient.getSummonerByPuuid(account.puuid);
   const leagueEntries = await riotClient.getLeagueEntriesByPuuid(account.puuid);
   const rank = mapRankBundle(leagueEntries);
-  const knownIds = new Set(knownMatchIds);
+  const mergedKnownMatchIds = Array.from(new Set([
+    ...knownMatchIds,
+    ...(existingDataset?.matches.map((match) => match.matchId) ?? [])
+  ]));
+  const knownIds = new Set(mergedKnownMatchIds);
   const matchIds: string[] = [];
 
   if (knownIds.size) {
@@ -135,8 +142,18 @@ export async function collectPlayerSnapshot({
     snapshots.push(createParticipantSnapshot(match, timeline, participant, runeIndex));
   }
 
-  const eligibleSnapshots = snapshots.filter((snapshot) => !snapshot.isRemake);
-  const remakesExcluded = snapshots.length - eligibleSnapshots.length;
+  const mergedSnapshotsMap = new Map<string, ParticipantSnapshot>();
+  for (const snapshot of existingDataset?.matches ?? []) {
+    mergedSnapshotsMap.set(snapshot.matchId, snapshot);
+  }
+  for (const snapshot of snapshots) {
+    mergedSnapshotsMap.set(snapshot.matchId, snapshot);
+  }
+
+  const mergedSnapshots = Array.from(mergedSnapshotsMap.values()).sort((a, b) => b.gameCreation - a.gameCreation);
+  const cappedSnapshots = mergedSnapshots.slice(0, Math.max(count, existingDataset?.matches.length ?? 0));
+  const eligibleSnapshots = cappedSnapshots.filter((snapshot) => !snapshot.isRemake);
+  const remakesExcluded = cappedSnapshots.length - eligibleSnapshots.length;
   onProgress?.({ stage: 'processing', current: eligibleSnapshots.length, total: eligibleSnapshots.length || 1, message: locale === 'en' ? 'Processing insights and building summary' : 'Procesando insights y resumiendo datos' });
   await updateBenchmarkStore(eligibleSnapshots, rank);
   const benchmarks = await buildBenchmarkCatalog(rank, Array.from(new Set(eligibleSnapshots.map((snapshot) => snapshot.championName))));

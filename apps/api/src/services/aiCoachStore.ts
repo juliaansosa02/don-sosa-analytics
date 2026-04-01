@@ -127,3 +127,45 @@ export async function loadAICoachingGeneration(id: string) {
   );
   return result.rows[0] ?? null;
 }
+
+export async function loadLatestAICoachingGenerationForRequest(input: {
+  gameName: string;
+  tagLine: string;
+  locale: string;
+  roleFilter: string;
+  queueFilter: string;
+  windowFilter: string;
+}) {
+  const profileKey = normalizeProfileKey(input.gameName, input.tagLine);
+
+  if (!pool) {
+    return null;
+  }
+
+  await ensureTables();
+  const result = await pool.query<{
+    id: string;
+    provider: 'draft' | 'openai';
+    model: string | null;
+    context_payload: AICoachContext;
+    retrieval_payload: {
+      localKnowledgeCount: number;
+      localKnowledgeIds: string[];
+      usedVectorStore: boolean;
+    };
+    response_payload: AICoachOutput;
+  }>(
+    `SELECT id, provider, model, context_payload, retrieval_payload, response_payload
+     FROM ai_coaching_generations
+     WHERE profile_key = $1
+       AND locale = $2
+       AND role_filter = $3
+       AND queue_filter = $4
+       AND window_filter = $5
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [profileKey, input.locale, input.roleFilter, input.queueFilter, input.windowFilter]
+  );
+
+  return result.rows[0] ?? null;
+}

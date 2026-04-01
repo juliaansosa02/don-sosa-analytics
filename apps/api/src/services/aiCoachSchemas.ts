@@ -159,5 +159,11 @@ export interface AICoachContext {
     levelDiffAt15: number;
     score: number;
   }>;
+  sample: {
+    visibleMatchIds: string[];
+    sampleSignature: string;
+    latestMatchId: string | null;
+    latestGameCreation: number | null;
+  };
   patchContext: AICoachPatchContext;
 }

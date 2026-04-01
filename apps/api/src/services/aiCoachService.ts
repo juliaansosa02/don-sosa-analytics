@@ -1,12 +1,13 @@
 import OpenAI from 'openai';
 import { zodTextFormat } from 'openai/helpers/zod';
 import { buildAggregateSummary } from '@don-sosa/core';
+import { createHash } from 'node:crypto';
 import { env } from '../config/env.js';
 import { loadProfileSnapshot } from './profileStore.js';
 import { retrieveKnowledgeCards } from './knowledgeBase.js';
 import { getPatchContextForCoach } from './patchNotes.js';
 import { aiCoachOutputSchema, type AICoachContext, type AICoachOutput, type AICoachRequest } from './aiCoachSchemas.js';
-import { saveAICoachingGeneration } from './aiCoachStore.js';
+import { loadLatestAICoachingGenerationForRequest, saveAICoachingGeneration } from './aiCoachStore.js';
 import type { collectPlayerSnapshot } from './collectionService.js';
 
 type StoredDataset = Awaited<ReturnType<typeof collectPlayerSnapshot>>;
@@ -72,6 +73,16 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
   const anchorChampion = summary.championPool[0]?.championName ?? null;
   const matchupAlert = buildMatchupAlert(matches);
 
+  const visibleMatchIds = matches.map((match) => match.matchId).slice(0, 20);
+  const sampleSignature = createHash('sha1')
+    .update(JSON.stringify({
+      roleFilter: input.roleFilter,
+      queueFilter: input.queueFilter,
+      windowFilter: input.windowFilter,
+      matchIds: matches.map((match) => match.matchId)
+    }))
+    .digest('hex');
+
   const baseContext: Omit<AICoachContext, 'patchContext'> = {
     player: {
       gameName: dataset.player,
@@ -132,7 +143,13 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       goldDiffAt15: match.timeline.goldDiffAt15,
       levelDiffAt15: match.timeline.levelDiffAt15,
       score: match.score.total
-    }))
+    })),
+    sample: {
+      visibleMatchIds,
+      sampleSignature,
+      latestMatchId: matches[0]?.matchId ?? null,
+      latestGameCreation: matches[0]?.gameCreation ?? null
+    }
   };
 
   const patchContext = await getPatchContextForCoach(baseContext);
@@ -304,24 +321,51 @@ Rules:
 - If the evidence is weak, say so and lower confidence.
 - Return only structured JSON that matches the schema.`;
 
-function buildUserPrompt(context: AICoachContext, localCards: Array<{ card: { id: string; title: string; body: string; actionables: string[] } }>) {
+function buildUserPrompt(
+  context: AICoachContext,
+  localCards: Array<{ card: { id: string; title: string; body: string; actionables: string[] } }>,
+  previousCoaching?: {
+    coach: AICoachOutput;
+    previousVisibleMatchIds: string[];
+  } | null
+) {
+  const newMatchIds = previousCoaching
+    ? context.sample.visibleMatchIds.filter((matchId) => !previousCoaching.previousVisibleMatchIds.includes(matchId))
+    : [];
+
   return JSON.stringify({
     context,
     localKnowledge: localCards.map((entry) => entry.card),
+    previousCoaching: previousCoaching
+      ? {
+          summary: previousCoaching.coach.summary,
+          mainLeak: previousCoaching.coach.mainLeak,
+          whatToReview: previousCoaching.coach.whatToReview,
+          whatToDoNext3Games: previousCoaching.coach.whatToDoNext3Games,
+          newVisibleMatchIds: newMatchIds
+        }
+      : null,
     instruction: context.player.locale === 'en'
-      ? 'Use the diagnosis and the retrieved coaching knowledge to produce the next coaching block. Write only in English, make the main leak concrete and personalized, and avoid generic labels.'
-      : 'Usá el diagnóstico y el conocimiento recuperado para producir el siguiente bloque de coaching. Escribí solo en español, hacé que el problema principal sea concreto y personalizado, y evitá etiquetas genéricas.'
+      ? 'Use the diagnosis and the retrieved coaching knowledge to produce the next coaching block. Write only in English, make the main leak concrete and personalized, avoid generic labels, and if previous coaching exists, update the guidance with continuity instead of restarting from zero.'
+      : 'Usá el diagnóstico y el conocimiento recuperado para producir el siguiente bloque de coaching. Escribí solo en español, hacé que el problema principal sea concreto y personalizado, evitá etiquetas genéricas y, si existe coaching previo, actualizá la guía con continuidad en vez de reiniciarla desde cero.'
   });
 }
 
-async function generateWithOpenAI(context: AICoachContext, localCards: Awaited<ReturnType<typeof retrieveKnowledgeCards>>) {
+async function generateWithOpenAI(
+  context: AICoachContext,
+  localCards: Awaited<ReturnType<typeof retrieveKnowledgeCards>>,
+  previousCoaching?: {
+    coach: AICoachOutput;
+    previousVisibleMatchIds: string[];
+  } | null
+) {
   if (!openai) return null;
 
   const response = await openai.responses.parse({
     model: env.OPENAI_MODEL,
     input: [
       { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user', content: buildUserPrompt(context, localCards) }
+      { role: 'user', content: buildUserPrompt(context, localCards, previousCoaching) }
     ],
     ...(env.OPENAI_VECTOR_STORE_ID ? {
       tools: [{
@@ -359,6 +403,26 @@ export async function generateAICoach(input: AICoachRequest) {
   }
 
   const context = await buildCoachContext(dataset, input);
+  const previousGeneration = await loadLatestAICoachingGenerationForRequest({
+    gameName: input.gameName,
+    tagLine: input.tagLine,
+    locale: input.locale,
+    roleFilter: input.roleFilter,
+    queueFilter: input.queueFilter,
+    windowFilter: input.windowFilter
+  });
+
+  if (previousGeneration?.context_payload?.sample?.sampleSignature === context.sample.sampleSignature) {
+    return {
+      generationId: previousGeneration.id,
+      provider: previousGeneration.provider,
+      model: previousGeneration.model,
+      context: previousGeneration.context_payload,
+      retrieval: previousGeneration.retrieval_payload,
+      coach: previousGeneration.response_payload
+    };
+  }
+
   const localKnowledge = await retrieveKnowledgeCards(context, 6);
 
   if (!context.player.visibleMatches) {
@@ -369,10 +433,16 @@ export async function generateAICoach(input: AICoachRequest) {
 
   let provider: 'draft' | 'openai' = 'draft';
   let coach = normalizeCoachOutput(context, buildDraftCoach(context, localKnowledge));
+  const previousCoaching = previousGeneration
+    ? {
+        coach: previousGeneration.response_payload,
+        previousVisibleMatchIds: previousGeneration.context_payload?.sample?.visibleMatchIds ?? []
+      }
+    : null;
 
   if (input.providerMode !== 'draft' && openai) {
     try {
-      const modelOutput = await generateWithOpenAI(context, localKnowledge);
+      const modelOutput = await generateWithOpenAI(context, localKnowledge, previousCoaching);
       if (modelOutput) {
         provider = 'openai';
         coach = normalizeCoachOutput(context, modelOutput);
