@@ -107,6 +107,12 @@ function buildDefaultCoachRoles(dataset) {
     }
     return [primary[0], secondary[0]];
 }
+function filterMatchesByRoles(dataset, roles) {
+    if (!roles.length)
+        return dataset.matches;
+    const normalizedRoles = roles.map((role) => role.trim().toUpperCase()).filter(Boolean);
+    return dataset.matches.filter((match) => normalizedRoles.includes((match.role || 'NONE').toUpperCase()));
+}
 function buildTargetOptions(currentMatches) {
     if (!currentMatches)
         return initialMatchOptions;
@@ -262,7 +268,7 @@ export default function App() {
         catch {
             window.localStorage.removeItem('don-sosa:last-profile');
         }
-    }, [locale, matchCount]);
+    }, [locale]);
     const availableRoles = useMemo(() => {
         if (!dataset)
             return ['ALL'];
@@ -273,6 +279,14 @@ export default function App() {
     const coachRoleOptions = useMemo(() => availableRoles.filter((role) => role !== 'ALL' && role !== 'NONE'), [availableRoles]);
     const coachScopeKey = useMemo(() => serializeCoachRoles(coachRoles), [coachRoles]);
     const coachScopeLabel = useMemo(() => formatCoachScopeLabel(coachRoles, locale), [coachRoles, locale]);
+    const coachScopeSummary = useMemo(() => {
+        if (!dataset)
+            return null;
+        const scopedMatches = filterMatchesByRoles(dataset, coachRoles);
+        if (!scopedMatches.length)
+            return dataset.summary;
+        return buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, scopedMatches, locale);
+    }, [dataset, coachRoles, locale]);
     const availableQueueFilters = useMemo(() => {
         if (!dataset)
             return ['ALL'];
@@ -377,6 +391,12 @@ export default function App() {
     const quickRefreshActions = useMemo(() => buildQuickRefreshActions(dataset?.matches.length ?? null), [dataset?.matches.length]);
     const profileIconUrl = useMemo(() => getProfileIconUrl(dataset?.profile?.profileIconId, dataset?.ddragonVersion), [dataset?.profile?.profileIconId, dataset?.ddragonVersion]);
     const currentPlatformInfo = useMemo(() => getRiotPlatformInfo(dataset?.summary.platform ?? platform), [dataset?.summary.platform, platform]);
+    const searchPreviewLabel = useMemo(() => {
+        const trimmedGameName = gameName.trim() || (locale === 'en' ? 'GameName' : 'Nombre');
+        const trimmedTag = tagLine.trim() || (locale === 'en' ? 'TAG' : 'TAG');
+        const info = getRiotPlatformInfo(platform);
+        return `${trimmedGameName}#${trimmedTag}${info ? ` · ${info.platform}` : ''}`;
+    }, [gameName, tagLine, platform, locale]);
     useEffect(() => {
         if (!dataset || !gameName || !tagLine || !platform) {
             setCoachRoles([]);
@@ -596,7 +616,9 @@ export default function App() {
                                             ? (locale === 'en' ? 'Analyzing a large sample. This can take several minutes because of Riot rate limits.' : 'Analizando una muestra grande. Esto puede tardar varios minutos por los límites de Riot.')
                                             : (locale === 'en' ? 'Analyzing matches. This can take anywhere from a few seconds to about a minute.' : 'Analizando partidas. Esto puede tardar entre unos segundos y alrededor de un minuto.')) })) : null, loading && progress ? (_jsxs("div", { style: { display: 'grid', gap: 8, maxWidth: 460 }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', color: '#9eb0c7', fontSize: 12 }, children: [_jsx("span", { children: progress.stage }), _jsx("span", { children: `${Math.min(progress.current, progress.total)} / ${progress.total}` })] }), _jsx("div", { style: { height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }, children: _jsx("div", { style: { width: `${Math.max(8, (progress.current / Math.max(progress.total, 1)) * 100)}%`, height: '100%', background: '#67d6a4' } }) })] })) : null] }) })) : (_jsxs("div", { style: { display: 'grid', gap: 16 }, children: [_jsx("div", { style: heroIntroPanelStyle, children: _jsxs("div", { style: { display: 'grid', gap: 16 }, children: [_jsxs("div", { style: { display: 'grid', gap: 10 }, children: [_jsx("div", { style: { color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }, children: locale === 'en' ? 'Current profile' : 'Perfil actual' }), _jsxs("div", { style: { display: 'grid', gridTemplateColumns: profileIconUrl ? '88px minmax(0, 1fr)' : '1fr', gap: 16, alignItems: 'center' }, children: [profileIconUrl ? (_jsx("img", { src: profileIconUrl, alt: dataset.player, width: 88, height: 88, style: { ...profileIconStyle, width: 88, height: 88, objectFit: 'cover', boxShadow: '0 16px 32px rgba(0,0,0,0.22)' } })) : null, _jsxs("div", { style: { display: 'grid', gap: 6, minWidth: 0 }, children: [_jsxs("h1", { style: { margin: 0, fontSize: 38, letterSpacing: '-0.05em', lineHeight: 1.05 }, children: [dataset.player, _jsxs("span", { style: { color: '#8894ab' }, children: ["#", dataset.tagLine] })] }), dataset.profile ? (_jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }, children: [_jsx(Badge, { children: locale === 'en' ? `Level ${dataset.profile.summonerLevel}` : `Nivel ${dataset.profile.summonerLevel}` }), currentPlatformInfo ? _jsx(Badge, { tone: "default", children: `${currentPlatformInfo.platform} · ${currentPlatformInfo.shortLabel}` }) : null] })) : null, _jsx("p", { style: { margin: 0, color: '#96a1b4', maxWidth: 760, lineHeight: 1.65 }, children: locale === 'en'
                                                                             ? 'The coaching block uses this saved sample as its base. You can explore the rest of the product without spending tokens again on every visual filter change.'
-                                                                            : 'El bloque de coaching usa esta muestra guardada como base. Podés explorar el resto del producto sin volver a gastar tokens por cada cambio visual de filtros.' })] })] })] }), _jsxs("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: 'minmax(220px, .92fr) repeat(2, minmax(0, 1fr))', gap: 12 }, children: [dataset.rank ? _jsx(RankBadge, { rank: dataset.rank, compact: true, locale: locale }) : null, _jsxs("div", { style: heroMetaChipStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Block' : 'Bloque' }), _jsx("div", { style: heroMetaValueStyle, children: dataset.summary.matches }), _jsx("div", { style: heroMetaSubtleStyle, children: locale === 'en' ? 'valid matches saved' : 'partidas válidas guardadas' })] }), _jsxs("div", { style: heroMetaChipStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Win rate' : 'WR' }), _jsxs("div", { style: heroMetaValueStyle, children: [dataset.summary.winRate, "%"] }), _jsx("div", { style: heroMetaSubtleStyle, children: `${dataset.summary.wins}-${dataset.summary.losses}` })] })] })] }) }), _jsx(Card, { title: locale === 'en' ? 'Coaching scope' : 'Alcance del coaching', subtitle: locale === 'en'
+                                                                            : 'El bloque de coaching usa esta muestra guardada como base. Podés explorar el resto del producto sin volver a gastar tokens por cada cambio visual de filtros.' })] })] })] }), _jsxs("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: 'minmax(220px, .92fr) repeat(3, minmax(0, 1fr))', gap: 12 }, children: [dataset.rank ? _jsx(RankBadge, { rank: dataset.rank, compact: true, locale: locale }) : null, _jsxs("div", { style: heroMetaChipStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Scope sample' : 'Muestra del scope' }), _jsx("div", { style: heroMetaValueStyle, children: coachScopeSummary?.matches ?? dataset.summary.matches }), _jsx("div", { style: heroMetaSubtleStyle, children: coachRoles.length ? coachScopeLabel : (locale === 'en' ? 'all saved roles' : 'todos los roles guardados') })] }), _jsxs("div", { style: heroMetaChipStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Win rate' : 'WR' }), _jsxs("div", { style: heroMetaValueStyle, children: [coachScopeSummary?.winRate ?? dataset.summary.winRate, "%"] }), _jsx("div", { style: heroMetaSubtleStyle, children: `${coachScopeSummary?.wins ?? dataset.summary.wins}-${coachScopeSummary?.losses ?? dataset.summary.losses}` })] }), _jsxs("div", { style: heroMetaChipStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Performance' : 'Rendimiento' }), _jsx("div", { style: heroMetaValueStyle, children: coachScopeSummary?.avgPerformanceScore ?? dataset.summary.avgPerformanceScore }), _jsx("div", { style: heroMetaSubtleStyle, children: locale === 'en'
+                                                                    ? `CS@15 ${coachScopeSummary?.avgCsAt15 ?? dataset.summary.avgCsAt15}`
+                                                                    : `CS@15 ${coachScopeSummary?.avgCsAt15 ?? dataset.summary.avgCsAt15}` })] })] })] }) }), _jsx(Card, { title: locale === 'en' ? 'Coaching scope' : 'Alcance del coaching', subtitle: locale === 'en'
                                         ? 'Choose the one or two roles you truly want to improve. The AI block is generated only from this scope.'
                                         : 'Elegí el o los dos roles que de verdad querés mejorar. El bloque de IA se genera solo sobre este alcance.', children: _jsxs("div", { style: { display: 'grid', gap: 14 }, children: [_jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: coachRoleOptions.map((role) => {
                                                     const selected = coachRoles.includes(role);
@@ -613,20 +635,22 @@ export default function App() {
                                                     ? `The coaching scope changed to ${coachScopeLabel}. Refresh the coaching block when you want this role selection to become the new main read.`
                                                     : `El alcance del coaching cambió a ${coachScopeLabel}. Actualizá el bloque cuando quieras que esta selección de roles pase a ser la lectura principal.` })) : null] }) })] })), _jsx(Card, { title: showAccountControls ? (locale === 'en' ? 'Load Riot account' : 'Cargar cuenta de Riot') : (locale === 'en' ? 'Active account' : 'Cuenta activa'), subtitle: showAccountControls
                                 ? (locale === 'en' ? 'Enter the Riot ID you want to analyze and choose the depth of the first sample.' : 'Ingresá el Riot ID que querés analizar y elegí la profundidad de la primera muestra.')
-                                : (locale === 'en' ? 'Your account is ready. Refresh only what is missing or switch profiles whenever you want.' : 'Tu cuenta ya está lista. Refrescá solo lo que falta o cambiá de perfil cuando quieras.'), children: showAccountControls || !dataset ? (_jsxs("form", { onSubmit: handleSubmit, style: { display: 'grid', gap: 16 }, children: [_jsxs("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: '1.15fr .85fr .7fr', gap: 12, alignItems: 'end' }, children: [_jsxs("label", { style: fieldBlockStyle, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Game name' : 'Nombre en juego' }), _jsx("input", { value: gameName, onChange: (e) => setGameName(e.target.value), placeholder: locale === 'en' ? 'For example, Faker' : 'Por ejemplo, Don Sosa', style: inputStyle })] }), _jsxs("label", { style: fieldBlockStyle, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Tag' : 'Tag' }), _jsxs("div", { style: tagInputShellStyle, children: [_jsx("span", { style: tagPrefixStyle, children: "#" }), _jsx("input", { value: tagLine, onChange: (e) => setTagLine(normalizeTagLineInput(e.target.value)), placeholder: locale === 'en' ? 'KR1' : 'LAS', style: tagInputStyle })] })] }), _jsxs("label", { style: fieldBlockStyle, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'First sample' : 'Primera muestra' }), _jsx("select", { value: matchCount, onChange: (e) => setMatchCount(Number(e.target.value)), style: selectStyle, children: initialMatchOptions.map((count) => (_jsxs("option", { value: count, children: [count, " ", locale === 'en' ? 'matches' : 'partidas'] }, count))) })] })] }), _jsxs("div", { className: "two-col-grid", style: { display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 12 }, children: [_jsxs("label", { style: fieldBlockStyle, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Riot platform' : 'Platform de Riot' }), _jsx("select", { value: platform, onChange: (e) => setPlatform(e.target.value), style: selectStyle, children: supportedRiotPlatforms.map((platformCode) => {
-                                                            const info = getRiotPlatformInfo(platformCode);
-                                                            return (_jsx("option", { value: platformCode, children: info ? `${info.platform} · ${info.label}` : platformCode }, platformCode));
-                                                        }) })] }), _jsxs("div", { style: softPanelStyle, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Routing context' : 'Contexto de routing' }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }, children: currentPlatformInfo
-                                                            ? (locale === 'en'
-                                                                ? `${currentPlatformInfo.label} uses Riot regional route ${currentPlatformInfo.regionalRoute}. UI language stays independent from this selection.`
-                                                                : `${currentPlatformInfo.label} usa el regional route ${currentPlatformInfo.regionalRoute} de Riot. El idioma de la UI sigue separado de esta elección.`)
-                                                            : (locale === 'en'
-                                                                ? 'Choose the Riot platform where this account actually plays.'
-                                                                : 'Elegí la platform de Riot donde realmente juega esta cuenta.') })] })] }), _jsxs("div", { style: softPanelStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Recommended start' : 'Inicio recomendado' }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }, children: matchCount >= 100
+                                : (locale === 'en' ? 'Your account is ready. Refresh only what is missing or switch profiles whenever you want.' : 'Tu cuenta ya está lista. Refrescá solo lo que falta o cambiá de perfil cuando quieras.'), children: showAccountControls || !dataset ? (_jsxs("form", { onSubmit: handleSubmit, style: { display: 'grid', gap: 16 }, children: [_jsxs("div", { style: riotSearchShellStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Riot account lookup' : 'Búsqueda de cuenta Riot' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: searchPreviewLabel })] }), _jsxs("div", { className: "five-col-grid", style: riotSearchRowStyle, children: [_jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Game name' : 'Nombre en juego' }), _jsx("input", { value: gameName, onChange: (e) => setGameName(e.target.value), placeholder: locale === 'en' ? 'For example, Faker' : 'Por ejemplo, Don Sosa', style: riotSearchInputStyle })] }), _jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Tag' : 'Tag' }), _jsxs("div", { style: tagInputShellStyle, children: [_jsx("span", { style: tagPrefixStyle, children: "#" }), _jsx("input", { value: tagLine, onChange: (e) => setTagLine(normalizeTagLineInput(e.target.value)), placeholder: locale === 'en' ? 'KR1' : 'LAS', style: tagInputStyle })] })] }), _jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Platform' : 'Platform' }), _jsx("select", { value: platform, onChange: (e) => setPlatform(e.target.value), style: riotSearchInputStyle, children: supportedRiotPlatforms.map((platformCode) => {
+                                                                    const info = getRiotPlatformInfo(platformCode);
+                                                                    return (_jsx("option", { value: platformCode, children: info ? `${info.platform} · ${info.shortLabel}` : platformCode }, platformCode));
+                                                                }) })] }), _jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Sample' : 'Muestra' }), _jsx("select", { value: matchCount, onChange: (e) => setMatchCount(Number(e.target.value)), style: riotSearchInputStyle, children: initialMatchOptions.map((count) => (_jsxs("option", { value: count, children: [count, " ", locale === 'en' ? 'matches' : 'partidas'] }, count))) })] }), _jsx("button", { type: "submit", style: { ...buttonStyle, minHeight: 52 }, children: loading ? (locale === 'en' ? 'Analyzing...' : 'Analizando...') : (locale === 'en' ? 'Build first analysis' : 'Construir primer análisis') })] })] }), _jsx("div", { className: "two-col-grid", style: { display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 12 }, children: _jsxs("div", { style: softPanelStyle, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Routing context' : 'Contexto de routing' }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }, children: currentPlatformInfo
+                                                        ? (locale === 'en'
+                                                            ? `${currentPlatformInfo.label} uses Riot regional route ${currentPlatformInfo.regionalRoute}. UI language stays independent from this selection.`
+                                                            : `${currentPlatformInfo.label} usa el regional route ${currentPlatformInfo.regionalRoute} de Riot. El idioma de la UI sigue separado de esta elección.`)
+                                                        : (locale === 'en'
+                                                            ? 'Choose the Riot platform where this account actually plays.'
+                                                            : 'Elegí la platform de Riot donde realmente juega esta cuenta.') })] }) }), _jsxs("div", { style: softPanelStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Recommended start' : 'Inicio recomendado' }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }, children: matchCount >= 100
                                                             ? (locale === 'en' ? 'A 100-match baseline gives the sharpest first read, but it can take longer because of Riot rate limits.' : 'Una base de 100 partidas da la lectura inicial más filosa, pero puede tardar más por los límites de Riot.')
                                                             : (locale === 'en' ? 'Start with 20 or 50 if you want speed. Move to 100 when you want the most stable baseline.' : 'Empezá con 20 o 50 si querés velocidad. Pasá a 100 cuando quieras la base más estable.') })] }), !dataset && gameName && tagLine ? (_jsx("div", { style: { color: '#a5b2c6', fontSize: 13, lineHeight: 1.6 }, children: locale === 'en'
                                                     ? 'Once this account is loaded, it will stay saved here and future refreshes will only complete what is missing.'
-                                                    : 'Una vez que cargues esta cuenta, va a quedar guardada acá y los próximos refreshes solo completarán lo que falte.' })) : null] }), _jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: locale === 'en' ? `${matchCount} match target` : `Objetivo de ${matchCount} partidas` }), _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Coaching scope is chosen after loading the account' : 'El alcance del coaching se elige después de cargar la cuenta' })] }), _jsx("button", { type: "submit", style: buttonStyle, children: loading ? (locale === 'en' ? 'Analyzing...' : 'Analizando...') : (locale === 'en' ? 'Build first analysis' : 'Construir primer análisis') })] })] })) : (_jsxs("div", { style: { display: 'grid', gap: 14 }, children: [_jsxs("div", { style: softPanelStyle, children: [_jsx("div", { style: { color: '#e7eef8', lineHeight: 1.5, fontWeight: 700 }, children: gameName && tagLine ? `${gameName}#${tagLine}` : (locale === 'en' ? 'Account ready to analyze' : 'Cuenta lista para analizar') }), _jsx("div", { style: { color: '#8a95a8', fontSize: 13, lineHeight: 1.6 }, children: locale === 'en'
+                                                    : 'Una vez que cargues esta cuenta, va a quedar guardada acá y los próximos refreshes solo completarán lo que falte.' })) : null] }), _jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: locale === 'en' ? `${matchCount} match target` : `Objetivo de ${matchCount} partidas` }), _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Coaching scope is chosen after loading the account' : 'El alcance del coaching se elige después de cargar la cuenta' })] }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13 }, children: locale === 'en'
+                                                    ? 'You can search any supported Riot platform without changing the UI language.'
+                                                    : 'Podés buscar cualquier platform soportada de Riot sin cambiar el idioma de la UI.' })] })] })) : (_jsxs("div", { style: { display: 'grid', gap: 14 }, children: [_jsxs("div", { style: softPanelStyle, children: [_jsx("div", { style: { color: '#e7eef8', lineHeight: 1.5, fontWeight: 700 }, children: gameName && tagLine ? `${gameName}#${tagLine}` : (locale === 'en' ? 'Account ready to analyze' : 'Cuenta lista para analizar') }), _jsx("div", { style: { color: '#8a95a8', fontSize: 13, lineHeight: 1.6 }, children: locale === 'en'
                                                     ? `Saved sample: ${dataset.matches.length} matches. Choose whether you want to add a little, a lot or complete the block.`
                                                     : `Muestra guardada: ${dataset.matches.length} partidas. Elegí si querés sumar un poco, bastante o completar el bloque.` }), currentPlatformInfo ? (_jsx("div", { style: { color: '#748198', fontSize: 12 }, children: locale === 'en'
                                                     ? `Platform ${currentPlatformInfo.platform} · ${currentPlatformInfo.label}`
@@ -743,6 +767,30 @@ const profileIconStyle = {
     border: '1px solid rgba(255,255,255,0.08)'
 };
 const inputStyle = {
+    width: '100%',
+    padding: '13px 14px',
+    borderRadius: 14,
+    border: '1px solid rgba(255,255,255,0.08)',
+    background: 'rgba(7,11,18,0.92)',
+    color: '#edf2ff',
+    boxShadow: '0 0 0 1px rgba(255,255,255,0.02) inset'
+};
+const riotSearchShellStyle = {
+    display: 'grid',
+    gap: 14,
+    padding: '16px 18px',
+    borderRadius: 18,
+    background: 'linear-gradient(180deg, rgba(9,13,21,0.98), rgba(6,9,15,0.98))',
+    border: '1px solid rgba(255,255,255,0.08)',
+    boxShadow: '0 18px 40px rgba(0,0,0,0.16)'
+};
+const riotSearchRowStyle = {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(220px, 1.1fr) minmax(130px, .7fr) minmax(180px, .9fr) minmax(120px, .62fr) auto',
+    gap: 10,
+    alignItems: 'end'
+};
+const riotSearchInputStyle = {
     width: '100%',
     padding: '13px 14px',
     borderRadius: 14,
@@ -907,7 +955,8 @@ function TopStat({ label, value, hint }) {
 function RankBadge({ rank, compact = false, locale = 'es' }) {
     const palette = getRankPalette(rank.highest.tier);
     const lpProgress = Math.max(0, Math.min(rank.highest.leaguePoints, 100));
-    const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR`;
+    const showFlex = rank.flexQueue.tier !== 'UNRANKED';
+    const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR${showFlex ? `\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR` : ''}`;
     return (_jsxs("div", { title: title, style: {
             display: 'grid',
             gap: compact ? 8 : 10,
@@ -916,7 +965,7 @@ function RankBadge({ rank, compact = false, locale = 'es' }) {
             borderRadius: 16,
             background: compact ? 'rgba(9, 14, 22, 0.86)' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
             border: `1px solid ${palette.primary}33`
-        }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: `${compact ? 94 : 104}px minmax(0, 1fr)`, alignItems: 'center', gap: compact ? 4 : 10 }, children: [_jsx(RankEmblem, { tier: rank.highest.tier, label: rank.highest.label, size: compact ? 94 : 104 }), _jsxs("div", { style: { display: 'grid', gap: 3, minWidth: 0 }, children: [_jsx("div", { style: { color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: rank.highest.queueLabel ?? (locale === 'en' ? 'Ranked' : 'Ranked') }), _jsxs("div", { style: { display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }, children: [_jsx("span", { style: { fontSize: compact ? 17 : 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }, children: rank.highest.label }), _jsx("span", { style: { color: palette.glow, fontSize: 13, fontWeight: 800 }, children: `${rank.highest.leaguePoints} LP` })] })] })] }), _jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: { height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }, children: _jsx("div", { style: { width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` } }) }), !compact ? (_jsx("div", { style: { color: '#7e889b', fontSize: 11 }, children: locale === 'en' ? 'Hover to view Solo/Duo and Flex' : 'Hover para ver Solo/Duo y Flex' })) : null] })] }));
+        }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: `${compact ? 94 : 104}px minmax(0, 1fr)`, alignItems: 'center', gap: compact ? 4 : 10 }, children: [_jsx(RankEmblem, { tier: rank.highest.tier, label: rank.highest.label, size: compact ? 94 : 104 }), _jsxs("div", { style: { display: 'grid', gap: 3, minWidth: 0 }, children: [_jsx("div", { style: { color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: rank.highest.queueLabel ?? (locale === 'en' ? 'Ranked' : 'Ranked') }), _jsxs("div", { style: { display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }, children: [_jsx("span", { style: { fontSize: compact ? 17 : 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }, children: rank.highest.label }), _jsx("span", { style: { color: palette.glow, fontSize: 13, fontWeight: 800 }, children: `${rank.highest.leaguePoints} LP` })] }), _jsxs("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }, children: [_jsxs("span", { style: rankQueuePillStyle, children: [_jsx("strong", { children: locale === 'en' ? 'Solo' : 'Solo' }), " ", rank.soloQueue.label, " \u00B7 ", rank.soloQueue.leaguePoints, " LP"] }), showFlex ? (_jsxs("span", { style: rankQueuePillStyle, children: [_jsx("strong", { children: "Flex" }), " ", rank.flexQueue.label, " \u00B7 ", rank.flexQueue.leaguePoints, " LP"] })) : null] })] })] }), _jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: { height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }, children: _jsx("div", { style: { width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` } }) }), !compact ? (_jsx("div", { style: { color: '#7e889b', fontSize: 11 }, children: locale === 'en' ? 'Hover to view Solo/Duo and Flex' : 'Hover para ver Solo/Duo y Flex' })) : null] })] }));
 }
 function RankEmblem({ tier, label, size }) {
     const emblem = getRankEmblemDataUrl(tier);
@@ -998,6 +1047,18 @@ const heroMetaValueStyle = {
 const heroMetaSubtleStyle = {
     color: '#8d98ad',
     fontSize: 12
+};
+const rankQueuePillStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    padding: '5px 8px',
+    borderRadius: 999,
+    background: 'rgba(255,255,255,0.04)',
+    color: '#aeb8ca',
+    fontSize: 11,
+    lineHeight: 1.2,
+    border: '1px solid rgba(255,255,255,0.05)'
 };
 const scopeMetaCardStyle = {
     ...heroMetaChipStyle,

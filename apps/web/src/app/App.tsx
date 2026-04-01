@@ -145,6 +145,12 @@ function buildDefaultCoachRoles(dataset: Dataset) {
   return [primary[0], secondary[0]];
 }
 
+function filterMatchesByRoles(dataset: Dataset, roles: string[]) {
+  if (!roles.length) return dataset.matches;
+  const normalizedRoles = roles.map((role) => role.trim().toUpperCase()).filter(Boolean);
+  return dataset.matches.filter((match) => normalizedRoles.includes((match.role || 'NONE').toUpperCase()));
+}
+
 function buildTargetOptions(currentMatches: number | null) {
   if (!currentMatches) return initialMatchOptions;
 
@@ -298,7 +304,7 @@ export default function App() {
     } catch {
       window.localStorage.removeItem('don-sosa:last-profile');
     }
-  }, [locale, matchCount]);
+  }, [locale]);
 
   const availableRoles = useMemo(() => {
     if (!dataset) return ['ALL'];
@@ -314,6 +320,12 @@ export default function App() {
 
   const coachScopeKey = useMemo(() => serializeCoachRoles(coachRoles), [coachRoles]);
   const coachScopeLabel = useMemo(() => formatCoachScopeLabel(coachRoles, locale), [coachRoles, locale]);
+  const coachScopeSummary = useMemo(() => {
+    if (!dataset) return null;
+    const scopedMatches = filterMatchesByRoles(dataset, coachRoles);
+    if (!scopedMatches.length) return dataset.summary;
+    return buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, scopedMatches, locale);
+  }, [dataset, coachRoles, locale]);
 
   const availableQueueFilters = useMemo(() => {
     if (!dataset) return ['ALL'] as const;
@@ -433,6 +445,12 @@ export default function App() {
     () => getRiotPlatformInfo(dataset?.summary.platform ?? platform),
     [dataset?.summary.platform, platform]
   );
+  const searchPreviewLabel = useMemo(() => {
+    const trimmedGameName = gameName.trim() || (locale === 'en' ? 'GameName' : 'Nombre');
+    const trimmedTag = tagLine.trim() || (locale === 'en' ? 'TAG' : 'TAG');
+    const info = getRiotPlatformInfo(platform);
+    return `${trimmedGameName}#${trimmedTag}${info ? ` · ${info.platform}` : ''}`;
+  }, [gameName, tagLine, platform, locale]);
 
   useEffect(() => {
     if (!dataset || !gameName || !tagLine || !platform) {
@@ -754,17 +772,26 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, .92fr) repeat(2, minmax(0, 1fr))', gap: 12 }}>
+                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, .92fr) repeat(3, minmax(0, 1fr))', gap: 12 }}>
                     {dataset.rank ? <RankBadge rank={dataset.rank} compact locale={locale} /> : null}
                     <div style={heroMetaChipStyle}>
-                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Block' : 'Bloque'}</div>
-                      <div style={heroMetaValueStyle}>{dataset.summary.matches}</div>
-                      <div style={heroMetaSubtleStyle}>{locale === 'en' ? 'valid matches saved' : 'partidas válidas guardadas'}</div>
+                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Scope sample' : 'Muestra del scope'}</div>
+                      <div style={heroMetaValueStyle}>{coachScopeSummary?.matches ?? dataset.summary.matches}</div>
+                      <div style={heroMetaSubtleStyle}>{coachRoles.length ? coachScopeLabel : (locale === 'en' ? 'all saved roles' : 'todos los roles guardados')}</div>
                     </div>
                     <div style={heroMetaChipStyle}>
                       <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Win rate' : 'WR'}</div>
-                      <div style={heroMetaValueStyle}>{dataset.summary.winRate}%</div>
-                      <div style={heroMetaSubtleStyle}>{`${dataset.summary.wins}-${dataset.summary.losses}`}</div>
+                      <div style={heroMetaValueStyle}>{coachScopeSummary?.winRate ?? dataset.summary.winRate}%</div>
+                      <div style={heroMetaSubtleStyle}>{`${coachScopeSummary?.wins ?? dataset.summary.wins}-${coachScopeSummary?.losses ?? dataset.summary.losses}`}</div>
+                    </div>
+                    <div style={heroMetaChipStyle}>
+                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Performance' : 'Rendimiento'}</div>
+                      <div style={heroMetaValueStyle}>{coachScopeSummary?.avgPerformanceScore ?? dataset.summary.avgPerformanceScore}</div>
+                      <div style={heroMetaSubtleStyle}>
+                        {locale === 'en'
+                          ? `CS@15 ${coachScopeSummary?.avgCsAt15 ?? dataset.summary.avgCsAt15}`
+                          : `CS@15 ${coachScopeSummary?.avgCsAt15 ?? dataset.summary.avgCsAt15}`}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -841,41 +868,54 @@ export default function App() {
           >
             {showAccountControls || !dataset ? (
               <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 16 }}>
-                <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr .85fr .7fr', gap: 12, alignItems: 'end' }}>
-                  <label style={fieldBlockStyle}>
-                    <span style={fieldLabelStyle}>{locale === 'en' ? 'Game name' : 'Nombre en juego'}</span>
-                    <input value={gameName} onChange={(e) => setGameName(e.target.value)} placeholder={locale === 'en' ? 'For example, Faker' : 'Por ejemplo, Don Sosa'} style={inputStyle} />
-                  </label>
-                  <label style={fieldBlockStyle}>
-                    <span style={fieldLabelStyle}>{locale === 'en' ? 'Tag' : 'Tag'}</span>
-                    <div style={tagInputShellStyle}>
-                      <span style={tagPrefixStyle}>#</span>
-                      <input value={tagLine} onChange={(e) => setTagLine(normalizeTagLineInput(e.target.value))} placeholder={locale === 'en' ? 'KR1' : 'LAS'} style={tagInputStyle} />
+                <div style={riotSearchShellStyle}>
+                  <div style={{ display: 'grid', gap: 5 }}>
+                    <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                      {locale === 'en' ? 'Riot account lookup' : 'Búsqueda de cuenta Riot'}
                     </div>
-                  </label>
-                  <label style={fieldBlockStyle}>
-                    <span style={fieldLabelStyle}>{locale === 'en' ? 'First sample' : 'Primera muestra'}</span>
-                    <select value={matchCount} onChange={(e) => setMatchCount(Number(e.target.value))} style={selectStyle}>
-                      {initialMatchOptions.map((count) => (
-                        <option key={count} value={count}>{count} {locale === 'en' ? 'matches' : 'partidas'}</option>
-                      ))}
-                    </select>
-                  </label>
+                    <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>
+                      {searchPreviewLabel}
+                    </div>
+                  </div>
+                  <div className="five-col-grid" style={riotSearchRowStyle}>
+                    <label style={{ ...fieldBlockStyle, minWidth: 0 }}>
+                      <span style={fieldLabelStyle}>{locale === 'en' ? 'Game name' : 'Nombre en juego'}</span>
+                      <input value={gameName} onChange={(e) => setGameName(e.target.value)} placeholder={locale === 'en' ? 'For example, Faker' : 'Por ejemplo, Don Sosa'} style={riotSearchInputStyle} />
+                    </label>
+                    <label style={{ ...fieldBlockStyle, minWidth: 0 }}>
+                      <span style={fieldLabelStyle}>{locale === 'en' ? 'Tag' : 'Tag'}</span>
+                      <div style={tagInputShellStyle}>
+                        <span style={tagPrefixStyle}>#</span>
+                        <input value={tagLine} onChange={(e) => setTagLine(normalizeTagLineInput(e.target.value))} placeholder={locale === 'en' ? 'KR1' : 'LAS'} style={tagInputStyle} />
+                      </div>
+                    </label>
+                    <label style={{ ...fieldBlockStyle, minWidth: 0 }}>
+                      <span style={fieldLabelStyle}>{locale === 'en' ? 'Platform' : 'Platform'}</span>
+                      <select value={platform} onChange={(e) => setPlatform(e.target.value as RiotPlatform)} style={riotSearchInputStyle}>
+                        {supportedRiotPlatforms.map((platformCode) => {
+                          const info = getRiotPlatformInfo(platformCode);
+                          return (
+                            <option key={platformCode} value={platformCode}>
+                              {info ? `${info.platform} · ${info.shortLabel}` : platformCode}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </label>
+                    <label style={{ ...fieldBlockStyle, minWidth: 0 }}>
+                      <span style={fieldLabelStyle}>{locale === 'en' ? 'Sample' : 'Muestra'}</span>
+                      <select value={matchCount} onChange={(e) => setMatchCount(Number(e.target.value))} style={riotSearchInputStyle}>
+                        {initialMatchOptions.map((count) => (
+                          <option key={count} value={count}>{count} {locale === 'en' ? 'matches' : 'partidas'}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <button type="submit" style={{ ...buttonStyle, minHeight: 52 }}>
+                      {loading ? (locale === 'en' ? 'Analyzing...' : 'Analizando...') : (locale === 'en' ? 'Build first analysis' : 'Construir primer análisis')}
+                    </button>
+                  </div>
                 </div>
                 <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 12 }}>
-                  <label style={fieldBlockStyle}>
-                    <span style={fieldLabelStyle}>{locale === 'en' ? 'Riot platform' : 'Platform de Riot'}</span>
-                    <select value={platform} onChange={(e) => setPlatform(e.target.value as RiotPlatform)} style={selectStyle}>
-                      {supportedRiotPlatforms.map((platformCode) => {
-                        const info = getRiotPlatformInfo(platformCode);
-                        return (
-                          <option key={platformCode} value={platformCode}>
-                            {info ? `${info.platform} · ${info.label}` : platformCode}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </label>
                   <div style={softPanelStyle}>
                     <div style={{ color: '#eef4ff', fontWeight: 700 }}>
                       {locale === 'en' ? 'Routing context' : 'Contexto de routing'}
@@ -917,7 +957,11 @@ export default function App() {
                     <Badge tone="default">{locale === 'en' ? `${matchCount} match target` : `Objetivo de ${matchCount} partidas`}</Badge>
                     <Badge tone="low">{locale === 'en' ? 'Coaching scope is chosen after loading the account' : 'El alcance del coaching se elige después de cargar la cuenta'}</Badge>
                   </div>
-                  <button type="submit" style={buttonStyle}>{loading ? (locale === 'en' ? 'Analyzing...' : 'Analizando...') : (locale === 'en' ? 'Build first analysis' : 'Construir primer análisis')}</button>
+                  <div style={{ color: '#8f9bad', fontSize: 13 }}>
+                    {locale === 'en'
+                      ? 'You can search any supported Riot platform without changing the UI language.'
+                      : 'Podés buscar cualquier platform soportada de Riot sin cambiar el idioma de la UI.'}
+                  </div>
                 </div>
               </form>
             ) : (
@@ -1305,6 +1349,33 @@ const inputStyle: CSSProperties = {
   boxShadow: '0 0 0 1px rgba(255,255,255,0.02) inset'
 };
 
+const riotSearchShellStyle: CSSProperties = {
+  display: 'grid',
+  gap: 14,
+  padding: '16px 18px',
+  borderRadius: 18,
+  background: 'linear-gradient(180deg, rgba(9,13,21,0.98), rgba(6,9,15,0.98))',
+  border: '1px solid rgba(255,255,255,0.08)',
+  boxShadow: '0 18px 40px rgba(0,0,0,0.16)'
+};
+
+const riotSearchRowStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'minmax(220px, 1.1fr) minmax(130px, .7fr) minmax(180px, .9fr) minmax(120px, .62fr) auto',
+  gap: 10,
+  alignItems: 'end'
+};
+
+const riotSearchInputStyle: CSSProperties = {
+  width: '100%',
+  padding: '13px 14px',
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(7,11,18,0.92)',
+  color: '#edf2ff',
+  boxShadow: '0 0 0 1px rgba(255,255,255,0.02) inset'
+};
+
 const selectStyle: CSSProperties = {
   width: '100%',
   padding: '13px 14px',
@@ -1488,7 +1559,8 @@ function TopStat({ label, value, hint }: { label: string; value: string; hint: s
 function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonNullable<Dataset['rank']>; compact?: boolean; locale?: Locale }) {
   const palette = getRankPalette(rank.highest.tier);
   const lpProgress = Math.max(0, Math.min(rank.highest.leaguePoints, 100));
-  const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR`;
+  const showFlex = rank.flexQueue.tier !== 'UNRANKED';
+  const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR${showFlex ? `\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR` : ''}`;
 
   return (
     <div title={title} style={{
@@ -1507,6 +1579,16 @@ function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonNullable
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontSize: compact ? 17 : 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.highest.label}</span>
             <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.highest.leaguePoints} LP`}</span>
+          </div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={rankQueuePillStyle}>
+              <strong>{locale === 'en' ? 'Solo' : 'Solo'}</strong> {rank.soloQueue.label} · {rank.soloQueue.leaguePoints} LP
+            </span>
+            {showFlex ? (
+              <span style={rankQueuePillStyle}>
+                <strong>Flex</strong> {rank.flexQueue.label} · {rank.flexQueue.leaguePoints} LP
+              </span>
+            ) : null}
           </div>
         </div>
       </div>
@@ -1647,6 +1729,19 @@ const heroMetaValueStyle: CSSProperties = {
 const heroMetaSubtleStyle: CSSProperties = {
   color: '#8d98ad',
   fontSize: 12
+};
+
+const rankQueuePillStyle: CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 4,
+  padding: '5px 8px',
+  borderRadius: 999,
+  background: 'rgba(255,255,255,0.04)',
+  color: '#aeb8ca',
+  fontSize: 11,
+  lineHeight: 1.2,
+  border: '1px solid rgba(255,255,255,0.05)'
 };
 
 const scopeMetaCardStyle: CSSProperties = {
