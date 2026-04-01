@@ -1,0 +1,61 @@
+{
+  "patch": "26.6",
+  "publishedAt": "2026-03-17T18:00:00.000Z",
+  "sourceUrl": "https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-26-6-notes/",
+  "summary": [
+    "Patch 26.6 introduced Shyvana's major update, so old Shyvana coaching before March 17, 2026 should be treated as stale by default.",
+    "Several mid and support-adjacent outliers were adjusted, including Ahri and Pyke nerfs plus buffs for Azir, Cassiopeia and Lissandra.",
+    "Support farming restrictions were softened, which slightly changes how aggressively mage supports can collect stray lane gold without griefing their income."
+  ],
+  "championUpdates": [
+    {
+      "championName": "Shyvana",
+      "changeType": "rework",
+      "roles": ["JUNGLE", "TOP"],
+      "summary": "Shyvana received a full gameplay and visual update. Any pre-26.6 champion-specific advice is likely outdated.",
+      "impactLevel": "high"
+    },
+    {
+      "championName": "Ahri",
+      "changeType": "nerf",
+      "roles": ["MIDDLE"],
+      "summary": "Ahri was nerfed in 26.6, so older advice assuming stronger baseline lane control or kill pressure should be applied more carefully.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Azir",
+      "changeType": "buff",
+      "roles": ["MIDDLE"],
+      "summary": "Azir received damage buffs, increasing his ability to contest lane and scale into teamfights.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Cassiopeia",
+      "changeType": "buff",
+      "roles": ["MIDDLE"],
+      "summary": "Cassiopeia gained stronger mana and poison-payoff tools, which improves her trading reliability in lane.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Lissandra",
+      "changeType": "buff",
+      "roles": ["MIDDLE"],
+      "summary": "Lissandra received meaningful buffs that make her mid-lane control and skirmish value more reliable.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Pyke",
+      "changeType": "nerf",
+      "roles": ["UTILITY"],
+      "summary": "Pyke was nerfed, so support coaching that leans on his prior roaming or kill thresholds should be re-checked.",
+      "impactLevel": "medium"
+    }
+  ],
+  "systemUpdates": [
+    {
+      "category": "support_income",
+      "summary": "Support item farming penalties were softened, which slightly changes how much minion income supports can absorb before being punished.",
+      "impactLevel": "medium"
+    }
+  ]
+}

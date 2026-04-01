@@ -62,6 +62,26 @@ export interface AICoachResult {
   generationId: string;
   provider: 'draft' | 'openai';
   model: string | null;
+  context: {
+    patchContext: {
+      currentPatch: string;
+      sourceUrl: string;
+      summary: string[];
+      relevantChampionUpdates: Array<{
+        championName: string;
+        changeType: 'buff' | 'nerf' | 'adjustment' | 'rework';
+        roles: string[];
+        summary: string;
+        impactLevel: 'low' | 'medium' | 'high';
+      }>;
+      relevantSystemUpdates: Array<{
+        category: string;
+        summary: string;
+        impactLevel: 'low' | 'medium' | 'high';
+      }>;
+      note: string;
+    };
+  };
   retrieval: {
     localKnowledgeCount: number;
     localKnowledgeIds: string[];

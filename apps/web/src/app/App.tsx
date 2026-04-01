@@ -15,12 +15,12 @@ import { formatDecimal } from '../lib/format';
 import { buildCs15Benchmark } from '../lib/benchmarks';
 
 const tabs = [
-  { id: 'coach', label: 'Coach' },
-  { id: 'stats', label: 'Stats' },
-  { id: 'matchups', label: 'Matchups' },
-  { id: 'runes', label: 'Runes' },
-  { id: 'champions', label: 'Champions' },
-  { id: 'matches', label: 'Matches' }
+  { id: 'coach', label: { es: 'Coaching', en: 'Coaching' } },
+  { id: 'stats', label: { es: 'Métricas', en: 'Stats' } },
+  { id: 'matchups', label: { es: 'Cruces', en: 'Matchups' } },
+  { id: 'runes', label: { es: 'Runas', en: 'Runes' } },
+  { id: 'champions', label: { es: 'Campeones', en: 'Champions' } },
+  { id: 'matches', label: { es: 'Partidas', en: 'Matches' } }
 ] as const;
 
 type TabId = typeof tabs[number]['id'];
@@ -85,6 +85,7 @@ export default function App() {
   const [aiCoach, setAICoach] = useState<AICoachResult | null>(null);
   const [aiCoachLoading, setAICoachLoading] = useState(false);
   const [aiCoachError, setAICoachError] = useState<string | null>(null);
+  const [lastAICoachRequestKey, setLastAICoachRequestKey] = useState<string | null>(null);
 
   async function hydrateFromServer(gameNameValue: string, tagLineValue: string) {
     try {
@@ -192,6 +193,19 @@ export default function App() {
     };
   }, [dataset, roleFilter, queueFilter, windowFilter, locale]);
 
+  const coachRequestKey = useMemo(() => {
+    if (!viewDataset || !gameName || !tagLine) return null;
+    return [
+      gameName.trim().toLowerCase(),
+      tagLine.trim().toLowerCase(),
+      locale,
+      roleFilter,
+      queueFilter,
+      windowFilter,
+      viewDataset.summary.matches
+    ].join('|');
+  }, [viewDataset, gameName, tagLine, locale, roleFilter, queueFilter, windowFilter]);
+
   const renderedTab = useMemo(() => {
     if (!viewDataset) return null;
 
@@ -204,7 +218,7 @@ export default function App() {
             aiCoach={aiCoach}
             generatingAICoach={aiCoachLoading}
             aiCoachError={aiCoachError}
-            onGenerateAICoach={() => void handleGenerateAICoach()}
+            onGenerateAICoach={() => void handleGenerateAICoach(true)}
             onSendFeedback={(verdict) => void handleAICoachFeedback(verdict)}
           />
         );
@@ -219,7 +233,7 @@ export default function App() {
       case 'matches':
         return <MatchesTab dataset={viewDataset} locale={locale} />;
     }
-  }, [activeTab, viewDataset, locale]);
+  }, [activeTab, viewDataset, locale, aiCoach, aiCoachLoading, aiCoachError]);
 
   const csBenchmark = useMemo(() => {
     if (!viewDataset?.rank) return null;
@@ -246,7 +260,14 @@ export default function App() {
   useEffect(() => {
     setAICoach(null);
     setAICoachError(null);
+    setLastAICoachRequestKey(null);
   }, [gameName, tagLine, roleFilter, queueFilter, windowFilter, dataset?.summary.matches]);
+
+  useEffect(() => {
+    if (activeTab !== 'coach' || !coachRequestKey || aiCoachLoading) return;
+    if (lastAICoachRequestKey === coachRequestKey) return;
+    void handleGenerateAICoach();
+  }, [activeTab, coachRequestKey, aiCoachLoading, lastAICoachRequestKey]);
 
   function persistSavedProfile(nextDataset: Dataset, nextMatchCount: number) {
     const nextRecord: SavedProfileRecord = {
@@ -350,8 +371,11 @@ export default function App() {
     await runAnalysis();
   }
 
-  async function handleGenerateAICoach() {
-    if (!gameName || !tagLine) return;
+  async function handleGenerateAICoach(force = false) {
+    if (!gameName || !tagLine || !coachRequestKey) return;
+    if (!force && lastAICoachRequestKey === coachRequestKey) return;
+
+    setLastAICoachRequestKey(coachRequestKey);
     setAICoachLoading(true);
     setAICoachError(null);
 
@@ -424,13 +448,13 @@ export default function App() {
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   <RankBadge rank={viewDataset.rank} compact locale={locale} />
                   <div style={heroMetaChipStyle}>
-                  <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Win rate' : 'Win rate'}</div>
+                  <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Win rate' : 'WR'}</div>
                   <div style={heroMetaValueStyle}>{`${viewDataset.rank.highest.winRate}%`}</div>
                   <div style={heroMetaSubtleStyle}>{`${viewDataset.rank.highest.wins}-${viewDataset.rank.highest.losses}`}</div>
                 </div>
                 {csBenchmark ? (
                   <div style={heroMetaChipStyle}>
-                    <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Benchmark' : 'Benchmark'}</div>
+                    <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Benchmark' : 'Referencia'}</div>
                     <div style={{ ...heroMetaValueStyle, color: csBenchmark.status === 'above' ? '#9ff0cf' : csBenchmark.status === 'below' ? '#ffb3b3' : '#dce8fb' }}>{csBenchmark.label}</div>
                     <div style={heroMetaSubtleStyle}>{locale === 'en' ? 'CS at 15' : 'CS a los 15'}</div>
                   </div>
@@ -578,7 +602,7 @@ export default function App() {
                   <div style={{ color: '#edf2ff', fontSize: 14, fontWeight: 800 }}>{`${viewDataset.summary.wins}-${viewDataset.summary.losses}`}</div>
                 </div>
                 <div style={recordPillStyle}>
-                  <div style={{ color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Win rate</div>
+                  <div style={{ color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Win rate' : 'WR'}</div>
                   <div style={{ color: '#dff7eb', fontSize: 14, fontWeight: 800 }}>{`${viewDataset.summary.winRate}%`}</div>
                 </div>
                 <div style={recordPillStyle}>
@@ -701,7 +725,7 @@ export default function App() {
                     ...(activeTab === tab.id ? activeTabStyle : {})
                   }}
                 >
-                  {tab.label}
+                  {tab.label[locale]}
                 </button>
               ))}
             </div>

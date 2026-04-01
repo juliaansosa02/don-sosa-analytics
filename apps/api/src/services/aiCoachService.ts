@@ -4,6 +4,7 @@ import { buildAggregateSummary } from '@don-sosa/core';
 import { env } from '../config/env.js';
 import { loadProfileSnapshot } from './profileStore.js';
 import { retrieveKnowledgeCards } from './knowledgeBase.js';
+import { getPatchContextForCoach } from './patchNotes.js';
 import { aiCoachOutputSchema, type AICoachContext, type AICoachOutput, type AICoachRequest } from './aiCoachSchemas.js';
 import { saveAICoachingGeneration } from './aiCoachStore.js';
 import type { collectPlayerSnapshot } from './collectionService.js';
@@ -65,12 +66,13 @@ function buildMatchupAlert(matches: StoredDataset['matches']) {
   return risky ?? null;
 }
 
-function buildCoachContext(dataset: StoredDataset, input: AICoachRequest): AICoachContext {
+async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest): Promise<AICoachContext> {
   const matches = filterMatches(dataset, input);
   const summary = buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, matches, input.locale);
   const anchorChampion = summary.championPool[0]?.championName ?? null;
+  const matchupAlert = buildMatchupAlert(matches);
 
-  return {
+  const baseContext: Omit<AICoachContext, 'patchContext'> = {
     player: {
       gameName: dataset.player,
       tagLine: dataset.tagLine,
@@ -118,7 +120,7 @@ function buildCoachContext(dataset: StoredDataset, input: AICoachRequest): AICoa
       avgDeathsPre14: champion.avgDeathsPre14,
       classification: champion.classification
     })),
-    matchupAlert: buildMatchupAlert(matches),
+    matchupAlert,
     recentMatches: matches.slice(0, 8).map((match) => ({
       matchId: match.matchId,
       championName: match.championName,
@@ -132,12 +134,20 @@ function buildCoachContext(dataset: StoredDataset, input: AICoachRequest): AICoa
       score: match.score.total
     }))
   };
+
+  const patchContext = await getPatchContextForCoach(baseContext);
+
+  return {
+    ...baseContext,
+    patchContext
+  };
 }
 
 function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: { id: string; title: string; body: string; actionables: string[] } }>): AICoachOutput {
   const topProblem = context.coaching.topProblems[0];
   const secondProblem = context.coaching.topProblems[1];
   const topCards = knowledgeCards.slice(0, 3).map((entry) => entry.card);
+  const championPatchAlert = context.patchContext.relevantChampionUpdates[0] ?? null;
 
   return {
     summary: topProblem
@@ -162,8 +172,12 @@ function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: 
     ].slice(0, 4),
     championSpecificNote: context.player.anchorChampion
       ? (context.player.locale === 'en'
-        ? `${context.player.anchorChampion} is your current anchor pick. Use it as the reference for recalls, tempo and objective setup before widening the pool.`
-        : `${context.player.anchorChampion} es tu pick ancla actual. Usalo como referencia para recalls, tempo y setup de objetivos antes de abrir más el pool.`)
+        ? championPatchAlert
+          ? `${context.player.anchorChampion} is your current anchor pick, and patch ${context.patchContext.currentPatch} recently touched it: ${championPatchAlert.summary}`
+          : `${context.player.anchorChampion} is your current anchor pick. Use it as the reference for recalls, tempo and objective setup before widening the pool.`
+        : championPatchAlert
+          ? `${context.player.anchorChampion} es tu pick ancla actual, y el parche ${context.patchContext.currentPatch} lo tocó hace poco: ${championPatchAlert.summary}`
+          : `${context.player.anchorChampion} es tu pick ancla actual. Usalo como referencia para recalls, tempo y setup de objetivos antes de abrir más el pool.`)
       : null,
     matchupSpecificNote: context.matchupAlert
       ? (context.player.locale === 'en'
@@ -172,10 +186,105 @@ function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: 
       : null,
     grounding: [
       topProblem?.impact,
+      ...context.patchContext.relevantChampionUpdates.slice(0, 1).map((update) => `${update.championName}: ${update.summary}`),
       ...topCards.map((card) => card.title)
     ].filter(Boolean).slice(0, 4) as string[],
     knowledgeCardIds: topCards.map((card) => card.id),
     confidence: topProblem ? 0.56 : 0.28
+  };
+}
+
+function getRoleLabel(roleFilter: string, locale: 'es' | 'en') {
+  const map = locale === 'en'
+    ? {
+        JUNGLE: 'jungle',
+        TOP: 'top',
+        MIDDLE: 'mid',
+        BOTTOM: 'ADC',
+        UTILITY: 'support',
+        ALL: 'main role'
+      }
+    : {
+        JUNGLE: 'jungla',
+        TOP: 'top',
+        MIDDLE: 'mid',
+        BOTTOM: 'ADC',
+        UTILITY: 'support',
+        ALL: 'rol principal'
+      };
+
+  return map[roleFilter as keyof typeof map] ?? roleFilter.toLowerCase();
+}
+
+function buildPersonalizedMainLeak(context: AICoachContext, coach: AICoachOutput) {
+  const locale = context.player.locale;
+  const topProblem = context.coaching.topProblems[0];
+  const anchorChampion = context.player.anchorChampion;
+  const championText = anchorChampion
+    ? anchorChampion
+    : locale === 'en'
+      ? 'your current pick'
+      : 'tu pick actual';
+  const roleText = getRoleLabel(context.player.roleFilter, locale);
+
+  if (!topProblem) return coach.mainLeak;
+
+  switch (topProblem.focusMetric) {
+    case 'deaths_pre_14':
+      return locale === 'en'
+        ? `${championText} is entering the game too unstable: you are losing too much before minute 14 and that is breaking your plan before you reach your strong window.`
+        : `${championText} está entrando demasiado inestable a la partida: estás perdiendo demasiado antes del minuto 14 y eso te rompe el plan antes de llegar a tu zona fuerte.`;
+    case 'cs_at_15':
+      return locale === 'en'
+        ? `Your biggest leak is early income on ${roleText}: you are leaving too much gold on the map before the game reaches a playable mid game.`
+        : `Tu mayor fuga hoy es de ingresos tempranos en ${roleText}: estás dejando demasiado oro en el mapa antes de que la partida llegue a un mid game jugable.`;
+    case 'objective_fight_deaths':
+      return locale === 'en'
+        ? `You are not mainly losing one random fight. You are arriving badly to objective windows and giving away control before the real play starts.`
+        : `No estás perdiendo por una teamfight aislada. Estás llegando mal a las ventanas de objetivo y regalando el control antes de que empiece la jugada real.`;
+    case 'matchup_review':
+      return locale === 'en'
+        ? `${coach.mainLeak}. This is already specific enough to justify targeted matchup prep before you queue again.`
+        : `${coach.mainLeak}. El patrón ya es lo bastante específico como para justificar preparación puntual del matchup antes de volver a jugar.`;
+    default:
+      return locale === 'en'
+        ? `${coach.mainLeak}. Right now this is the cleanest explanation for why your current block is not converting.`
+        : `${coach.mainLeak}. Hoy esta es la explicación más limpia de por qué tu bloque actual no está convirtiendo mejor.`;
+  }
+}
+
+function buildPersonalizedSummary(context: AICoachContext, coach: AICoachOutput) {
+  const locale = context.player.locale;
+  const topProblem = context.coaching.topProblems[0];
+
+  if (!topProblem) return coach.summary;
+
+  if (topProblem.focusMetric === 'deaths_pre_14') {
+    return locale === 'en'
+      ? `The pattern is clear: your first unstable minute is costing too much tempo, gold and map freedom. If we clean that up, the rest of your games should become much more playable.`
+      : `El patrón es claro: tu primer minuto inestable está costando demasiado tempo, oro y libertad de mapa. Si limpiamos eso, el resto de tus partidas debería volverse mucho más jugable.`;
+  }
+
+  if (topProblem.focusMetric === 'cs_at_15') {
+    return locale === 'en'
+      ? `This is not about farming for style points. It is about reaching the part of the game where your champion can actually matter with enough gold, tempo and pressure.`
+      : `No se trata de farmear por estética. Se trata de llegar a la parte de la partida donde tu campeón realmente puede importar con suficiente oro, tempo y presión.`;
+  }
+
+  if (topProblem.focusMetric === 'objective_fight_deaths') {
+    return locale === 'en'
+      ? `Your games are leaking value before or around the setup, not only during the fight itself. The fastest improvement is to organize resets, vision and arrival timing better.`
+      : `Tus partidas están perdiendo valor antes o alrededor del setup, no solo durante la pelea. La mejora más rápida pasa por ordenar mejor resets, visión y tiempo de llegada.`;
+  }
+
+  return coach.summary;
+}
+
+function normalizeCoachOutput(context: AICoachContext, coach: AICoachOutput): AICoachOutput {
+  return {
+    ...coach,
+    mainLeak: buildPersonalizedMainLeak(context, coach),
+    summary: buildPersonalizedSummary(context, coach)
   };
 }
 
@@ -186,6 +295,8 @@ Your job is not to invent problems. Your job is to translate structured gameplay
 Rules:
 - Ground your answer in the supplied stats, ranked context, role filter and matchup context.
 - Use retrieved coaching knowledge only to explain or sharpen the recommendation.
+- Use patch context to warn about recent champion or system changes when it materially affects the advice.
+- Write every field fully in the player's locale. Never mix Spanish and English inside the same answer.
 - Do not claim external elo benchmarks unless explicitly provided.
 - Avoid generic advice like "farm better" or "play safer".
 - Always turn the diagnosis into review instructions and next-game habits.
@@ -198,8 +309,8 @@ function buildUserPrompt(context: AICoachContext, localCards: Array<{ card: { id
     context,
     localKnowledge: localCards.map((entry) => entry.card),
     instruction: context.player.locale === 'en'
-      ? 'Use the diagnosis and the retrieved coaching knowledge to produce the next coaching block.'
-      : 'Usá el diagnóstico y el conocimiento recuperado para producir el siguiente bloque de coaching.'
+      ? 'Use the diagnosis and the retrieved coaching knowledge to produce the next coaching block. Write only in English, make the main leak concrete and personalized, and avoid generic labels.'
+      : 'Usá el diagnóstico y el conocimiento recuperado para producir el siguiente bloque de coaching. Escribí solo en español, hacé que el problema principal sea concreto y personalizado, y evitá etiquetas genéricas.'
   });
 }
 
@@ -233,7 +344,7 @@ export async function generateAICoach(input: AICoachRequest) {
     throw new Error(input.locale === 'en' ? 'No cached analysis was found for that account yet.' : 'Todavía no existe un análisis guardado para esa cuenta.');
   }
 
-  const context = buildCoachContext(dataset, input);
+  const context = await buildCoachContext(dataset, input);
   const localKnowledge = await retrieveKnowledgeCards(context, 6);
 
   if (!context.player.visibleMatches) {
@@ -243,13 +354,13 @@ export async function generateAICoach(input: AICoachRequest) {
   }
 
   let provider: 'draft' | 'openai' = 'draft';
-  let coach = buildDraftCoach(context, localKnowledge);
+  let coach = normalizeCoachOutput(context, buildDraftCoach(context, localKnowledge));
 
   if (input.providerMode !== 'draft' && openai) {
     const modelOutput = await generateWithOpenAI(context, localKnowledge);
     if (modelOutput) {
       provider = 'openai';
-      coach = modelOutput;
+      coach = normalizeCoachOutput(context, modelOutput);
     }
   }
 

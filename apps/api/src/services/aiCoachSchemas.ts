@@ -62,6 +62,29 @@ export const aiCoachOutputSchema = z.object({
 
 export type AICoachOutput = z.infer<typeof aiCoachOutputSchema>;
 
+export interface PatchChampionUpdate {
+  championName: string;
+  changeType: 'buff' | 'nerf' | 'adjustment' | 'rework';
+  roles: string[];
+  summary: string;
+  impactLevel: 'low' | 'medium' | 'high';
+}
+
+export interface PatchSystemUpdate {
+  category: string;
+  summary: string;
+  impactLevel: 'low' | 'medium' | 'high';
+}
+
+export interface AICoachPatchContext {
+  currentPatch: string;
+  sourceUrl: string;
+  summary: string[];
+  relevantChampionUpdates: PatchChampionUpdate[];
+  relevantSystemUpdates: PatchSystemUpdate[];
+  note: string;
+}
+
 export interface AICoachContext {
   player: {
     gameName: string;
@@ -136,4 +159,5 @@ export interface AICoachContext {
     levelDiffAt15: number;
     score: number;
   }>;
+  patchContext: AICoachPatchContext;
 }

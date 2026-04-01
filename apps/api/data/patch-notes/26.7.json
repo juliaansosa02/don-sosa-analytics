@@ -1,0 +1,75 @@
+{
+  "patch": "26.7",
+  "publishedAt": "2026-03-31T18:00:00.000Z",
+  "sourceUrl": "https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-26-7-notes/",
+  "summary": [
+    "Patch 26.7 is the current official Riot patch as of April 1, 2026 and should be treated as the default live context for coaching.",
+    "This patch included follow-up Shyvana adjustments plus support-facing balance changes around Karma, Nami and Rell.",
+    "Graves and Ornn were nerfed while Cassiopeia and Kalista were buffed, so role-specific advice should keep those recent touches in mind."
+  ],
+  "championUpdates": [
+    {
+      "championName": "Cassiopeia",
+      "changeType": "buff",
+      "roles": ["MIDDLE"],
+      "summary": "Cassiopeia was buffed again in 26.7, so mid-lane prep should respect her stronger current patch power.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Kalista",
+      "changeType": "buff",
+      "roles": ["BOTTOM"],
+      "summary": "Kalista gained power in 26.7, which can raise the pressure of lanes and early skirmishes built around her.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Graves",
+      "changeType": "nerf",
+      "roles": ["JUNGLE"],
+      "summary": "Graves was nerfed in 26.7, so older advice that assumes stronger default jungle tempo or dueling should be softened.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Karma",
+      "changeType": "nerf",
+      "roles": ["UTILITY", "MIDDLE"],
+      "summary": "Karma was nerfed, especially relevant for support and flex-lane priority assumptions.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Nami",
+      "changeType": "nerf",
+      "roles": ["UTILITY"],
+      "summary": "Nami was nerfed in 26.7, so bot-lane coaching should not assume her previous pressure unchanged.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Ornn",
+      "changeType": "nerf",
+      "roles": ["TOP"],
+      "summary": "Ornn was nerfed, reducing some of the reliability older top-lane assumptions may still give him.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Rell",
+      "changeType": "buff",
+      "roles": ["UTILITY", "JUNGLE"],
+      "summary": "Rell received buffs that improve engage value, especially in coordinated skirmish or support setups.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Shyvana",
+      "changeType": "adjustment",
+      "roles": ["JUNGLE", "TOP"],
+      "summary": "Shyvana received immediate follow-up adjustments in 26.7, reinforcing that her current live state differs from older seasons.",
+      "impactLevel": "high"
+    }
+  ],
+  "systemUpdates": [
+    {
+      "category": "objective_control",
+      "summary": "No major neutral-objective system rewrite landed in 26.7, so evergreen macro remains valid and recent champion tuning matters more than map rules this patch.",
+      "impactLevel": "low"
+    }
+  ]
+}

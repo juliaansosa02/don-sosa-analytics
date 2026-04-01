@@ -109,13 +109,13 @@ export function CoachingHome({
         <Card title={summary.coaching.headline} subtitle={summary.coaching.subheadline}>
           <div className="four-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
             <KPI
-              label="Win rate"
+              label={locale === 'en' ? 'Win rate' : 'WR'}
               value={`${summary.winRate}%`}
               hint={locale === 'en' ? `${summary.wins}-${summary.losses} across ${summary.matches} matches` : `${summary.wins}-${summary.losses} en ${summary.matches} partidas`}
               info={locale === 'en' ? 'Win rate within the filtered sample you are viewing. If you change role, queue or time window, this number updates.' : 'Porcentaje de victorias dentro de la muestra filtrada que estás viendo. Si cambiás de rol, cola o ventana, esta cifra se recalcula.'}
             />
             <KPI
-              label="Performance"
+              label={locale === 'en' ? 'Performance' : 'Rendimiento'}
               value={formatDecimal(summary.avgPerformanceScore)}
               hint={locale === 'en' ? `Consistency ${formatDecimal(summary.consistencyIndex)}` : `Consistencia ${formatDecimal(summary.consistencyIndex)}`}
               info={locale === 'en' ? 'Internal index that summarizes economy, fighting, macro and stability. It is not an official Riot metric: it helps compare your overall execution quality across matches.' : 'Índice interno que resume economía, peleas, macro y estabilidad. No es una métrica oficial de Riot: sirve para comparar la calidad general de tu ejecución entre partidas.'}
@@ -162,18 +162,23 @@ export function CoachingHome({
       </section>
 
       <section className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr 1fr', gap: 16 }}>
-        <Card title={locale === 'en' ? 'AI coach beta' : 'AI coach beta'} subtitle={locale === 'en' ? 'A deeper coaching layer built on your current stats plus curated coach knowledge' : 'Una capa más profunda de coaching armada sobre tus stats actuales y conocimiento curado de coaches'}>
+        <Card
+          title={locale === 'en' ? 'Current coaching read' : 'Lectura principal de coaching'}
+          subtitle={locale === 'en'
+            ? 'This is the main diagnosis for the current filter, built from your data, curated coach knowledge and live patch context.'
+            : 'Este es el diagnóstico principal del filtro actual, armado con tus datos, conocimiento curado de coaches y contexto del parche live.'}
+        >
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ color: '#a5b2c6', lineHeight: 1.6 }}>
               {locale === 'en'
-                ? 'Use this when you want a sharper explanation of why the current block is failing and what the next three games should look like.'
-                : 'Usalo cuando quieras una explicación más profunda de por qué falla el bloque actual y cómo deberían verse tus próximas tres partidas.'}
+                ? 'The rest of this page should be read through this lens first. Supporting signals and review tasks exist to make this diagnosis usable.'
+                : 'El resto de esta página conviene leerlo primero a través de esta lente. Las señales y tareas de review están para volver usable este diagnóstico.'}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button type="button" style={aiButtonStyle} onClick={onGenerateAICoach} disabled={!onGenerateAICoach || generatingAICoach}>
-                {generatingAICoach ? (locale === 'en' ? 'Generating AI block...' : 'Generando bloque IA...') : (locale === 'en' ? 'Generate AI coaching' : 'Generar coaching IA')}
+                {generatingAICoach ? (locale === 'en' ? 'Refreshing coaching...' : 'Actualizando coaching...') : (locale === 'en' ? 'Refresh coaching' : 'Actualizar coaching')}
               </button>
-              {aiCoach ? <Badge tone={aiCoach.provider === 'openai' ? 'low' : 'medium'}>{aiCoach.provider === 'openai' ? 'OPENAI' : (locale === 'en' ? 'DRAFT MODE' : 'MODO DRAFT')}</Badge> : null}
+              {aiCoach ? <Badge tone={aiCoach.provider === 'openai' ? 'low' : 'medium'}>{aiCoach.provider === 'openai' ? 'OPENAI' : (locale === 'en' ? 'STRUCTURED FALLBACK' : 'FALLBACK ESTRUCTURADO')}</Badge> : null}
               {aiCoach ? <Badge tone="default">{`${Math.round(aiCoach.coach.confidence * 100)}% ${locale === 'en' ? 'confidence' : 'confianza'}`}</Badge> : null}
             </div>
             {aiCoachError ? <div style={{ color: '#ffb3b3', lineHeight: 1.6 }}>{aiCoachError}</div> : null}
@@ -183,6 +188,55 @@ export function CoachingHome({
                   <div style={{ color: '#edf2ff', fontSize: 18, fontWeight: 800 }}>{aiCoach.coach.mainLeak}</div>
                   <div style={{ color: '#9aa5b7', lineHeight: 1.7 }}>{aiCoach.coach.summary}</div>
                 </div>
+                <InfoCard
+                  title={locale === 'en' ? 'Patch context' : 'Contexto de parche'}
+                  info={locale === 'en'
+                    ? 'Official Riot patch context used to adjust the coaching emphasis when your pool or matchup changed recently.'
+                    : 'Contexto oficial de parche de Riot usado para ajustar el énfasis del coaching cuando tu pool o matchup cambió recientemente.'}
+                >
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <Badge tone="default">{`Patch ${aiCoach.context.patchContext.currentPatch}`}</Badge>
+                      <Badge tone="medium">{locale === 'en' ? 'Official Riot source' : 'Fuente oficial Riot'}</Badge>
+                    </div>
+                    <div style={{ color: '#d7e1f0' }}>{aiCoach.context.patchContext.note}</div>
+                    {aiCoach.context.patchContext.summary.length ? (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {aiCoach.context.patchContext.summary.slice(0, 2).map((item) => (
+                          <div key={item}>{item}</div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {aiCoach.context.patchContext.relevantChampionUpdates.length ? (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {aiCoach.context.patchContext.relevantChampionUpdates.slice(0, 2).map((update) => (
+                          <div key={`${update.championName}-${update.summary}`} style={signalActionStyle}>
+                            <strong>{update.championName}</strong>
+                            {`: ${update.summary}`}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {aiCoach.context.patchContext.relevantSystemUpdates.length ? (
+                      <div style={{ display: 'grid', gap: 8 }}>
+                        {aiCoach.context.patchContext.relevantSystemUpdates.slice(0, 1).map((update) => (
+                          <div key={`${update.category}-${update.summary}`} style={signalActionStyle}>
+                            <strong>{update.category}</strong>
+                            {`: ${update.summary}`}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    <a
+                      href={aiCoach.context.patchContext.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#8dd8ff', textDecoration: 'none', fontWeight: 700 }}
+                    >
+                      {locale === 'en' ? 'Open official patch notes' : 'Abrir patch notes oficiales'}
+                    </a>
+                  </div>
+                </InfoCard>
                 <InfoCard title={locale === 'en' ? 'Why it happens' : 'Por qué pasa'} info={locale === 'en' ? 'Model explanation grounded in your current coaching block and retrieved coach knowledge.' : 'Explicación del modelo apoyada en tu bloque actual y en conocimiento curado recuperado.'}>
                   {aiCoach.coach.whyItHappens}
                 </InfoCard>
@@ -221,7 +275,20 @@ export function CoachingHome({
                   ) : null}
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <div style={signalCardStyle}>
+                <div style={{ color: '#edf2ff', fontSize: 18, fontWeight: 800 }}>
+                  {generatingAICoach
+                    ? (locale === 'en' ? 'Building your current coaching read...' : 'Armando tu lectura principal de coaching...')
+                    : (locale === 'en' ? 'Waiting for the current coaching read...' : 'Esperando la lectura principal de coaching...')}
+                </div>
+                <div style={{ color: '#9aa5b7', lineHeight: 1.7 }}>
+                  {locale === 'en'
+                    ? 'As soon as the coach block is ready, this area becomes the main diagnosis for the entire page.'
+                    : 'Apenas esté listo el bloque de coaching, esta zona pasa a ser el diagnóstico principal de toda la página.'}
+                </div>
+              </div>
+            )}
           </div>
         </Card>
 
@@ -378,13 +445,13 @@ export function CoachingHome({
           <div style={{ display: 'grid', gap: 12 }}>
             <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
               <KPI
-                label="Performance"
+                label={locale === 'en' ? 'Performance' : 'Rendimiento'}
                 value={`${trend.baselineScore} -> ${trend.recentScore}`}
                 hint={formatDelta(trend.scoreDelta)}
                 info={locale === 'en' ? 'Compares your average score between the baseline block and the newest stretch of the sample. It helps reveal whether your overall execution is climbing or dropping.' : 'Compara tu score medio entre el bloque inicial y el tramo más reciente de la muestra. Sirve para ver si tu ejecución general está subiendo o cayendo.'}
               />
               <KPI
-                label="Win rate"
+                label={locale === 'en' ? 'Win rate' : 'WR'}
                 value={`${trend.baselineWinRate}% -> ${trend.recentWinRate}%`}
                 hint={formatDelta(trend.winRateDelta, ' pts')}
                 info={locale === 'en' ? 'Compares the oldest block in the sample against your most recent games to detect whether your level is rising, falling or stabilizing.' : 'Compara el bloque más viejo de la muestra contra tus partidas más recientes para detectar si tu nivel sube, cae o se estabiliza.'}

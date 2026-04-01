@@ -7,6 +7,7 @@ import { env } from './config/env.js';
 import { healthRouter } from './routes/health.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { aiCoachRouter } from './routes/aiCoach.js';
+import { refreshPatchNotesFromOfficialSource } from './services/patchNotes.js';
 
 const app = express();
 const webDistPath = fileURLToPath(new URL('../../web/dist', import.meta.url));
@@ -158,4 +159,5 @@ if (hasWebBuild) {
 
 app.listen(env.PORT, () => {
   console.log(`Don Sosa API listening on http://localhost:${env.PORT}`);
+  void refreshPatchNotesFromOfficialSource(false);
 });
