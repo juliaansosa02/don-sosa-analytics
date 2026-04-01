@@ -31,7 +31,7 @@ function buildReviewCue(dataset: Dataset, match: Dataset['matches'][number], loc
   if (match.timeline.objectiveFightDeaths > 0) {
     return locale === 'en'
       ? 'The key review lives in the objective window: setup, reset timing and who arrives first.'
-      : 'La review clave está en la ventana de objetivo: setup, reset y quién llega primero.';
+      : 'La revisión clave está en la ventana de objetivo: setup, reset y quién llega primero.';
   }
 
   return locale === 'en'
@@ -70,7 +70,7 @@ function buildPositiveLanes(dataset: Dataset, locale: Locale) {
     problem: locale === 'en' ? `${topChampion.championName} remains your clearest reference` : `${topChampion.championName} sigue siendo tu referencia más clara`,
     title: locale === 'en' ? `You are carrying ${topChampion.games} matches and ${topChampion.winRate}% WR on your most played pick.` : `Concentrás ${topChampion.games} partidas y ${topChampion.winRate}% WR en tu pick más jugado.`,
     actions: [
-      locale === 'en' ? `Use your best ${topChampion.championName} games as review material whenever you want to lock in habits.` : `Usá tus mejores partidas de ${topChampion.championName} como material de review cuando quieras fijar hábitos.`,
+      locale === 'en' ? `Use your best ${topChampion.championName} games as review material whenever you want to lock in habits.` : `Usá tus mejores partidas de ${topChampion.championName} como material de revisión cuando quieras fijar hábitos.`,
       locale === 'en' ? 'Compare your solid games against your losses on the same pick before opening more variables.' : 'Compará tus partidas sólidas contra tus derrotas del mismo pick antes de abrir más variables.'
     ]
   }];
@@ -174,7 +174,7 @@ export function CoachingHome({
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
-      <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr .85fr', gap: 16 }}>
+      <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr .85fr', gap: 16, alignItems: 'start' }}>
         <Card title={summary.coaching.headline} subtitle={summary.coaching.subheadline}>
           <div className="four-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
             <KPI
@@ -230,18 +230,18 @@ export function CoachingHome({
         </Card>
       </section>
 
-      <section className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr 1fr', gap: 16 }}>
+      <section className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr 1fr', gap: 16, alignItems: 'start' }}>
         <Card
           title={locale === 'en' ? 'Current coaching read' : 'Lectura principal de coaching'}
           subtitle={locale === 'en'
             ? 'This is the main diagnosis for the current filter, built from your data, curated coach knowledge and live patch context.'
-            : 'Este es el diagnóstico principal del filtro actual, armado con tus datos, conocimiento curado de coaches y contexto del parche live.'}
+            : 'Este es el diagnóstico principal del filtro actual, armado con tus datos, conocimiento curado de coaches y contexto del parche actual.'}
         >
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ color: '#a5b2c6', lineHeight: 1.6 }}>
               {locale === 'en'
                 ? 'The rest of this page should be read through this lens first. Supporting signals and review tasks exist to make this diagnosis usable.'
-                : 'El resto de esta página conviene leerlo primero a través de esta lente. Las señales y tareas de review están para volver usable este diagnóstico.'}
+                : 'El resto de esta página conviene leerlo primero a través de esta lente. Las señales y tareas de revisión están para volver accionable este diagnóstico.'}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button type="button" style={aiButtonStyle} onClick={onGenerateAICoach} disabled={!onGenerateAICoach || generatingAICoach}>
@@ -432,7 +432,7 @@ export function CoachingHome({
           </div>
         </Card>
 
-        <Card title={locale === 'en' ? 'Review queue' : 'Sesión de review'} subtitle={locale === 'en' ? 'Three games worth reviewing before you queue again' : 'Tres partidas para mirar antes de volver a queuear'}>
+        <Card title={locale === 'en' ? 'Review queue' : 'Sesión de revisión'} subtitle={locale === 'en' ? 'Three games worth reviewing before you queue again' : 'Tres partidas para mirar antes de volver a jugar'}>
           <div style={{ display: 'grid', gap: 10 }}>
             {reviewQueue.length ? reviewQueue.map((match) => (
               <div key={match.matchId} style={reviewMatchStyle}>
@@ -441,7 +441,7 @@ export function CoachingHome({
                     <div style={{ color: '#edf2ff', fontWeight: 800 }}>{match.championName}</div>
                     <div style={{ color: '#8190a4', fontSize: 12 }}>{new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}</div>
                   </div>
-                  <Badge tone={match.win ? 'low' : 'high'}>{match.win ? 'Win' : 'Loss'}</Badge>
+                  <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota')}</Badge>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <Badge>{`${formatDecimal(match.timeline.csAt15)} CS@15`}</Badge>
@@ -453,12 +453,12 @@ export function CoachingHome({
                 </div>
               </div>
             )) : (
-              <div style={{ color: '#c7d4ea' }}>{locale === 'en' ? 'There is no clear review queue yet. Add more matches or open a larger recent window.' : 'No hay una cola de review clara todavía. Sumá más partidas o abrí una ventana reciente más grande.'}</div>
+              <div style={{ color: '#c7d4ea' }}>{locale === 'en' ? 'There is no clear review queue yet. Add more matches or open a larger recent window.' : 'Todavía no hay una cola de revisión clara. Sumá más partidas o abrí una ventana reciente más grande.'}</div>
             )}
           </div>
         </Card>
 
-        <Card title={locale === 'en' ? 'Anchor pick map' : 'Mapa del pick ancla'} subtitle={locale === 'en' ? 'How to read the champion that currently carries the most weight in your sample' : 'Cómo leer el campeón que hoy más pesa en tu muestra'}>
+        <Card title={locale === 'en' ? 'Anchor pick' : 'Pick ancla'} subtitle={locale === 'en' ? 'How to read the champion currently carrying the most weight in your sample' : 'Cómo leer el campeón que hoy más pesa en tu muestra'}>
           <div style={{ display: 'grid', gap: 12 }}>
             {championAnchor ? (
               <>
@@ -504,7 +504,7 @@ export function CoachingHome({
                 </div>
               </div>
 
-              <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr 1fr', gap: 12 }}>
+              <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr 1fr 1fr', gap: 12, alignItems: 'start' }}>
                   <InfoCard title={locale === 'en' ? 'Impact' : 'Impacto'} info={locale === 'en' ? 'How hard this pattern hits your results and your ability to convert games.' : 'Qué tan fuerte pega este patrón en tus resultados y en tu capacidad de convertir partidas.'}>
                     {problem.impact}
                   </InfoCard>
@@ -538,7 +538,7 @@ export function CoachingHome({
         </div>
       </section>
 
-      <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(320px, 1fr)', gap: 16 }}>
+      <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(320px, 1fr)', gap: 16, alignItems: 'start' }}>
         <Card title={locale === 'en' ? 'Active plan' : 'Plan activo'} subtitle={locale === 'en' ? 'Which habit we are trying to stabilize in the recent sample' : 'Qué hábito estamos intentando fijar en la muestra reciente'}>
           {activePlan ? (
             <div style={{ display: 'grid', gap: 14 }}>
@@ -625,10 +625,11 @@ function borderForPriority(priority: string) {
 const problemCardStyle = {
   display: 'grid',
   gap: 16,
-  padding: 20,
-  borderRadius: 18,
-  background: 'linear-gradient(180deg, rgba(24,18,41,0.9), rgba(8,11,18,0.98))',
-  border: '1px solid rgba(255,255,255,0.06)'
+  padding: 22,
+  borderRadius: 20,
+  background: 'linear-gradient(180deg, rgba(18, 22, 33, 0.98), rgba(8, 11, 18, 0.98))',
+  border: '1px solid rgba(255,255,255,0.06)',
+  boxShadow: '0 18px 44px rgba(0,0,0,0.16)'
 } as const;
 
 const aiButtonStyle = {
@@ -652,9 +653,9 @@ const feedbackButtonStyle = {
 } as const;
 
 const infoCardStyle = {
-  padding: 14,
-  borderRadius: 14,
-  background: '#090e16',
+  padding: 15,
+  borderRadius: 16,
+  background: 'linear-gradient(180deg, rgba(11, 15, 24, 0.98), rgba(7, 10, 16, 0.98))',
   border: '1px solid rgba(255,255,255,0.05)'
 } as const;
 
@@ -666,9 +667,9 @@ const actionStyle = {
 } as const;
 
 const headlineMetricStyle = {
-  padding: '14px 16px',
-  borderRadius: 14,
-  background: '#090e16',
+  padding: '15px 16px',
+  borderRadius: 16,
+  background: 'linear-gradient(180deg, rgba(11, 15, 24, 0.98), rgba(7, 10, 16, 0.98))',
   border: '1px solid rgba(255,255,255,0.05)',
   display: 'grid',
   gap: 8
@@ -677,9 +678,9 @@ const headlineMetricStyle = {
 const signalCardStyle = {
   display: 'grid',
   gap: 12,
-  padding: '14px 15px',
-  borderRadius: 16,
-  background: '#090e16',
+  padding: '16px 16px',
+  borderRadius: 18,
+  background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))',
   border: '1px solid rgba(255,255,255,0.05)'
 } as const;
 
@@ -695,8 +696,8 @@ const signalActionStyle = {
 const reviewMatchStyle = {
   display: 'grid',
   gap: 10,
-  padding: '14px 15px',
-  borderRadius: 16,
-  background: '#090e16',
+  padding: '16px 16px',
+  borderRadius: 18,
+  background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))',
   border: '1px solid rgba(255,255,255,0.05)'
 } as const;

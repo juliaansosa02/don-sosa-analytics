@@ -402,6 +402,62 @@ function isRelevantSystem(update: PatchSystemUpdate, context: Omit<AICoachContex
   return haystack.includes('objective') || haystack.includes('lane') || haystack.includes('vision');
 }
 
+function localizeChampionUpdate(update: PatchChampionUpdate, locale: 'es' | 'en', patch: string): PatchChampionUpdate {
+  if (locale === 'en') return update;
+
+  const changeTypeText = update.changeType === 'buff'
+    ? 'un buff'
+    : update.changeType === 'nerf'
+      ? 'un nerf'
+      : update.changeType === 'rework'
+        ? 'una rework fuerte'
+        : 'ajustes';
+  const impactText = update.impactLevel === 'high'
+    ? 'de impacto alto'
+    : update.impactLevel === 'low'
+      ? 'de impacto bajo'
+      : 'de impacto medio';
+
+  return {
+    ...update,
+    summary: `${update.championName} recibió ${changeTypeText} ${impactText} en el parche ${patch}.`
+  };
+}
+
+function localizeSystemUpdate(update: PatchSystemUpdate, locale: 'es' | 'en', patch: string): PatchSystemUpdate {
+  if (locale === 'en') return update;
+
+  const categoryLabel = update.category.replace(/_/g, ' ');
+  const impactText = update.impactLevel === 'high'
+    ? 'impacto alto'
+    : update.impactLevel === 'low'
+      ? 'impacto bajo'
+      : 'impacto medio';
+
+  return {
+    ...update,
+    summary: `Se detectó una actualización sistémica vinculada a ${categoryLabel} con ${impactText} en el parche ${patch}.`
+  };
+}
+
+function buildLocalizedPatchSummary(currentNotes: PatchNotesFile, context: Omit<AICoachContext, 'patchContext'>, relevantChampionUpdates: PatchChampionUpdate[], relevantSystemUpdates: PatchSystemUpdate[]) {
+  if (context.player.locale === 'en') {
+    return currentNotes.summary.slice(0, 3);
+  }
+
+  const lines = [
+    `El parche ${currentNotes.patch} es el contexto live que usa el coaching por defecto.`,
+    relevantChampionUpdates.length
+      ? `Se detectaron cambios recientes sobre ${relevantChampionUpdates.map((update) => update.championName).join(', ')}.`
+      : `No se detectaron cambios directos sobre tu pool principal dentro de este parche.`,
+    relevantSystemUpdates.length
+      ? `También hay ajustes sistémicos que pueden afectar tu contexto actual.`
+      : `En este bloque sigue pesando más el conocimiento evergreen que un cambio sistémico puntual.`
+  ];
+
+  return lines.slice(0, 3);
+}
+
 function syncIntervalMs() {
   return Math.max(1, env.PATCH_NOTES_SYNC_INTERVAL_HOURS) * 60 * 60 * 1000;
 }
@@ -492,7 +548,8 @@ export async function getPatchContextForCoach(context: Omit<AICoachContext, 'pat
     : [];
   const relevantChampionUpdates = [...explicitChampionUpdates, ...fallbackChampionUpdates]
     .filter((update, index, array) => array.findIndex((entry) => normalizeChampionName(entry.championName) === normalizeChampionName(update.championName)) === index)
-    .slice(0, 3);
+    .slice(0, 3)
+    .map((update) => localizeChampionUpdate(update, context.player.locale, currentNotes.patch));
 
   const explicitSystemUpdates = currentNotes.systemUpdates.filter((update) => isRelevantSystem(update, context));
   const fallbackSystemUpdates = currentNotes.rawText
@@ -500,12 +557,13 @@ export async function getPatchContextForCoach(context: Omit<AICoachContext, 'pat
     : [];
   const relevantSystemUpdates = [...explicitSystemUpdates, ...fallbackSystemUpdates]
     .filter((update, index, array) => array.findIndex((entry) => entry.category === update.category && entry.summary === update.summary) === index)
-    .slice(0, 2);
+    .slice(0, 2)
+    .map((update) => localizeSystemUpdate(update, context.player.locale, currentNotes.patch));
 
   return {
     currentPatch: currentNotes.patch,
     sourceUrl: currentNotes.sourceUrl,
-    summary: currentNotes.summary.slice(0, 3),
+    summary: buildLocalizedPatchSummary(currentNotes, context, relevantChampionUpdates, relevantSystemUpdates),
     relevantChampionUpdates,
     relevantSystemUpdates,
     note: context.player.locale === 'en'

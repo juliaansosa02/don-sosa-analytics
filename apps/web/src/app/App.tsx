@@ -452,6 +452,30 @@ export default function App() {
   return (
     <Shell>
       <div style={{ display: 'grid', gap: 18, maxWidth: 1440, margin: '0 auto' }}>
+        <section style={topBarStyle}>
+          <div style={{ display: 'grid', gap: 4 }}>
+            <div style={{ color: '#eef4ff', fontSize: 18, fontWeight: 800, letterSpacing: '-0.03em' }}>Don Sosa Coach</div>
+            <div style={{ color: '#8b96aa', fontSize: 13 }}>
+              {locale === 'en' ? 'Premium coaching, review and progression tracking for League of Legends.' : 'Coaching premium, revisión y seguimiento de progreso para League of Legends.'}
+            </div>
+          </div>
+          <div style={accountAccessStyle}>
+            <div style={{ display: 'grid', gap: 3 }}>
+              <div style={{ color: '#dfe8f6', fontSize: 13, fontWeight: 700 }}>
+                {locale === 'en' ? 'Account and membership' : 'Cuenta y membresía'}
+              </div>
+              <div style={{ color: '#8190a6', fontSize: 12 }}>
+                {locale === 'en' ? 'Reserved space for login, profile and billing.' : 'Espacio reservado para login, perfil y suscripción.'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+              <Badge tone="default">{locale === 'en' ? 'Coming soon' : 'Próximamente'}</Badge>
+              <button type="button" style={topBarGhostButtonStyle} disabled>{locale === 'en' ? 'Sign in' : 'Iniciar sesión'}</button>
+              <button type="button" style={topBarPrimaryButtonStyle} disabled>{locale === 'en' ? 'Profile' : 'Perfil'}</button>
+            </div>
+          </div>
+        </section>
+
         <section style={heroStyle}>
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>Don Sosa Coach</div>
@@ -463,7 +487,7 @@ export default function App() {
             <p style={{ margin: 0, color: '#9099aa', maxWidth: 760, lineHeight: 1.7 }}>
               {locale === 'en'
                 ? 'Clear diagnosis, actionable decisions and an organized view of matchups, runes, champions and review. First you understand what to fix, then you go deeper.'
-                : 'Diagnóstico claro, decisiones accionables y una vista ordenada de matchups, runas, campeones y review. Primero entendés qué corregir; después entrás al detalle.'}
+                : 'Diagnóstico claro, decisiones accionables y una vista ordenada de matchups, runas, campeones y revisión. Primero entendés qué corregir; después entrás al detalle.'}
             </p>
             {loading ? (
               <div style={{ color: '#d8fdf1', fontSize: 13, lineHeight: 1.6 }}>
@@ -512,7 +536,7 @@ export default function App() {
               <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 16 }}>
                 <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr .85fr .7fr', gap: 12, alignItems: 'end' }}>
                   <label style={fieldBlockStyle}>
-                    <span style={fieldLabelStyle}>{locale === 'en' ? 'Game name' : 'Game name'}</span>
+                    <span style={fieldLabelStyle}>{locale === 'en' ? 'Game name' : 'Nombre en juego'}</span>
                     <input value={gameName} onChange={(e) => setGameName(e.target.value)} placeholder={locale === 'en' ? 'For example, Faker' : 'Por ejemplo, Don Sosa'} style={inputStyle} />
                   </label>
                   <label style={fieldBlockStyle}>
@@ -655,7 +679,7 @@ export default function App() {
                       <Badge tone={isActive ? 'low' : 'default'}>{locale === 'en' ? `${profile.matches} matches` : `${profile.matches} partidas`}</Badge>
                     </div>
                     <div style={{ color: '#748198', fontSize: 12, textAlign: 'left' }}>
-                      {locale === 'en' ? 'Last sync' : 'Última sync'} {new Date(profile.lastSyncedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
+                      {locale === 'en' ? 'Last update' : 'Última actualización'} {new Date(profile.lastSyncedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
                     </div>
                   </button>
                 );
@@ -691,7 +715,7 @@ export default function App() {
               {viewDataset.rank ? <RankBadge rank={viewDataset.rank} locale={locale} /> : null}
             </div>
             <div className="three-col-grid" style={topStatsPanelStyle}>
-              <TopStat label="Performance" value={formatDecimal(viewDataset.summary.avgPerformanceScore)} hint={locale === 'en' ? 'Average execution index' : 'Índice medio de ejecución'} />
+              <TopStat label={locale === 'en' ? 'Performance' : 'Rendimiento'} value={formatDecimal(viewDataset.summary.avgPerformanceScore)} hint={locale === 'en' ? 'Average execution index' : 'Índice medio de ejecución'} />
               <TopStat label={locale === 'en' ? 'CS at 15' : 'CS a los 15'} value={formatDecimal(viewDataset.summary.avgCsAt15)} hint={locale === 'en' ? 'Average early economy' : 'Economía temprana media'} />
               <TopStat label={locale === 'en' ? 'Gold at 15' : 'Oro a los 15'} value={Math.round(viewDataset.summary.avgGoldAt15).toLocaleString(locale === 'en' ? 'en-US' : 'es-AR')} hint={locale === 'en' ? 'Value generated before mid game' : 'Valor generado antes del mid game'} />
               <TrendSparkline matches={viewDataset.matches} locale={locale} />
@@ -850,14 +874,56 @@ export default function App() {
               : 'Don Sosa Coach beta privada de coaching y análisis competitivo para League of Legends.'}
           </div>
           <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-            <a href="/privacy.html" target="_blank" rel="noreferrer" style={footerLinkStyle}>Privacy Policy</a>
-            <a href="/terms.html" target="_blank" rel="noreferrer" style={footerLinkStyle}>Terms of Service</a>
+            <a href="/privacy.html" target="_blank" rel="noreferrer" style={footerLinkStyle}>{locale === 'en' ? 'Privacy Policy' : 'Política de privacidad'}</a>
+            <a href="/terms.html" target="_blank" rel="noreferrer" style={footerLinkStyle}>{locale === 'en' ? 'Terms of Service' : 'Términos del servicio'}</a>
           </div>
         </footer>
       </div>
     </Shell>
   );
 }
+
+const topBarStyle: CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  gap: 16,
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  padding: '4px 2px 0'
+};
+
+const accountAccessStyle: CSSProperties = {
+  display: 'flex',
+  gap: 14,
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '12px 14px',
+  borderRadius: 18,
+  background: 'linear-gradient(180deg, rgba(14,18,28,0.94), rgba(8,11,18,0.98))',
+  border: '1px solid rgba(255,255,255,0.07)',
+  width: 'min(100%, 560px)',
+  boxShadow: '0 16px 40px rgba(0,0,0,0.14)'
+};
+
+const topBarGhostButtonStyle: CSSProperties = {
+  border: '1px solid rgba(255,255,255,0.08)',
+  padding: '10px 12px',
+  borderRadius: 12,
+  background: 'rgba(255,255,255,0.02)',
+  color: '#8996aa',
+  fontWeight: 700,
+  cursor: 'not-allowed'
+};
+
+const topBarPrimaryButtonStyle: CSSProperties = {
+  border: '1px solid rgba(216,253,241,0.18)',
+  padding: '10px 12px',
+  borderRadius: 12,
+  background: 'rgba(216,253,241,0.08)',
+  color: '#d7f9ea',
+  fontWeight: 800,
+  cursor: 'not-allowed'
+};
 
 const heroStyle: CSSProperties = {
   display: 'grid',
@@ -867,7 +933,8 @@ const heroStyle: CSSProperties = {
   borderRadius: 28,
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'radial-gradient(circle at top left, rgba(79, 56, 146, 0.34), transparent 42%), linear-gradient(180deg, rgba(17,20,31,0.96), rgba(7,10,16,0.98))',
-  boxShadow: '0 28px 80px rgba(0,0,0,0.26)'
+  boxShadow: '0 28px 80px rgba(0,0,0,0.26)',
+  alignItems: 'start'
 };
 
 const accountCardStyle: CSSProperties = {

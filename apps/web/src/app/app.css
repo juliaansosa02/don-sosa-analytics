@@ -32,6 +32,26 @@ button:hover {
   transform: translateY(-1px);
 }
 
+button:disabled {
+  transform: none !important;
+  cursor: not-allowed;
+}
+
+button:disabled:hover {
+  transform: none !important;
+}
+
+.two-col-grid,
+.three-col-grid,
+.four-col-grid,
+.five-col-grid,
+.six-col-grid,
+.seven-col-grid,
+.role-pill-grid,
+.tab-grid {
+  align-items: start;
+}
+
 input:focus, select:focus {
   outline: none;
   border-color: rgba(216, 253, 241, 0.22) !important;
