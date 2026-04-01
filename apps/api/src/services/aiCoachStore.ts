@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
@@ -63,9 +63,10 @@ export async function saveAICoachingGeneration(input: {
 }) {
   const id = randomUUID();
   const profileKey = normalizeProfileKey(input.request.gameName, input.request.tagLine);
+  const createdAt = new Date().toISOString();
 
   if (!pool) {
-    await ensureWrite(`${generationsDir}/${id}.json`, JSON.stringify({ id, profileKey, ...input }, null, 2));
+    await ensureWrite(`${generationsDir}/${id}.json`, JSON.stringify({ id, profileKey, createdAt, ...input }, null, 2));
     return id;
   }
 
@@ -73,8 +74,8 @@ export async function saveAICoachingGeneration(input: {
   await pool.query(
     `INSERT INTO ai_coaching_generations (
       id, profile_key, locale, role_filter, queue_filter, window_filter, provider, model,
-      request_payload, context_payload, retrieval_payload, response_payload
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12::jsonb)`,
+      request_payload, context_payload, retrieval_payload, response_payload, created_at
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12::jsonb,$13)`,
     [
       id,
       profileKey,
@@ -87,7 +88,8 @@ export async function saveAICoachingGeneration(input: {
       JSON.stringify(input.request),
       JSON.stringify(input.context),
       JSON.stringify(input.retrieval),
-      JSON.stringify(input.coach)
+      JSON.stringify(input.coach),
+      createdAt
     ]
   );
 
@@ -139,7 +141,54 @@ export async function loadLatestAICoachingGenerationForRequest(input: {
   const profileKey = normalizeProfileKey(input.gameName, input.tagLine);
 
   if (!pool) {
-    return null;
+    try {
+      const files = await readdir(generationsDir);
+      const generations = await Promise.all(files
+        .filter((file) => file.endsWith('.json'))
+        .map(async (file) => {
+          try {
+            const raw = await readFile(`${generationsDir}/${file}`, 'utf8');
+            return JSON.parse(raw) as {
+              id: string;
+              profileKey: string;
+              createdAt?: string;
+              request: AICoachRequest;
+              provider: 'draft' | 'openai';
+              model: string | null;
+              context: AICoachContext;
+              retrieval: {
+                localKnowledgeCount: number;
+                localKnowledgeIds: string[];
+                usedVectorStore: boolean;
+              };
+              coach: AICoachOutput;
+            };
+          } catch {
+            return null;
+          }
+        }));
+
+      return generations
+        .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+        .filter((entry) => (
+          entry.profileKey === profileKey &&
+          entry.request.locale === input.locale &&
+          entry.request.roleFilter === input.roleFilter &&
+          entry.request.queueFilter === input.queueFilter &&
+          entry.request.windowFilter === input.windowFilter
+        ))
+        .sort((a, b) => Date.parse(b.createdAt ?? '') - Date.parse(a.createdAt ?? ''))
+        .map((entry) => ({
+          id: entry.id,
+          provider: entry.provider,
+          model: entry.model,
+          context_payload: entry.context,
+          retrieval_payload: entry.retrieval,
+          response_payload: entry.coach
+        }))[0] ?? null;
+    } catch {
+      return null;
+    }
   }
 
   await ensureTables();

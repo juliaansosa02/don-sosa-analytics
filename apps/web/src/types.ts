@@ -62,7 +62,16 @@ export interface AICoachResult {
   generationId: string;
   provider: 'draft' | 'openai';
   model: string | null;
+  continuity: {
+    mode: 'fresh' | 'updated' | 'reused';
+    newVisibleMatches: number;
+    previousGenerationId: string | null;
+    previousVisibleMatches: number;
+  };
   context: {
+    player: {
+      visibleMatches: number;
+    };
     patchContext: {
       currentPatch: string;
       sourceUrl: string;

@@ -167,3 +167,10 @@ export interface AICoachContext {
   };
   patchContext: AICoachPatchContext;
 }
+
+export interface AICoachContinuity {
+  mode: 'fresh' | 'updated' | 'reused';
+  newVisibleMatches: number;
+  previousGenerationId: string | null;
+  previousVisibleMatches: number;
+}

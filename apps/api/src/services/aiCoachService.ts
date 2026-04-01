@@ -6,7 +6,7 @@ import { env } from '../config/env.js';
 import { loadProfileSnapshot } from './profileStore.js';
 import { retrieveKnowledgeCards } from './knowledgeBase.js';
 import { getPatchContextForCoach } from './patchNotes.js';
-import { aiCoachOutputSchema, type AICoachContext, type AICoachOutput, type AICoachRequest } from './aiCoachSchemas.js';
+import { aiCoachOutputSchema, type AICoachContext, type AICoachContinuity, type AICoachOutput, type AICoachRequest } from './aiCoachSchemas.js';
 import { loadLatestAICoachingGenerationForRequest, saveAICoachingGeneration } from './aiCoachStore.js';
 import type { collectPlayerSnapshot } from './collectionService.js';
 
@@ -411,15 +411,25 @@ export async function generateAICoach(input: AICoachRequest) {
     queueFilter: input.queueFilter,
     windowFilter: input.windowFilter
   });
+  const previousVisibleMatchIds = previousGeneration?.context_payload?.sample?.visibleMatchIds ?? [];
+  const newVisibleMatchIds = context.sample.visibleMatchIds.filter((matchId) => !previousVisibleMatchIds.includes(matchId));
 
   if (previousGeneration?.context_payload?.sample?.sampleSignature === context.sample.sampleSignature) {
+    const continuity: AICoachContinuity = {
+      mode: 'reused',
+      newVisibleMatches: 0,
+      previousGenerationId: previousGeneration.id,
+      previousVisibleMatches: previousVisibleMatchIds.length
+    };
+
     return {
       generationId: previousGeneration.id,
       provider: previousGeneration.provider,
       model: previousGeneration.model,
       context: previousGeneration.context_payload,
       retrieval: previousGeneration.retrieval_payload,
-      coach: previousGeneration.response_payload
+      coach: previousGeneration.response_payload,
+      continuity
     };
   }
 
@@ -436,7 +446,7 @@ export async function generateAICoach(input: AICoachRequest) {
   const previousCoaching = previousGeneration
     ? {
         coach: previousGeneration.response_payload,
-        previousVisibleMatchIds: previousGeneration.context_payload?.sample?.visibleMatchIds ?? []
+        previousVisibleMatchIds
       }
     : null;
 
@@ -468,6 +478,12 @@ export async function generateAICoach(input: AICoachRequest) {
     },
     coach
   });
+  const continuity: AICoachContinuity = {
+    mode: previousGeneration ? 'updated' : 'fresh',
+    newVisibleMatches: previousGeneration ? newVisibleMatchIds.length : context.sample.visibleMatchIds.length,
+    previousGenerationId: previousGeneration?.id ?? null,
+    previousVisibleMatches: previousVisibleMatchIds.length
+  };
 
   return {
     generationId,
@@ -479,6 +495,7 @@ export async function generateAICoach(input: AICoachRequest) {
       localKnowledgeIds: localKnowledge.map((entry) => entry.card.id),
       usedVectorStore: Boolean(env.OPENAI_VECTOR_STORE_ID && provider === 'openai')
     },
-    coach
+    coach,
+    continuity
   };
 }

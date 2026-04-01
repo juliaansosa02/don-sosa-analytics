@@ -76,6 +76,43 @@ function buildPositiveLanes(dataset: Dataset, locale: Locale) {
   }];
 }
 
+function buildContinuityRead(aiCoach: AICoachResult, locale: Locale) {
+  const { continuity, context } = aiCoach;
+  const visibleMatches = context.player?.visibleMatches ?? 0;
+
+  if (continuity.mode === 'reused') {
+    return {
+      tone: 'default' as const,
+      title: locale === 'en' ? 'Cached coaching block' : 'Bloque de coaching reutilizado',
+      body: locale === 'en'
+        ? 'No new visible matches entered this filter since the previous coaching block, so the system reused the latest saved read instead of spending more tokens.'
+        : 'No entraron partidas visibles nuevas en este filtro desde el bloque anterior, así que el sistema reutilizó la última lectura guardada en vez de gastar más tokens.'
+    };
+  }
+
+  if (continuity.mode === 'updated') {
+    return {
+      tone: 'low' as const,
+      title: locale === 'en'
+        ? `Updated with ${continuity.newVisibleMatches} new ${continuity.newVisibleMatches === 1 ? 'match' : 'matches'}`
+        : `Actualizado con ${continuity.newVisibleMatches} ${continuity.newVisibleMatches === 1 ? 'partida nueva' : 'partidas nuevas'}`,
+      body: locale === 'en'
+        ? 'The current coaching block keeps continuity with the previous one and only reinterprets the new visible sample that entered your filter.'
+        : 'El bloque actual mantiene continuidad con el anterior y solo reinterpreta la muestra visible nueva que entró en tu filtro.'
+    };
+  }
+
+  return {
+    tone: 'medium' as const,
+    title: locale === 'en'
+      ? `First coaching block from ${visibleMatches} visible ${visibleMatches === 1 ? 'match' : 'matches'}`
+      : `Primer bloque de coaching sobre ${visibleMatches} ${visibleMatches === 1 ? 'partida visible' : 'partidas visibles'}`,
+    body: locale === 'en'
+      ? 'This is the first saved coaching read for these exact filters, so the system is building the baseline it will compare against later.'
+      : 'Esta es la primera lectura guardada para estos filtros exactos, así que el sistema está construyendo la línea base contra la que va a comparar después.'
+  };
+}
+
 export function CoachingHome({
   dataset,
   locale = 'es',
@@ -102,6 +139,7 @@ export function CoachingHome({
   const positiveLanes = buildPositiveLanes(dataset, locale);
   const patternCard = buildPatternCard(dataset);
   const matchupAlert = summary.insights.find((insight) => insight.focusMetric === 'matchup_review');
+  const continuityRead = aiCoach ? buildContinuityRead(aiCoach, locale) : null;
 
   return (
     <div style={{ display: 'grid', gap: 18 }}>
@@ -175,12 +213,14 @@ export function CoachingHome({
                 : 'El resto de esta página conviene leerlo primero a través de esta lente. Las señales y tareas de review están para volver usable este diagnóstico.'}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="button" style={aiButtonStyle} onClick={onGenerateAICoach} disabled={!onGenerateAICoach || generatingAICoach}>
-                {generatingAICoach ? (locale === 'en' ? 'Refreshing coaching...' : 'Actualizando coaching...') : (locale === 'en' ? 'Refresh coaching' : 'Actualizar coaching')}
-              </button>
-              {aiCoach ? <Badge tone={aiCoach.provider === 'openai' ? 'low' : 'medium'}>{aiCoach.provider === 'openai' ? 'OPENAI' : (locale === 'en' ? 'STRUCTURED FALLBACK' : 'FALLBACK ESTRUCTURADO')}</Badge> : null}
-              {aiCoach ? <Badge tone="default">{`${Math.round(aiCoach.coach.confidence * 100)}% ${locale === 'en' ? 'confidence' : 'confianza'}`}</Badge> : null}
-            </div>
+                <button type="button" style={aiButtonStyle} onClick={onGenerateAICoach} disabled={!onGenerateAICoach || generatingAICoach}>
+                  {generatingAICoach ? (locale === 'en' ? 'Refreshing coaching...' : 'Actualizando coaching...') : (locale === 'en' ? 'Refresh coaching' : 'Actualizar coaching')}
+                </button>
+                {aiCoach ? <Badge tone={aiCoach.provider === 'openai' ? 'low' : 'medium'}>{aiCoach.provider === 'openai' ? 'OPENAI' : (locale === 'en' ? 'STRUCTURED FALLBACK' : 'FALLBACK ESTRUCTURADO')}</Badge> : null}
+                {aiCoach ? <Badge tone="default">{`${Math.round(aiCoach.coach.confidence * 100)}% ${locale === 'en' ? 'confidence' : 'confianza'}`}</Badge> : null}
+                {aiCoach?.continuity.mode === 'reused' ? <Badge tone="default">{locale === 'en' ? 'NO NEW MATCHES' : 'SIN PARTIDAS NUEVAS'}</Badge> : null}
+                {aiCoach?.continuity.mode === 'updated' ? <Badge tone="low">{locale === 'en' ? `+${aiCoach.continuity.newVisibleMatches} NEW` : `+${aiCoach.continuity.newVisibleMatches} NUEVAS`}</Badge> : null}
+              </div>
             {aiCoachError ? <div style={{ color: '#ffb3b3', lineHeight: 1.6 }}>{aiCoachError}</div> : null}
             {aiCoach ? (
               <div style={{ display: 'grid', gap: 12 }}>
@@ -188,6 +228,28 @@ export function CoachingHome({
                   <div style={{ color: '#edf2ff', fontSize: 18, fontWeight: 800 }}>{aiCoach.coach.mainLeak}</div>
                   <div style={{ color: '#9aa5b7', lineHeight: 1.7 }}>{aiCoach.coach.summary}</div>
                 </div>
+                {continuityRead ? (
+                  <InfoCard
+                    title={locale === 'en' ? 'Coaching continuity' : 'Continuidad del coaching'}
+                    info={locale === 'en'
+                      ? 'Shows whether this block was generated for the first time, updated with new matches or simply reused because nothing changed.'
+                      : 'Muestra si este bloque se generó por primera vez, se actualizó con partidas nuevas o simplemente se reutilizó porque no cambió nada.'}
+                  >
+                    <div style={{ display: 'grid', gap: 10 }}>
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <Badge tone={continuityRead.tone}>{continuityRead.title}</Badge>
+                        {aiCoach.continuity.previousVisibleMatches > 0 ? (
+                          <Badge tone="default">
+                            {locale === 'en'
+                              ? `${aiCoach.continuity.previousVisibleMatches} matches in previous block`
+                              : `${aiCoach.continuity.previousVisibleMatches} partidas en el bloque anterior`}
+                          </Badge>
+                        ) : null}
+                      </div>
+                      <div style={{ color: '#d7e1f0' }}>{continuityRead.body}</div>
+                    </div>
+                  </InfoCard>
+                ) : null}
                 <InfoCard
                   title={locale === 'en' ? 'Patch context' : 'Contexto de parche'}
                   info={locale === 'en'
