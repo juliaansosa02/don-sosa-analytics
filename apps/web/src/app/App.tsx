@@ -100,6 +100,25 @@ function buildQuickRefreshActions(currentMatches: number | null) {
   });
 }
 
+function formatQueueSummary(dataset: Dataset, locale: Locale) {
+  const queueCounts = new Map<string, number>();
+  for (const match of dataset.matches) {
+    const bucket = getQueueBucket(match.queueId);
+    queueCounts.set(bucket, (queueCounts.get(bucket) ?? 0) + 1);
+  }
+
+  const solo = queueCounts.get('RANKED_SOLO') ?? 0;
+  const flex = queueCounts.get('RANKED_FLEX') ?? 0;
+
+  if (solo && flex) {
+    return locale === 'en' ? 'Solo + Flex' : 'Solo + Flex';
+  }
+
+  if (solo) return 'Solo/Duo';
+  if (flex) return 'Flex';
+  return locale === 'en' ? 'Mixed queue' : 'Cola mixta';
+}
+
 export default function App() {
   const [locale] = useState<Locale>(() => detectLocale());
   const [activeTab, setActiveTab] = useState<TabId>('coach');
@@ -200,6 +219,8 @@ export default function App() {
     return options;
   }, [dataset]);
 
+  const coachDataset = dataset;
+
   const viewDataset = useMemo(() => {
     if (!dataset) return null;
     let filteredMatches = [...dataset.matches];
@@ -228,34 +249,36 @@ export default function App() {
   }, [dataset, roleFilter, queueFilter, windowFilter, locale]);
 
   const coachRequestKey = useMemo(() => {
-    if (!viewDataset || !gameName || !tagLine) return null;
+    if (!coachDataset || !gameName || !tagLine) return null;
     return [
       gameName.trim().toLowerCase(),
       tagLine.trim().toLowerCase(),
       locale,
-      roleFilter,
-      queueFilter,
-      windowFilter,
-      viewDataset.summary.matches
+      coachDataset.summary.matches,
+      coachDataset.matches[0]?.matchId ?? 'no-latest-match'
     ].join('|');
-  }, [viewDataset, gameName, tagLine, locale, roleFilter, queueFilter, windowFilter]);
+  }, [coachDataset, gameName, tagLine, locale]);
 
   const renderedTab = useMemo(() => {
+    if (activeTab === 'coach') {
+      if (!coachDataset) return null;
+
+      return (
+        <CoachingHome
+          dataset={coachDataset}
+          locale={locale}
+          aiCoach={aiCoach}
+          generatingAICoach={aiCoachLoading}
+          aiCoachError={aiCoachError}
+          onGenerateAICoach={() => void handleGenerateAICoach(true)}
+          onSendFeedback={(verdict) => void handleAICoachFeedback(verdict)}
+        />
+      );
+    }
+
     if (!viewDataset) return null;
 
     switch (activeTab) {
-      case 'coach':
-        return (
-          <CoachingHome
-            dataset={viewDataset}
-            locale={locale}
-            aiCoach={aiCoach}
-            generatingAICoach={aiCoachLoading}
-            aiCoachError={aiCoachError}
-            onGenerateAICoach={() => void handleGenerateAICoach(true)}
-            onSendFeedback={(verdict) => void handleAICoachFeedback(verdict)}
-          />
-        );
       case 'stats':
         return <StatsTab dataset={viewDataset} locale={locale} />;
       case 'matchups':
@@ -267,7 +290,7 @@ export default function App() {
       case 'matches':
         return <MatchesTab dataset={viewDataset} locale={locale} />;
     }
-  }, [activeTab, viewDataset, locale, aiCoach, aiCoachLoading, aiCoachError]);
+  }, [activeTab, coachDataset, viewDataset, locale, aiCoach, aiCoachLoading, aiCoachError]);
 
   const csBenchmark = useMemo(() => {
     if (!viewDataset?.rank) return null;
@@ -298,7 +321,7 @@ export default function App() {
     setAICoach(null);
     setAICoachError(null);
     setLastAICoachRequestKey(null);
-  }, [gameName, tagLine, roleFilter, queueFilter, windowFilter, dataset?.summary.matches]);
+  }, [gameName, tagLine, locale, dataset?.summary.matches]);
 
   useEffect(() => {
     if (activeTab !== 'coach' || !coachRequestKey || aiCoachLoading) return;
@@ -422,9 +445,9 @@ export default function App() {
         gameName,
         tagLine,
         locale,
-        roleFilter,
-        queueFilter,
-        windowFilter
+        roleFilter: 'ALL',
+        queueFilter: 'ALL',
+        windowFilter: 'ALL'
       });
       setAICoach(result);
     } catch (err) {
@@ -477,60 +500,75 @@ export default function App() {
 
         <section style={heroGridStyle}>
           <div style={heroIntroPanelStyle}>
-            <div style={{ display: 'grid', gap: 12 }}>
-            <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>Don Sosa Coach</div>
-            <h1 style={{ margin: 0, fontSize: 46, letterSpacing: '-0.05em', maxWidth: 760 }}>
-              {viewDataset
-                ? `${viewDataset.player}#${viewDataset.tagLine}`
-                : (locale === 'en'
-                  ? 'A competitive read of your play, not just another stats page'
-                  : 'Tu lectura competitiva para jugar mejor, no solo mirar stats')}
-            </h1>
-            <p style={{ margin: 0, color: '#9099aa', maxWidth: 760, lineHeight: 1.7 }}>
-              {viewDataset
-                ? (locale === 'en'
-                  ? `Current ranked block for ${viewDataset.summary.matches} visible matches. The goal is to turn your sample into clear decisions, review habits and stable progress.`
-                  : `Bloque ranked actual sobre ${viewDataset.summary.matches} partidas visibles. La idea es convertir tu muestra en decisiones claras, hábitos de revisión y progreso estable.`)
-                : (locale === 'en'
-                  ? 'Clear diagnosis, actionable decisions and an organized view of matchups, runes, champions and review. First you understand what to fix, then you go deeper.'
-                  : 'Diagnóstico claro, decisiones accionables y una vista ordenada de matchups, runas, campeones y revisión. Primero entendés qué corregir; después entrás al detalle.')}
-            </p>
-            {loading ? (
-              <div style={{ color: '#d8fdf1', fontSize: 13, lineHeight: 1.6 }}>
-                {progress?.message ?? (matchCount >= 75
-                  ? (locale === 'en' ? 'Analyzing a large sample. This can take several minutes because of Riot rate limits.' : 'Analizando una muestra grande. Esto puede tardar varios minutos por los límites de Riot.')
-                  : (locale === 'en' ? 'Analyzing matches. This can take anywhere from a few seconds to about a minute.' : 'Analizando partidas. Esto puede tardar entre unos segundos y alrededor de un minuto.'))}
-              </div>
-            ) : null}
-            {loading && progress ? (
-              <div style={{ display: 'grid', gap: 8, maxWidth: 460 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#9eb0c7', fontSize: 12 }}>
-                  <span>{progress.stage}</span>
-                  <span>{`${Math.min(progress.current, progress.total)} / ${progress.total}`}</span>
-                </div>
-                <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.max(8, (progress.current / Math.max(progress.total, 1)) * 100)}%`, height: '100%', background: '#67d6a4' }} />
-                </div>
-              </div>
-            ) : null}
-            {viewDataset?.rank ? (
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <RankBadge rank={viewDataset.rank} compact locale={locale} />
-                <div style={heroMetaChipStyle}>
-                  <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Visible sample' : 'Muestra visible'}</div>
-                  <div style={heroMetaValueStyle}>{viewDataset.summary.matches}</div>
-                  <div style={heroMetaSubtleStyle}>{locale === 'en' ? `${viewDataset.summary.wins}-${viewDataset.summary.losses} in this block` : `${viewDataset.summary.wins}-${viewDataset.summary.losses} en este bloque`}</div>
-                </div>
-                {csBenchmark ? (
-                  <div style={heroMetaChipStyle}>
-                    <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Benchmark' : 'Referencia'}</div>
-                    <div style={{ ...heroMetaValueStyle, color: csBenchmark.status === 'above' ? '#9ff0cf' : csBenchmark.status === 'below' ? '#ffb3b3' : '#dce8fb' }}>{csBenchmark.label}</div>
-                    <div style={heroMetaSubtleStyle}>{locale === 'en' ? 'CS at 15' : 'CS a los 15'}</div>
+            {!dataset ? (
+              <div style={{ display: 'grid', gap: 12 }}>
+                <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>Don Sosa Coach</div>
+                <h1 style={{ margin: 0, fontSize: 46, letterSpacing: '-0.05em', maxWidth: 760 }}>
+                  {locale === 'en'
+                    ? 'A competitive read of your play, not just another stats page'
+                    : 'Tu lectura competitiva para jugar mejor, no solo mirar stats'}
+                </h1>
+                <p style={{ margin: 0, color: '#9099aa', maxWidth: 760, lineHeight: 1.7 }}>
+                  {locale === 'en'
+                    ? 'Clear diagnosis, actionable decisions and an organized view of matchups, runes, champions and review. First you understand what to fix, then you go deeper.'
+                    : 'Diagnóstico claro, decisiones accionables y una vista ordenada de matchups, runas, campeones y revisión. Primero entendés qué corregir; después entrás al detalle.'}
+                </p>
+                {loading ? (
+                  <div style={{ color: '#d8fdf1', fontSize: 13, lineHeight: 1.6 }}>
+                    {progress?.message ?? (matchCount >= 75
+                      ? (locale === 'en' ? 'Analyzing a large sample. This can take several minutes because of Riot rate limits.' : 'Analizando una muestra grande. Esto puede tardar varios minutos por los límites de Riot.')
+                      : (locale === 'en' ? 'Analyzing matches. This can take anywhere from a few seconds to about a minute.' : 'Analizando partidas. Esto puede tardar entre unos segundos y alrededor de un minuto.'))}
+                  </div>
+                ) : null}
+                {loading && progress ? (
+                  <div style={{ display: 'grid', gap: 8, maxWidth: 460 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#9eb0c7', fontSize: 12 }}>
+                      <span>{progress.stage}</span>
+                      <span>{`${Math.min(progress.current, progress.total)} / ${progress.total}`}</span>
+                    </div>
+                    <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                      <div style={{ width: `${Math.max(8, (progress.current / Math.max(progress.total, 1)) * 100)}%`, height: '100%', background: '#67d6a4' }} />
+                    </div>
                   </div>
                 ) : null}
               </div>
-            ) : null}
-            </div>
+            ) : (
+              <div style={{ display: 'grid', gap: 16 }}>
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>
+                    {locale === 'en' ? 'Current profile' : 'Perfil actual'}
+                  </div>
+                  <h1 style={{ margin: 0, fontSize: 38, letterSpacing: '-0.05em', lineHeight: 1.05 }}>
+                    {dataset.player}<span style={{ color: '#8894ab' }}>#{dataset.tagLine}</span>
+                  </h1>
+                  <p style={{ margin: 0, color: '#96a1b4', maxWidth: 760, lineHeight: 1.65 }}>
+                    {locale === 'en'
+                      ? 'Main account overview for the saved block. Coaching uses this full sample as its base so you can explore the rest of the product without re-spending tokens on every filter change.'
+                      : 'Vista principal de la cuenta sobre el bloque guardado. El coaching usa esta muestra completa como base para que puedas explorar el resto del producto sin volver a gastar tokens cada vez que cambies un filtro.'}
+                  </p>
+                </div>
+                <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr repeat(3, minmax(0, 1fr))', gap: 12 }}>
+                  {dataset.rank ? <RankBadge rank={dataset.rank} compact locale={locale} /> : null}
+                  <div style={heroMetaChipStyle}>
+                    <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Block' : 'Bloque'}</div>
+                    <div style={heroMetaValueStyle}>{dataset.summary.matches}</div>
+                    <div style={heroMetaSubtleStyle}>{locale === 'en' ? 'valid matches saved' : 'partidas válidas guardadas'}</div>
+                  </div>
+                  <div style={heroMetaChipStyle}>
+                    <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Win rate' : 'WR'}</div>
+                    <div style={heroMetaValueStyle}>{dataset.summary.winRate}%</div>
+                    <div style={heroMetaSubtleStyle}>{`${dataset.summary.wins}-${dataset.summary.losses}`}</div>
+                  </div>
+                  <div style={heroMetaChipStyle}>
+                    <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Focus' : 'Foco'}</div>
+                    <div style={{ ...heroMetaValueStyle, color: csBenchmark?.status === 'above' ? '#9ff0cf' : csBenchmark?.status === 'below' ? '#ffb3b3' : '#dce8fb' }}>
+                      {csBenchmark ? csBenchmark.label : formatQueueSummary(dataset, locale)}
+                    </div>
+                    <div style={heroMetaSubtleStyle}>{csBenchmark ? (locale === 'en' ? 'CS at 15 benchmark' : 'benchmark de CS a los 15') : (locale === 'en' ? 'main ranked context' : 'contexto ranked principal')}</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <Card
@@ -696,12 +734,12 @@ export default function App() {
         ) : null}
 
         <section style={{ display: 'grid', gap: 12 }}>
-          {viewDataset ? (
+          {viewDataset && activeTab !== 'coach' ? (
             <div style={roleFilterPanelStyle}>
                 <div style={{ display: 'grid', gap: 3 }}>
-                  <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Analysis context' : 'Contexto de análisis'}</div>
-                <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>{locale === 'en' ? 'Choose the exact context you want to review' : 'Elegí el contexto exacto que querés revisar'}</div>
-                <div style={{ color: '#8793a8', fontSize: 13 }}>{locale === 'en' ? 'Coaching gets much better when you separate role, queue type and recent window instead of mixing every match together.' : 'El coaching mejora mucho si separás rol, tipo de cola y ventana reciente en vez de mezclar todas tus partidas.'}</div>
+                  <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Exploration filters' : 'Filtros de exploración'}</div>
+                <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>{locale === 'en' ? 'Open the exact slice you want to inspect' : 'Abrí el recorte exacto que querés inspeccionar'}</div>
+                <div style={{ color: '#8793a8', fontSize: 13 }}>{locale === 'en' ? 'These filters only affect stats, matchups, runes, champions and match review. They no longer trigger a new AI coaching block.' : 'Estos filtros afectan solo métricas, cruces, runas, campeones y review de partidas. Ya no disparan un bloque nuevo de coaching IA.'}</div>
               </div>
               <div className="role-pill-grid" style={rolePillGridStyle}>
                 {preferredRoles.map((role) => (
@@ -768,7 +806,7 @@ export default function App() {
                   </div>
                 </div>
                 <div style={contextGroupStyle}>
-                  <div style={contextLabelStyle}>{locale === 'en' ? 'Active read' : 'Lectura activa'}</div>
+                  <div style={contextLabelStyle}>{locale === 'en' ? 'Current slice' : 'Recorte actual'}</div>
                   <div style={{ color: '#dce7f9', fontSize: 13, lineHeight: 1.5 }}>
                     {locale === 'en'
                       ? `${translateRole(roleFilter, 'en')} · ${queueFilter === 'ALL' ? 'all queues' : queueFilter === 'RANKED' ? 'ranked queues' : queueFilter === 'RANKED_SOLO' ? 'solo/duo' : queueFilter === 'RANKED_FLEX' ? 'flex' : 'other queues'}`
@@ -786,8 +824,8 @@ export default function App() {
 
           <div style={navigationPanelStyle}>
               <div style={{ display: 'grid', gap: 3 }}>
-              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Explore' : 'Exploración'}</div>
-              <div style={{ color: '#eef4ff', fontSize: 15, fontWeight: 800 }}>{locale === 'en' ? 'Open the layer you need now' : 'Abrí la capa que necesitás ahora'}</div>
+              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Product navigation' : 'Navegación del producto'}</div>
+              <div style={{ color: '#eef4ff', fontSize: 15, fontWeight: 800 }}>{locale === 'en' ? 'One coaching read, several exploration layers' : 'Una lectura de coaching, varias capas de exploración'}</div>
             </div>
             <div className="tab-grid" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {tabs.map((tab) => (
@@ -805,9 +843,18 @@ export default function App() {
             </div>
             {viewDataset ? (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Badge>{locale === 'en' ? `${viewDataset.summary.matches} visible matches` : `${viewDataset.summary.matches} partidas visibles`}</Badge>
-                {viewDataset.matches[0] ? <Badge>{getQueueLabel(viewDataset.matches[0].queueId)}</Badge> : null}
-                <Badge tone="default">{locale === 'en' ? translateRole(roleFilter, 'en') : getRoleLabel(roleFilter)}</Badge>
+                {activeTab === 'coach' ? (
+                  <>
+                    <Badge>{locale === 'en' ? `${dataset?.summary.matches ?? 0} matches in the saved coaching block` : `${dataset?.summary.matches ?? 0} partidas en el bloque guardado de coaching`}</Badge>
+                    <Badge tone="low">{locale === 'en' ? 'Filters do not spend AI here' : 'Acá los filtros no gastan IA'}</Badge>
+                  </>
+                ) : (
+                  <>
+                    <Badge>{locale === 'en' ? `${viewDataset.summary.matches} visible matches` : `${viewDataset.summary.matches} partidas visibles`}</Badge>
+                    {viewDataset.matches[0] ? <Badge>{getQueueLabel(viewDataset.matches[0].queueId)}</Badge> : null}
+                    <Badge tone="default">{locale === 'en' ? translateRole(roleFilter, 'en') : getRoleLabel(roleFilter)}</Badge>
+                  </>
+                )}
               </div>
             ) : null}
           </div>

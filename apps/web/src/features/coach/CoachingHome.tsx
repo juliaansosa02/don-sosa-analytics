@@ -178,10 +178,47 @@ export function CoachingHome({
   const matchupAlert = summary.insights.find((insight) => insight.focusMetric === 'matchup_review');
   const continuityRead = aiCoach ? buildContinuityRead(aiCoach, locale) : null;
   const processingRead = aiCoach ? buildProcessingRead(aiCoach, locale) : null;
+  const stablePatternValue = patternCard.stableWinRate !== null
+    ? `${formatDecimal(patternCard.stableWinRate)}% WR`
+    : (locale === 'en' ? 'No clear signal yet' : 'Todavía sin señal clara');
+  const reviewTarget = reviewQueue[0];
+  const patchSummary = aiCoach?.context.patchContext.summary[0] ?? aiCoach?.context.patchContext.note ?? null;
+  const coachSupportNotes = [
+    aiCoach?.coach.championSpecificNote,
+    aiCoach?.coach.matchupSpecificNote,
+    patchSummary,
+    continuityRead?.body
+  ].filter(Boolean).slice(0, 3) as string[];
+  const coachMetaItems = [
+    {
+      label: locale === 'en' ? 'Current block' : 'Bloque actual',
+      value: `${summary.matches}`,
+      caption: locale === 'en' ? 'saved matches' : 'partidas guardadas'
+    },
+    {
+      label: locale === 'en' ? 'Anchor pick' : 'Pick ancla',
+      value: championAnchor?.championName ?? (locale === 'en' ? 'No clear pick' : 'Sin pick claro'),
+      caption: championAnchor ? `${championAnchor.winRate}% WR` : (locale === 'en' ? 'needs more sample' : 'necesita más muestra')
+    },
+    {
+      label: locale === 'en' ? 'Stable pattern' : 'Patrón estable',
+      value: stablePatternValue,
+      caption: patternCard.stableMatches.length
+        ? (locale === 'en' ? `${patternCard.stableMatches.length} disciplined games` : `${patternCard.stableMatches.length} partidas disciplinadas`)
+        : (locale === 'en' ? 'clean games not isolated yet' : 'todavía sin partidas limpias aisladas')
+    },
+    {
+      label: locale === 'en' ? 'Patch' : 'Parche',
+      value: aiCoach ? `Patch ${aiCoach.context.patchContext.currentPatch}` : (locale === 'en' ? 'Current' : 'Actual'),
+      caption: aiCoach?.context.patchContext.relevantChampionUpdates.length
+        ? (locale === 'en' ? 'recent relevant changes' : 'cambios recientes relevantes')
+        : (locale === 'en' ? 'no major alert' : 'sin alerta mayor')
+    }
+  ];
 
   return (
-    <div style={{ display: 'grid', gap: 18 }}>
-      <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr .85fr', gap: 16, alignItems: 'start' }}>
+    <div style={{ display: 'grid', gap: 16 }}>
+      <section style={{ display: 'grid', gap: 16 }}>
         <Card title={summary.coaching.headline} subtitle={summary.coaching.subheadline}>
           <div className="four-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
             <KPI
@@ -211,6 +248,7 @@ export function CoachingHome({
           </div>
         </Card>
 
+        {!aiCoach ? (
         <Card title={locale === 'en' ? 'Current block radar' : 'Radar del bloque actual'} subtitle={locale === 'en' ? 'Three quick reads to know where to look first' : 'Tres lecturas rápidas para saber dónde mirar primero'}>
           <div style={{ display: 'grid', gap: 12 }}>
             <SpotlightMetric
@@ -235,20 +273,21 @@ export function CoachingHome({
             />
           </div>
         </Card>
+        ) : null}
       </section>
 
-      <section style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.24fr) minmax(320px, 0.76fr)', gap: 16, alignItems: 'start' }}>
+      <section style={{ display: 'grid', gap: 16 }}>
         <Card
-          title={locale === 'en' ? 'Current coaching read' : 'Lectura principal de coaching'}
+          title={locale === 'en' ? 'Unified coaching read' : 'Lectura unificada de coaching'}
           subtitle={locale === 'en'
-            ? 'This is the main diagnosis for the current filter, built from your data, curated coach knowledge and live patch context.'
-            : 'Este es el diagnóstico principal del filtro actual, armado con tus datos, conocimiento curado de coaches y contexto del parche actual.'}
+            ? 'One stable read for the full saved sample, supported by your data, curated coach knowledge and live patch context.'
+            : 'Una lectura estable para la muestra completa guardada, apoyada en tus datos, conocimiento curado de coaches y contexto del parche live.'}
         >
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={{ color: '#a5b2c6', lineHeight: 1.6 }}>
               {locale === 'en'
-                ? 'The rest of this page should be read through this lens first. Supporting signals and review tasks exist to make this diagnosis usable.'
-                : 'El resto de esta página conviene leerlo primero a través de esta lente. Las señales y tareas de revisión están para volver accionable este diagnóstico.'}
+                ? 'This is the coaching block that should organize the rest of your session. Filters and detail tabs stay available, but they no longer fragment this core diagnosis.'
+                : 'Este es el bloque de coaching que debería ordenar el resto de tu sesión. Los filtros y tabs de detalle siguen disponibles, pero ya no fragmentan este diagnóstico central.'}
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button type="button" style={aiButtonStyle} onClick={onGenerateAICoach} disabled={!onGenerateAICoach || generatingAICoach}>
@@ -377,72 +416,8 @@ export function CoachingHome({
         </div>
       </section>
 
-      {aiCoach ? (
-        <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.05fr .95fr', gap: 16, alignItems: 'start' }}>
-          <Card title={locale === 'en' ? 'Execution plan' : 'Plan de ejecución'} subtitle={locale === 'en' ? 'The reasoning behind the diagnosis and the exact review material to open next.' : 'El razonamiento detrás del diagnóstico y el material exacto que conviene revisar ahora.'}>
-            <div style={{ display: 'grid', gap: 12 }}>
-              <InfoCard title={locale === 'en' ? 'Why it happens' : 'Por qué pasa'} info={locale === 'en' ? 'Model explanation grounded in your current coaching block and retrieved coach knowledge.' : 'Explicación del modelo apoyada en tu bloque actual y en conocimiento curado recuperado.'}>
-                {aiCoach.coach.whyItHappens}
-              </InfoCard>
-              <InfoCard title={locale === 'en' ? 'What to review' : 'Qué revisar'} info={locale === 'en' ? 'Only the clips or moments that are worth checking before you queue again.' : 'Solo los clips o momentos que realmente conviene revisar antes de volver a jugar.'}>
-                <div style={{ display: 'grid', gap: 8 }}>
-                  {aiCoach.coach.whatToReview.map((item) => (
-                    <div key={item} style={compactActionStyle}>{item}</div>
-                  ))}
-                </div>
-              </InfoCard>
-            </div>
-          </Card>
-
-          <Card title={locale === 'en' ? 'Specific notes' : 'Notas específicas'} subtitle={locale === 'en' ? 'Champion, matchup and live context that can change the read.' : 'Campeón, matchup y contexto actual que pueden cambiar la lectura.'}>
-            <div style={{ display: 'grid', gap: 12 }}>
-              {continuityRead ? (
-                <div style={compactContextPanelStyle}>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-                    <Badge tone={continuityRead.tone}>{continuityRead.title}</Badge>
-                    {aiCoach.continuity.previousVisibleMatches > 0 ? (
-                      <Badge tone="default">
-                        {locale === 'en' ? `${aiCoach.continuity.previousVisibleMatches} matches before` : `${aiCoach.continuity.previousVisibleMatches} partidas antes`}
-                      </Badge>
-                    ) : null}
-                  </div>
-                  <div style={{ color: '#d7e1f0', lineHeight: 1.65 }}>{continuityRead.body}</div>
-                </div>
-              ) : null}
-              <InfoCard title={locale === 'en' ? 'Patch context' : 'Contexto de parche'} info={locale === 'en' ? 'Official Riot patch context used to adjust emphasis when your pool or matchup changed recently.' : 'Contexto oficial de Riot usado para ajustar el énfasis cuando tu pool o matchup cambió recientemente.'}>
-                <div style={{ display: 'grid', gap: 10 }}>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Badge tone="default">{`Patch ${aiCoach.context.patchContext.currentPatch}`}</Badge>
-                    <Badge tone="medium">{locale === 'en' ? 'Official Riot source' : 'Fuente oficial Riot'}</Badge>
-                  </div>
-                  <div style={{ color: '#d7e1f0', lineHeight: 1.65 }}>{aiCoach.context.patchContext.note}</div>
-                  {aiCoach.context.patchContext.summary.length ? (
-                    <div style={{ display: 'grid', gap: 8 }}>
-                      {aiCoach.context.patchContext.summary.slice(0, 2).map((item) => (
-                        <div key={item} style={compactActionStyle}>{item}</div>
-                      ))}
-                    </div>
-                  ) : null}
-                  <a href={aiCoach.context.patchContext.sourceUrl} target="_blank" rel="noreferrer" style={{ color: '#8dd8ff', textDecoration: 'none', fontWeight: 700 }}>
-                    {locale === 'en' ? 'Open official patch notes' : 'Abrir patch notes oficiales'}
-                  </a>
-                </div>
-              </InfoCard>
-              {aiCoach.coach.championSpecificNote ? (
-                <InfoCard title={locale === 'en' ? 'Champion note' : 'Nota de campeón'} info={locale === 'en' ? 'Specific read tied to your current anchor pick.' : 'Lectura específica atada a tu pick ancla actual.'}>
-                  {aiCoach.coach.championSpecificNote}
-                </InfoCard>
-              ) : null}
-              {aiCoach.coach.matchupSpecificNote ? (
-                <InfoCard title={locale === 'en' ? 'Matchup note' : 'Nota de matchup'} info={locale === 'en' ? 'Specific preparation clue for the matchup pattern the system found.' : 'Pista específica de preparación para el patrón de matchup que encontró el sistema.'}>
-                  {aiCoach.coach.matchupSpecificNote}
-                </InfoCard>
-              ) : null}
-            </div>
-          </Card>
-        </section>
-      ) : null}
-
+      {!aiCoach ? (
+      <>
       <section style={{ display: 'grid', gap: 14 }}>
         <div>
           <h2 style={{ margin: 0, fontSize: 24 }}>{locale === 'en' ? 'Coaching priorities' : 'Prioridades de coaching'}</h2>
@@ -549,6 +524,8 @@ export function CoachingHome({
           </div>
         </Card>
       </section>
+      </>
+      ) : null}
     </div>
   );
 }

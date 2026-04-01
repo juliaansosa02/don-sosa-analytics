@@ -79,7 +79,33 @@ export function getRankPalette(tier) {
 }
 export function getRankEmblemDataUrl(tier) {
     const palette = getRankPalette(tier);
-    const safeTier = (tier ?? 'UNRANKED').slice(0, 2).toUpperCase();
+    const tierKey = tier ?? 'UNRANKED';
+    const safeTier = tierKey.slice(0, 2).toUpperCase();
+    const coreShapeMap = {
+        IRON: 'M36 20L48 28V44L36 52L24 44V28L36 20Z',
+        BRONZE: 'M36 18L50 30L43 50H29L22 30L36 18Z',
+        SILVER: 'M36 19L41 29L52 30L44 38L47 49L36 43L25 49L28 38L20 30L31 29L36 19Z',
+        GOLD: 'M36 16L46 24L51 36L46 48L36 56L26 48L21 36L26 24L36 16Z',
+        PLATINUM: 'M36 16L49 25L46 45L36 56L26 45L23 25L36 16Z',
+        EMERALD: 'M36 15L47 21L50 35L44 49L36 57L28 49L22 35L25 21L36 15Z',
+        DIAMOND: 'M36 14L48 24L44 46L36 58L28 46L24 24L36 14Z',
+        MASTER: 'M24 48L21 29L29 19L36 25L43 19L51 29L48 48L36 56L24 48Z',
+        GRANDMASTER: 'M20 31L29 16L36 22L43 16L52 31L47 49L36 57L25 49L20 31Z',
+        CHALLENGER: 'M18 31L28 14L36 20L44 14L54 31L49 50L36 58L23 50L18 31Z'
+    };
+    const wingMap = {
+        MASTER: '<path d="M17 29L9 24L13 36L21 38" fill="none" stroke="' + palette.glow + '" stroke-width="2" stroke-linecap="round"/><path d="M55 29L63 24L59 36L51 38" fill="none" stroke="' + palette.glow + '" stroke-width="2" stroke-linecap="round"/>',
+        GRANDMASTER: '<path d="M16 30L7 25L11 38L21 40" fill="none" stroke="' + palette.glow + '" stroke-width="2" stroke-linecap="round"/><path d="M56 30L65 25L61 38L51 40" fill="none" stroke="' + palette.glow + '" stroke-width="2" stroke-linecap="round"/>',
+        CHALLENGER: '<path d="M15 30L5 24L10 40L22 42" fill="none" stroke="' + palette.glow + '" stroke-width="2" stroke-linecap="round"/><path d="M57 30L67 24L62 40L50 42" fill="none" stroke="' + palette.glow + '" stroke-width="2" stroke-linecap="round"/>'
+    };
+    const crownMap = {
+        MASTER: 'M27 16L32 22L36 16L40 22L45 16L45 24H27V16Z',
+        GRANDMASTER: 'M25 15L30 22L36 14L42 22L47 15L47 25H25V15Z',
+        CHALLENGER: 'M23 14L29 23L36 13L43 23L49 14L49 26H23V14Z'
+    };
+    const coreShape = coreShapeMap[tierKey] ?? 'M36 18L48 26L44 46L36 54L28 46L24 26L36 18Z';
+    const wingMarkup = wingMap[tierKey] ?? '<path d="M26 22L19 30L22 40" stroke="' + palette.glow + '" stroke-width="2" stroke-linecap="round" opacity="0.75"/><path d="M46 22L53 30L50 40" stroke="' + palette.glow + '" stroke-width="2" stroke-linecap="round" opacity="0.75"/>';
+    const crownMarkup = crownMap[tierKey] ? `<path d="${crownMap[tierKey]}" fill="${palette.glow}" opacity="0.92"/>` : '';
     const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72" fill="none">
       <defs>
@@ -93,11 +119,11 @@ export function getRankEmblemDataUrl(tier) {
         </linearGradient>
       </defs>
       <circle cx="36" cy="36" r="28" fill="url(#bg)" stroke="url(#g)" stroke-width="2"/>
-      <path d="M36 14L50 24L46 46L36 58L26 46L22 24L36 14Z" fill="url(#g)" opacity="0.22"/>
-      <path d="M36 18L47 26L43 43L36 52L29 43L25 26L36 18Z" fill="url(#g)" opacity="0.96"/>
-      <path d="M36 24L42 29L40 39L36 45L32 39L30 29L36 24Z" fill="#08101a"/>
-      <path d="M26 22L19 30L22 40" stroke="${palette.glow}" stroke-width="2" stroke-linecap="round" opacity="0.75"/>
-      <path d="M46 22L53 30L50 40" stroke="${palette.glow}" stroke-width="2" stroke-linecap="round" opacity="0.75"/>
+      <path d="${coreShape}" fill="url(#g)" opacity="0.26"/>
+      <path d="${coreShape}" fill="url(#g)" opacity="0.98" transform="translate(0 2) scale(0.92 0.88) translate(3.2 2.6)"/>
+      <path d="M36 25L42 30L40 40L36 46L32 40L30 30L36 25Z" fill="#08101a"/>
+      ${wingMarkup}
+      ${crownMarkup}
       <text x="36" y="64" text-anchor="middle" font-size="8" font-family="Manrope, Arial, sans-serif" fill="${palette.glow}" letter-spacing="1.3">${safeTier}</text>
     </svg>
   `;
