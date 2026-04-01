@@ -6,6 +6,7 @@ import type { Request, Response } from 'express';
 import { env } from './config/env.js';
 import { healthRouter } from './routes/health.js';
 import { analyticsRouter } from './routes/analytics.js';
+import { aiCoachRouter } from './routes/aiCoach.js';
 
 const app = express();
 const webDistPath = fileURLToPath(new URL('../../web/dist', import.meta.url));
@@ -146,6 +147,7 @@ if (env.BETA_ACCESS_CODE) {
 }
 
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/ai/coach', aiCoachRouter);
 
 if (hasWebBuild) {
   app.use(express.static(webDistPath));

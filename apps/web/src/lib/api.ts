@@ -1,4 +1,4 @@
-import type { Dataset } from '../types';
+import type { AICoachResult, Dataset } from '../types';
 import type { Locale } from './i18n';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://localhost:8787/api';
@@ -107,4 +107,43 @@ export async function fetchCachedProfile(gameName: string, tagLine: string, loca
   }
 
   return response.json() as Promise<Dataset>;
+}
+
+export async function generateAICoach(input: {
+  gameName: string;
+  tagLine: string;
+  locale: Locale;
+  roleFilter: string;
+  queueFilter: 'ALL' | 'RANKED' | 'RANKED_SOLO' | 'RANKED_FLEX' | 'OTHER';
+  windowFilter: 'ALL' | 'LAST_20' | 'LAST_8';
+}): Promise<AICoachResult> {
+  const response = await fetch(`${API_BASE}/ai/coach/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input)
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json() as Promise<AICoachResult>;
+}
+
+export async function sendAICoachFeedback(input: {
+  generationId: string;
+  verdict: 'useful' | 'mixed' | 'generic' | 'incorrect';
+  notes?: string;
+}) {
+  const response = await fetch(`${API_BASE}/ai/coach/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input)
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json() as Promise<{ ok: true; feedbackId: string }>;
 }

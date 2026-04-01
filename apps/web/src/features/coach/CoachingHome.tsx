@@ -1,6 +1,6 @@
 import type { PropsWithChildren } from 'react';
 import { Card, Badge, KPI, InfoHint } from '../../components/ui';
-import type { Dataset } from '../../types';
+import type { AICoachResult, Dataset } from '../../types';
 import { formatDecimal } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
 
@@ -76,7 +76,23 @@ function buildPositiveLanes(dataset: Dataset, locale: Locale) {
   }];
 }
 
-export function CoachingHome({ dataset, locale = 'es' }: { dataset: Dataset; locale?: Locale }) {
+export function CoachingHome({
+  dataset,
+  locale = 'es',
+  aiCoach,
+  generatingAICoach = false,
+  aiCoachError,
+  onGenerateAICoach,
+  onSendFeedback
+}: {
+  dataset: Dataset;
+  locale?: Locale;
+  aiCoach?: AICoachResult | null;
+  generatingAICoach?: boolean;
+  aiCoachError?: string | null;
+  onGenerateAICoach?: () => void;
+  onSendFeedback?: (verdict: 'useful' | 'mixed' | 'generic' | 'incorrect') => void;
+}) {
   const { summary } = dataset;
   const topProblems = summary.coaching.topProblems;
   const activePlan = summary.coaching.activePlan;
@@ -146,6 +162,69 @@ export function CoachingHome({ dataset, locale = 'es' }: { dataset: Dataset; loc
       </section>
 
       <section className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr 1fr', gap: 16 }}>
+        <Card title={locale === 'en' ? 'AI coach beta' : 'AI coach beta'} subtitle={locale === 'en' ? 'A deeper coaching layer built on your current stats plus curated coach knowledge' : 'Una capa más profunda de coaching armada sobre tus stats actuales y conocimiento curado de coaches'}>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ color: '#a5b2c6', lineHeight: 1.6 }}>
+              {locale === 'en'
+                ? 'Use this when you want a sharper explanation of why the current block is failing and what the next three games should look like.'
+                : 'Usalo cuando quieras una explicación más profunda de por qué falla el bloque actual y cómo deberían verse tus próximas tres partidas.'}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" style={aiButtonStyle} onClick={onGenerateAICoach} disabled={!onGenerateAICoach || generatingAICoach}>
+                {generatingAICoach ? (locale === 'en' ? 'Generating AI block...' : 'Generando bloque IA...') : (locale === 'en' ? 'Generate AI coaching' : 'Generar coaching IA')}
+              </button>
+              {aiCoach ? <Badge tone={aiCoach.provider === 'openai' ? 'low' : 'medium'}>{aiCoach.provider === 'openai' ? 'OPENAI' : (locale === 'en' ? 'DRAFT MODE' : 'MODO DRAFT')}</Badge> : null}
+              {aiCoach ? <Badge tone="default">{`${Math.round(aiCoach.coach.confidence * 100)}% ${locale === 'en' ? 'confidence' : 'confianza'}`}</Badge> : null}
+            </div>
+            {aiCoachError ? <div style={{ color: '#ffb3b3', lineHeight: 1.6 }}>{aiCoachError}</div> : null}
+            {aiCoach ? (
+              <div style={{ display: 'grid', gap: 12 }}>
+                <div style={signalCardStyle}>
+                  <div style={{ color: '#edf2ff', fontSize: 18, fontWeight: 800 }}>{aiCoach.coach.mainLeak}</div>
+                  <div style={{ color: '#9aa5b7', lineHeight: 1.7 }}>{aiCoach.coach.summary}</div>
+                </div>
+                <InfoCard title={locale === 'en' ? 'Why it happens' : 'Por qué pasa'} info={locale === 'en' ? 'Model explanation grounded in your current coaching block and retrieved coach knowledge.' : 'Explicación del modelo apoyada en tu bloque actual y en conocimiento curado recuperado.'}>
+                  {aiCoach.coach.whyItHappens}
+                </InfoCard>
+                <InfoCard title={locale === 'en' ? 'What to review' : 'Qué revisar'} info={locale === 'en' ? 'The exact clips or moments worth checking before you queue again.' : 'Los clips o momentos exactos que conviene revisar antes de volver a jugar.'}>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {aiCoach.coach.whatToReview.map((item) => (
+                      <div key={item}>{item}</div>
+                    ))}
+                  </div>
+                </InfoCard>
+                <InfoCard title={locale === 'en' ? 'Next 3 games' : 'Próximas 3 partidas'} info={locale === 'en' ? 'Habits to hold immediately in your next block.' : 'Hábitos para sostener inmediatamente en tu siguiente bloque.'}>
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {aiCoach.coach.whatToDoNext3Games.map((item) => (
+                      <div key={item}>{item}</div>
+                    ))}
+                  </div>
+                </InfoCard>
+                {aiCoach.coach.championSpecificNote ? (
+                  <InfoCard title={locale === 'en' ? 'Champion note' : 'Nota de campeón'} info={locale === 'en' ? 'Specific read tied to your current anchor pick.' : 'Lectura específica atada a tu pick ancla actual.'}>
+                    {aiCoach.coach.championSpecificNote}
+                  </InfoCard>
+                ) : null}
+                {aiCoach.coach.matchupSpecificNote ? (
+                  <InfoCard title={locale === 'en' ? 'Matchup note' : 'Nota de matchup'} info={locale === 'en' ? 'Specific preparation clue for the matchup pattern the system found.' : 'Pista específica de preparación para el patrón de matchup que encontró el sistema.'}>
+                    {aiCoach.coach.matchupSpecificNote}
+                  </InfoCard>
+                ) : null}
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {onSendFeedback ? (
+                    <>
+                      <button type="button" style={feedbackButtonStyle} onClick={() => onSendFeedback('useful')}>{locale === 'en' ? 'Useful' : 'Útil'}</button>
+                      <button type="button" style={feedbackButtonStyle} onClick={() => onSendFeedback('mixed')}>{locale === 'en' ? 'Mixed' : 'Mixto'}</button>
+                      <button type="button" style={feedbackButtonStyle} onClick={() => onSendFeedback('generic')}>{locale === 'en' ? 'Generic' : 'Genérico'}</button>
+                      <button type="button" style={feedbackButtonStyle} onClick={() => onSendFeedback('incorrect')}>{locale === 'en' ? 'Incorrect' : 'Incorrecto'}</button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </Card>
+
         <Card title={locale === 'en' ? 'What is already giving you level' : 'Qué ya te está dando nivel'} subtitle={locale === 'en' ? 'Not everything is about fixing issues: you also need to repeat what is already working' : 'No todo es corregir: también hay que repetir lo que sí funciona'}>
           <div style={{ display: 'grid', gap: 10 }}>
             {positiveLanes.map((insight) => (
@@ -361,6 +440,26 @@ const problemCardStyle = {
   borderRadius: 18,
   background: 'linear-gradient(180deg, rgba(24,18,41,0.9), rgba(8,11,18,0.98))',
   border: '1px solid rgba(255,255,255,0.06)'
+} as const;
+
+const aiButtonStyle = {
+  border: 0,
+  padding: '12px 14px',
+  borderRadius: 12,
+  background: '#d8fdf1',
+  color: '#05111e',
+  fontWeight: 800,
+  cursor: 'pointer'
+} as const;
+
+const feedbackButtonStyle = {
+  border: '1px solid rgba(255,255,255,0.08)',
+  padding: '9px 11px',
+  borderRadius: 10,
+  background: '#0a0f18',
+  color: '#dfe8f6',
+  fontWeight: 700,
+  cursor: 'pointer'
 } as const;
 
 const infoCardStyle = {

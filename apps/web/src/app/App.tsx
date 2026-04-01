@@ -1,7 +1,7 @@
 import { buildAggregateSummary } from '@don-sosa/core';
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { collectProfile, fetchCachedProfile } from '../lib/api';
-import type { Dataset } from '../types';
+import { collectProfile, fetchCachedProfile, generateAICoach, sendAICoachFeedback } from '../lib/api';
+import type { AICoachResult, Dataset } from '../types';
 import { Shell, Card, Badge } from '../components/ui';
 import { CoachingHome } from '../features/coach/CoachingHome';
 import { StatsTab } from '../features/stats/StatsTab';
@@ -82,6 +82,9 @@ export default function App() {
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [savedProfiles, setSavedProfiles] = useState<SavedProfileRecord[]>([]);
+  const [aiCoach, setAICoach] = useState<AICoachResult | null>(null);
+  const [aiCoachLoading, setAICoachLoading] = useState(false);
+  const [aiCoachError, setAICoachError] = useState<string | null>(null);
 
   async function hydrateFromServer(gameNameValue: string, tagLineValue: string) {
     try {
@@ -194,7 +197,17 @@ export default function App() {
 
     switch (activeTab) {
       case 'coach':
-        return <CoachingHome dataset={viewDataset} locale={locale} />;
+        return (
+          <CoachingHome
+            dataset={viewDataset}
+            locale={locale}
+            aiCoach={aiCoach}
+            generatingAICoach={aiCoachLoading}
+            aiCoachError={aiCoachError}
+            onGenerateAICoach={() => void handleGenerateAICoach()}
+            onSendFeedback={(verdict) => void handleAICoachFeedback(verdict)}
+          />
+        );
       case 'stats':
         return <StatsTab dataset={viewDataset} locale={locale} />;
       case 'matchups':
@@ -229,6 +242,11 @@ export default function App() {
       setRoleFilter('ALL');
     }
   }, [availableRoles, roleFilter]);
+
+  useEffect(() => {
+    setAICoach(null);
+    setAICoachError(null);
+  }, [gameName, tagLine, roleFilter, queueFilter, windowFilter, dataset?.summary.matches]);
 
   function persistSavedProfile(nextDataset: Dataset, nextMatchCount: number) {
     const nextRecord: SavedProfileRecord = {
@@ -330,6 +348,42 @@ export default function App() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     await runAnalysis();
+  }
+
+  async function handleGenerateAICoach() {
+    if (!gameName || !tagLine) return;
+    setAICoachLoading(true);
+    setAICoachError(null);
+
+    try {
+      const result = await generateAICoach({
+        gameName,
+        tagLine,
+        locale,
+        roleFilter,
+        queueFilter,
+        windowFilter
+      });
+      setAICoach(result);
+    } catch (err) {
+      setAICoachError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setAICoachLoading(false);
+    }
+  }
+
+  async function handleAICoachFeedback(verdict: 'useful' | 'mixed' | 'generic' | 'incorrect') {
+    if (!aiCoach?.generationId) return;
+
+    try {
+      await sendAICoachFeedback({
+        generationId: aiCoach.generationId,
+        verdict
+      });
+      setSyncMessage(locale === 'en' ? 'AI feedback saved. This will help us tighten future coaching blocks.' : 'Feedback de IA guardado. Esto nos va a ayudar a afinar futuros bloques de coaching.');
+    } catch (err) {
+      setAICoachError(err instanceof Error ? err.message : 'Unknown error');
+    }
   }
 
   return (

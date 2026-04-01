@@ -69,3 +69,25 @@ export async function fetchCachedProfile(gameName, tagLine, locale = 'es') {
     }
     return response.json();
 }
+export async function generateAICoach(input) {
+    const response = await fetch(`${API_BASE}/ai/coach/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input)
+    });
+    if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+    }
+    return response.json();
+}
+export async function sendAICoachFeedback(input) {
+    const response = await fetch(`${API_BASE}/ai/coach/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input)
+    });
+    if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+    }
+    return response.json();
+}

@@ -1,7 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { buildAggregateSummary } from '@don-sosa/core';
 import { useEffect, useMemo, useState } from 'react';
-import { collectProfile, fetchCachedProfile } from '../lib/api';
+import { collectProfile, fetchCachedProfile, generateAICoach, sendAICoachFeedback } from '../lib/api';
 import { Shell, Card, Badge } from '../components/ui';
 import { CoachingHome } from '../features/coach/CoachingHome';
 import { StatsTab } from '../features/stats/StatsTab';
@@ -57,6 +57,9 @@ export default function App() {
     const [syncMessage, setSyncMessage] = useState(null);
     const [dataset, setDataset] = useState(null);
     const [savedProfiles, setSavedProfiles] = useState([]);
+    const [aiCoach, setAICoach] = useState(null);
+    const [aiCoachLoading, setAICoachLoading] = useState(false);
+    const [aiCoachError, setAICoachError] = useState(null);
     async function hydrateFromServer(gameNameValue, tagLineValue) {
         try {
             const serverDataset = await fetchCachedProfile(gameNameValue, tagLineValue, locale);
@@ -177,7 +180,7 @@ export default function App() {
             return null;
         switch (activeTab) {
             case 'coach':
-                return _jsx(CoachingHome, { dataset: viewDataset, locale: locale });
+                return (_jsx(CoachingHome, { dataset: viewDataset, locale: locale, aiCoach: aiCoach, generatingAICoach: aiCoachLoading, aiCoachError: aiCoachError, onGenerateAICoach: () => void handleGenerateAICoach(), onSendFeedback: (verdict) => void handleAICoachFeedback(verdict) }));
             case 'stats':
                 return _jsx(StatsTab, { dataset: viewDataset, locale: locale });
             case 'matchups':
@@ -211,6 +214,10 @@ export default function App() {
             setRoleFilter('ALL');
         }
     }, [availableRoles, roleFilter]);
+    useEffect(() => {
+        setAICoach(null);
+        setAICoachError(null);
+    }, [gameName, tagLine, roleFilter, queueFilter, windowFilter, dataset?.summary.matches]);
     function persistSavedProfile(nextDataset, nextMatchCount) {
         const nextRecord = {
             gameName: nextDataset.player,
@@ -308,6 +315,43 @@ export default function App() {
     async function handleSubmit(event) {
         event.preventDefault();
         await runAnalysis();
+    }
+    async function handleGenerateAICoach() {
+        if (!gameName || !tagLine)
+            return;
+        setAICoachLoading(true);
+        setAICoachError(null);
+        try {
+            const result = await generateAICoach({
+                gameName,
+                tagLine,
+                locale,
+                roleFilter,
+                queueFilter,
+                windowFilter
+            });
+            setAICoach(result);
+        }
+        catch (err) {
+            setAICoachError(err instanceof Error ? err.message : 'Unknown error');
+        }
+        finally {
+            setAICoachLoading(false);
+        }
+    }
+    async function handleAICoachFeedback(verdict) {
+        if (!aiCoach?.generationId)
+            return;
+        try {
+            await sendAICoachFeedback({
+                generationId: aiCoach.generationId,
+                verdict
+            });
+            setSyncMessage(locale === 'en' ? 'AI feedback saved. This will help us tighten future coaching blocks.' : 'Feedback de IA guardado. Esto nos va a ayudar a afinar futuros bloques de coaching.');
+        }
+        catch (err) {
+            setAICoachError(err instanceof Error ? err.message : 'Unknown error');
+        }
     }
     return (_jsx(Shell, { children: _jsxs("div", { style: { display: 'grid', gap: 18, maxWidth: 1440, margin: '0 auto' }, children: [_jsxs("section", { style: heroStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsx("div", { style: { color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }, children: "Don Sosa Coach" }), _jsx("h1", { style: { margin: 0, fontSize: 46, letterSpacing: '-0.05em', maxWidth: 760 }, children: locale === 'en'
                                         ? 'A competitive read of your play, not just another stats page'

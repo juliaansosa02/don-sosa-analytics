@@ -1,0 +1,24 @@
+{
+  "id": "jungle-tempo-after-failed-gank",
+  "title": "Recover tempo after a failed gank",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "tempo_after_failed_gank",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["tempo", "farm", "failed gank", "early game", "jungle route"],
+  "body": "After a failed gank, the next priority is usually to recover camp tempo rather than forcing a second action. A lot of jungle games collapse because one low-value play becomes two low-value plays in a row.",
+  "actionables": [
+    "After a failed gank, ask whether returning to route is worth more than forcing another lane touch.",
+    "Review the first detour that breaks your first or second clear.",
+    "Use camp tempo as the default unless lane priority actually changed."
+  ],
+  "source": {
+    "coach": "Template Example",
+    "title": "Jungle tempo examples",
+    "notes": "Template card to show the expected format."
+  }
+}

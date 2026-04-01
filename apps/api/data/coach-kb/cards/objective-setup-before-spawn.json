@@ -1,0 +1,24 @@
+{
+  "id": "objective-setup-before-spawn",
+  "title": "Objective fights are often lost in the minute before spawn",
+  "language": "en",
+  "role": "ALL",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "objective_setup_window",
+  "skillLevel": "all",
+  "patch": null,
+  "tags": ["objective", "setup", "vision", "reset", "macro", "tempo"],
+  "body": "A large share of objective losses come from arriving late, without reset, without vision or without priority. The important review point is usually the minute before spawn, not only the fight itself.",
+  "actionables": [
+    "Review the last 60 to 75 seconds before dragon or Herald instead of only reviewing the fight.",
+    "Mark whether you were missing reset, vision, wave priority or player count first.",
+    "If one more side play makes you late to setup, the side play is often the real mistake."
+  ],
+  "source": {
+    "coach": "Template Example",
+    "title": "Macro setup examples",
+    "notes": "Template card to show the expected format."
+  }
+}

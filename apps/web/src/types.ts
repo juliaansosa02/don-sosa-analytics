@@ -57,3 +57,26 @@ export interface Dataset {
   summary: AggregateSummary;
   matches: MatchSnapshot[];
 }
+
+export interface AICoachResult {
+  generationId: string;
+  provider: 'draft' | 'openai';
+  model: string | null;
+  retrieval: {
+    localKnowledgeCount: number;
+    localKnowledgeIds: string[];
+    usedVectorStore: boolean;
+  };
+  coach: {
+    summary: string;
+    mainLeak: string;
+    whyItHappens: string;
+    whatToReview: string[];
+    whatToDoNext3Games: string[];
+    championSpecificNote: string | null;
+    matchupSpecificNote: string | null;
+    grounding: string[];
+    knowledgeCardIds: string[];
+    confidence: number;
+  };
+}

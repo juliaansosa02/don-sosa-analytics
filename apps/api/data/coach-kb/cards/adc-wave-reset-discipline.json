@@ -1,0 +1,24 @@
+{
+  "id": "adc-wave-reset-discipline",
+  "title": "Do not trade away full waves for low-conversion fights",
+  "language": "en",
+  "role": "BOTTOM",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "wave_reset_discipline",
+  "skillLevel": "gold_plus",
+  "patch": null,
+  "tags": ["adc", "wave", "reset", "farm", "cs at 15"],
+  "body": "ADC economy problems often start before the fight itself. The real leak is usually giving away wave state or delaying a clean reset for a play that does not reliably convert into kill, crash or plate value.",
+  "actionables": [
+    "Do not chase extended kills if the cost is a full wave without a guaranteed crash.",
+    "Review whether your first weak reset was forced by greed or by unavoidable pressure.",
+    "Track which botlane losses start with wave loss rather than pure mechanics."
+  ],
+  "source": {
+    "coach": "Template Example",
+    "title": "ADC economy examples",
+    "notes": "Template card to show the expected format."
+  }
+}
