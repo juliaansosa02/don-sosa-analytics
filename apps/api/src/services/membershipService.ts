@@ -7,6 +7,7 @@ import { listViewerProfileLinks, loadMembershipAccount, saveMembershipAccount, t
 import type { collectPlayerSnapshot } from './collectionService.js';
 import type { AICoachRequest } from './aiCoachSchemas.js';
 import { getAuthContext } from './authService.js';
+import { reconcileStripeMembershipForViewer } from './billingService.js';
 
 type StoredDataset = Awaited<ReturnType<typeof collectPlayerSnapshot>>;
 
@@ -24,13 +25,16 @@ export function resolveViewerId(req: Request) {
 
 export async function resolveMembershipContextForSubject(viewerId: string, role?: 'user' | 'coach' | 'admin' | null): Promise<MembershipContext> {
   const existingAccount = await loadMembershipAccount(viewerId);
-  const account = existingAccount ?? await saveMembershipAccount({
+  const seededAccount = existingAccount ?? await saveMembershipAccount({
     viewerId,
     planId: 'free',
     status: 'active',
     source: 'default',
     billingProvider: null
   });
+  const account = seededAccount.stripeCustomerId && (seededAccount.planId === 'free' || seededAccount.status !== 'active')
+    ? await reconcileStripeMembershipForViewer(viewerId) ?? seededAccount
+    : seededAccount;
   const linkedProfiles = await listViewerProfileLinks(viewerId);
   const actualPlan = getMembershipPlan(account.planId);
   const plan = role === 'admin' ? getMembershipPlan('pro_coach') : actualPlan;

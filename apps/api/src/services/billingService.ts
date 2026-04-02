@@ -26,6 +26,7 @@ interface StripePrice {
 interface StripeSubscription {
   id: string;
   customer?: string;
+  created?: number;
   current_period_end?: number;
   status?: string;
   metadata?: Record<string, string>;
@@ -79,6 +80,12 @@ async function stripeGet<T>(path: string) {
 
 async function loadStripeSubscription(subscriptionId: string) {
   return stripeGet<StripeSubscription>(`/subscriptions/${encodeURIComponent(subscriptionId)}`);
+}
+
+async function listStripeSubscriptions(customerId: string) {
+  return stripeGet<StripeListResponse<StripeSubscription>>(
+    `/subscriptions?customer=${encodeURIComponent(customerId)}&status=all&limit=10`
+  );
 }
 
 async function resolveStripePriceId(planId: MembershipPlanId) {
@@ -330,4 +337,37 @@ export async function createStripeBillingPortalSession(userId: string) {
   body.set('customer', account.stripeCustomerId);
   body.set('return_url', env.APP_BASE_URL);
   return stripeFormRequest<{ id: string; url: string }>('/billing_portal/sessions', body);
+}
+
+function rankSubscriptionStatus(status: string | null | undefined) {
+  switch (status) {
+    case 'active':
+      return 5;
+    case 'trialing':
+      return 4;
+    case 'past_due':
+    case 'unpaid':
+      return 3;
+    case 'canceled':
+      return 2;
+    default:
+      return 1;
+  }
+}
+
+export async function reconcileStripeMembershipForViewer(viewerId: string) {
+  const account = await loadMembershipAccount(viewerId);
+  if (!account?.stripeCustomerId) return null;
+
+  const subscriptions = await listStripeSubscriptions(account.stripeCustomerId);
+  const best = [...subscriptions.data].sort((left, right) => {
+    const statusDiff = rankSubscriptionStatus(right.status) - rankSubscriptionStatus(left.status);
+    if (statusDiff !== 0) return statusDiff;
+    return (right.created ?? 0) - (left.created ?? 0);
+  })[0];
+
+  if (!best) return account;
+
+  await syncStripeMembershipFromObject(best);
+  return loadMembershipAccount(viewerId);
 }
