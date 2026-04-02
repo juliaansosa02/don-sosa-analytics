@@ -1,265 +1,414 @@
-import { Card, Badge } from '../../components/ui';
+import { Badge, Card, ChampionIdentity } from '../../components/ui';
 import type { Dataset } from '../../types';
-import { formatChampionName, getChampionIconUrl, getRuneIconUrl } from '../../lib/lol';
-import { formatDecimal, formatInteger, formatPercent } from '../../lib/format';
+import { formatChampionName } from '../../lib/lol';
+import { formatDecimal, formatInteger, formatPercent, formatSignedNumber } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
-
-function aggregateRunes(dataset: Dataset) {
-  const grouped = new Map<string, {
-    name: string;
-    icon?: string;
-    games: number;
-    wins: number;
-    damage: number;
-    healing: number;
-    shielding: number;
-    performance: number;
-    champions: Map<string, { games: number; wins: number }>;
-  }>();
-
-  for (const match of dataset.matches) {
-    const keystone = match.primaryRunes[0]?.name ?? 'Unknown keystone';
-    const current = grouped.get(keystone) ?? {
-      name: keystone,
-      icon: match.primaryRunes[0]?.icon,
-      games: 0,
-      wins: 0,
-      damage: 0,
-      healing: 0,
-      shielding: 0,
-      performance: 0,
-      champions: new Map()
-    };
-
-    current.games += 1;
-    current.wins += match.win ? 1 : 0;
-    current.damage += match.runeStats.totalDamageFromRunes;
-    current.healing += match.runeStats.totalHealingFromRunes;
-    current.shielding += match.runeStats.totalShieldingFromRunes;
-    current.performance += match.score.total;
-
-    const championUsage = current.champions.get(match.championName) ?? { games: 0, wins: 0 };
-    championUsage.games += 1;
-    championUsage.wins += match.win ? 1 : 0;
-    current.champions.set(match.championName, championUsage);
-
-    grouped.set(keystone, current);
-  }
-
-  return Array.from(grouped.values())
-    .map((entry) => ({
-      ...entry,
-      winRate: Number(((entry.wins / Math.max(entry.games, 1)) * 100).toFixed(1)),
-      avgDamage: Number((entry.damage / entry.games).toFixed(0)),
-      avgHealing: Number((entry.healing / entry.games).toFixed(0)),
-      avgShielding: Number((entry.shielding / entry.games).toFixed(0)),
-      avgPerformance: Number((entry.performance / entry.games).toFixed(1)),
-      champions: Array.from(entry.champions.entries())
-        .map(([championName, usage]) => ({
-          championName,
-          games: usage.games,
-          winRate: Number(((usage.wins / Math.max(usage.games, 1)) * 100).toFixed(1))
-        }))
-        .sort((a, b) => b.games - a.games || b.winRate - a.winRate)
-        .slice(0, 3)
-    }))
-    .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
-}
+import { evidenceBadgeLabel, evidenceExplanation, evidenceTone } from '../premium-analysis/evidence';
+import { buildChampionRuneWorkbench, type RuneComparison, type RuneVariantAggregate } from './runeWorkbench';
 
 export function RunesTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?: Locale }) {
-  const runes = aggregateRunes(dataset);
+  const champions = buildChampionRuneWorkbench(dataset, locale);
+  const comparisons = champions.flatMap((champion) => champion.keystones.flatMap((keystone) => keystone.comparisons));
+  const strongReads = comparisons.filter((comparison) => comparison.evidenceTier === 'strong').length;
+  const weakReads = comparisons.filter((comparison) => comparison.evidenceTier === 'weak').length;
+  const hypothesisReads = comparisons.filter((comparison) => comparison.evidenceTier === 'hypothesis').length;
 
-  return (
-    <div style={{ display: 'grid', gap: 16 }}>
-      <Card title={locale === 'en' ? 'Runes' : 'Runas'} subtitle={locale === 'en' ? 'Each keystone is read together with the champions you are actually using it on' : 'Cada keystone se lee junto a los campeones con los que realmente la estás usando'}>
-        <div style={{ display: 'grid', gap: 14 }}>
-          {runes.map((rune) => {
-            const iconUrl = getRuneIconUrl(rune.icon);
-            const anchorChampion = rune.champions[0];
-            const performanceDiff = rune.avgPerformance - dataset.summary.avgPerformanceScore;
-            const winRateDiff = rune.winRate - dataset.summary.winRate;
-
-            return (
-              <div key={rune.name} style={runeCardStyle}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    {iconUrl ? <img src={iconUrl} alt={rune.name} width={46} height={46} style={runeIconStyle} /> : null}
-                    <div>
-                      <div style={{ fontSize: 18, fontWeight: 700 }}>{rune.name}</div>
-                      <div style={{ color: '#788291', fontSize: 13 }}>{locale === 'en' ? `${rune.games} analyzed matches` : `${rune.games} partidas analizadas`}</div>
-                    </div>
-                  </div>
-
-                  <Badge tone={rune.winRate >= 55 ? 'low' : rune.winRate < 45 ? 'high' : 'medium'}>
-                    {rune.winRate >= 55 ? (locale === 'en' ? 'Performing well' : 'Rindiendo bien') : rune.winRate < 45 ? (locale === 'en' ? 'Needs review' : 'Por revisar') : (locale === 'en' ? 'Even sample' : 'Muestra pareja')}
-                  </Badge>
-                </div>
-
-                <div style={runeMetricsGridStyle}>
-                  <MetricBlock label="Win rate" value={formatPercent(rune.winRate)} />
-                  <MetricBlock label={locale === 'en' ? 'Average performance' : 'Performance media'} value={formatDecimal(rune.avgPerformance)} />
-                  <MetricBlock label={locale === 'en' ? 'Average damage' : 'Daño medio'} value={formatInteger(rune.avgDamage)} />
-                  <MetricBlock label={locale === 'en' ? 'Average healing' : 'Curación media'} value={formatInteger(rune.avgHealing)} />
-                  <MetricBlock label={locale === 'en' ? 'Average shielding' : 'Escudo medio'} value={formatInteger(rune.avgShielding)} />
-                </div>
-
-                <div style={runeInsightRowStyle}>
-                  <div style={runeInsightCardStyle}>
-                    <div style={sectionLabelStyle}>{locale === 'en' ? 'Best fit right now' : 'Dónde hoy encaja mejor'}</div>
-                    <div style={{ color: '#f4f7fb', fontWeight: 700, lineHeight: 1.4 }}>
-                      {anchorChampion
-                        ? (locale === 'en'
-                          ? `${rune.name} is looking cleanest on ${formatChampionName(anchorChampion.championName)}.`
-                          : `${rune.name} hoy se ve más limpia en ${formatChampionName(anchorChampion.championName)}.`)
-                        : (locale === 'en' ? 'We still need more champion sample.' : 'Todavía falta más muestra por campeón.')}
-                    </div>
-                    {anchorChampion ? (
-                      <div style={{ color: '#7a8494', fontSize: 12, lineHeight: 1.55 }}>
-                        {locale === 'en'
-                          ? `${anchorChampion.games} matches · ${formatPercent(anchorChampion.winRate)} on that champion`
-                          : `${anchorChampion.games} partidas · ${formatPercent(anchorChampion.winRate)} con ese campeón`}
-                      </div>
-                    ) : null}
-                  </div>
-                  <div style={runeInsightCardStyle}>
-                    <div style={sectionLabelStyle}>{locale === 'en' ? 'Against your block' : 'Contra tu bloque'}</div>
-                    <div style={{ color: '#f4f7fb', fontWeight: 700, lineHeight: 1.4 }}>
-                      {performanceDiff >= 0
-                        ? (locale === 'en'
-                          ? `Execution is ${formatDecimal(performanceDiff)} above your average block score.`
-                          : `La ejecución está ${formatDecimal(performanceDiff)} por encima del score medio de tu bloque.`)
-                        : (locale === 'en'
-                          ? `Execution is ${formatDecimal(Math.abs(performanceDiff))} below your average block score.`
-                          : `La ejecución está ${formatDecimal(Math.abs(performanceDiff))} por debajo del score medio de tu bloque.`)}
-                    </div>
-                    <div style={{ color: '#7a8494', fontSize: 12, lineHeight: 1.55 }}>
-                      {winRateDiff >= 0
-                        ? (locale === 'en'
-                          ? `${formatPercent(rune.winRate)} WR, ${formatDecimal(winRateDiff)} pts above your visible average.`
-                          : `${formatPercent(rune.winRate)} WR, ${formatDecimal(winRateDiff)} pts por encima de tu media visible.`)
-                        : (locale === 'en'
-                          ? `${formatPercent(rune.winRate)} WR, ${formatDecimal(Math.abs(winRateDiff))} pts below your visible average.`
-                          : `${formatPercent(rune.winRate)} WR, ${formatDecimal(Math.abs(winRateDiff))} pts por debajo de tu media visible.`)}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: 'grid', gap: 10 }}>
-                  <div style={sectionLabelStyle}>{locale === 'en' ? 'Champions you use it on the most' : 'Campeones con los que más la usás'}</div>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    {rune.champions.map((champion) => {
-                      const championIcon = getChampionIconUrl(champion.championName, dataset.ddragonVersion);
-
-                      return (
-                        <div key={champion.championName} style={championPillStyle}>
-                          {championIcon ? <img src={championIcon} alt={formatChampionName(champion.championName)} width={28} height={28} style={championIconStyle} /> : null}
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 700 }}>{formatChampionName(champion.championName)}</div>
-                            <div style={{ color: '#7a8494', fontSize: 12 }}>
-                              {locale === 'en' ? `${champion.games} matches · ${formatPercent(champion.winRate)}` : `${champion.games} partidas · ${formatPercent(champion.winRate)}`}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+  if (!champions.length) {
+    return (
+      <Card
+        title={locale === 'en' ? 'Runes workbench' : 'Workbench de runas'}
+        subtitle={locale === 'en'
+          ? 'We need more repeated champion sample before the system can compare real micro-variants inside the same pick.'
+          : 'Necesitamos más muestra repetida por campeón antes de comparar microvariantes reales dentro del mismo pick.'}
+      >
+        <div style={{ display: 'grid', gap: 12, color: '#c8d5e7', lineHeight: 1.7 }}>
+          <div>
+            {locale === 'en'
+              ? 'This tab now looks for same-champion pages, same keystone families and small rune swaps with enough sample on both sides. Right now the visible block is still too thin to call those differences.'
+              : 'Esta pestaña ahora busca páginas del mismo campeón, familias con la misma keystone y swaps chicos con suficiente muestra en ambos lados. En el bloque visible todavía no alcanza para leer esas diferencias con honestidad.'}
+          </div>
+          <div style={noteBoxStyle}>
+            {locale === 'en'
+              ? 'Best next step: add more games on the same champion and avoid changing several variables at once. The workbench gets much stronger when one pick accumulates at least 6-8 games with two visible rune variants.'
+              : 'Siguiente mejor paso: sumar más partidas en el mismo campeón y no abrir demasiadas variables a la vez. El workbench mejora mucho cuando un pick junta al menos 6-8 partidas con dos variantes visibles de runas.'}
+          </div>
         </div>
       </Card>
-      <p style={{ margin: 0, color: '#798395', fontSize: 13 }}>
-        {locale === 'en'
-          ? '"Average performance" is the average of your total match score when using that rune. It helps compare execution between setups; it is not an official Riot metric.'
-          : '“Performance media” es el promedio del score total de tus partidas con esa runa. Sirve para comparar ejecución entre configuraciones, no es una métrica oficial de Riot.'}
-      </p>
-    </div>
-  );
-}
+    );
+  }
 
-function MetricBlock({ label, value }: { label: string; value: string }) {
   return (
-    <div style={metricBlockStyle}>
-      <div style={metricLabelStyle}>{label}</div>
-      <div style={metricValueStyle}>{value}</div>
+    <div style={{ display: 'grid', gap: 18 }}>
+      <Card
+        title={locale === 'en' ? 'Runes workbench' : 'Workbench de runas'}
+        subtitle={locale === 'en'
+          ? 'Champion-first comparisons, same-keystone families and explicit evidence tiers so each rune read is useful for decisions.'
+          : 'Comparaciones champion-first, familias con la misma keystone y tiers de evidencia explícitos para que cada lectura sirva para decidir.'}
+      >
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div style={summaryGridStyle}>
+            <SummaryTile
+              label={locale === 'en' ? 'Champions with real variants' : 'Campeones con variantes reales'}
+              value={String(champions.length)}
+              hint={locale === 'en' ? 'Same champion, repeat sample, at least one alternative page.' : 'Mismo campeón, muestra repetida y al menos una página alternativa.'}
+            />
+            <SummaryTile
+              label={locale === 'en' ? 'Strong reads' : 'Lecturas fuertes'}
+              value={String(strongReads)}
+              hint={locale === 'en' ? 'Good sample on both sides plus a real signal.' : 'Buena muestra en ambos lados más una señal real.'}
+            />
+            <SummaryTile
+              label={locale === 'en' ? 'Watchpoints' : 'Puntos de seguimiento'}
+              value={String(weakReads + hypothesisReads)}
+              hint={locale === 'en' ? 'Directional reads or still-open hypotheses.' : 'Lecturas direccionales o hipótesis todavía abiertas.'}
+            />
+          </div>
+
+          <div style={methodologyPanelStyle}>
+            <div style={sectionLabelStyle}>{locale === 'en' ? 'How to read this' : 'Cómo leer esto'}</div>
+            <div style={{ color: '#edf3ff', lineHeight: 1.7 }}>
+              {locale === 'en'
+                ? 'The baseline is the most repeated page inside each keystone family for that champion. Every alternative page is compared against that baseline, checking small rune swaps, matchup skew, game length and execution metrics before calling it strong, weak or just a hypothesis.'
+                : 'El baseline es la página más repetida dentro de cada familia de keystone para ese campeón. Cada página alternativa se compara contra ese baseline revisando swaps chicos, sesgo de matchup, duración de partida y métricas de ejecución antes de llamarla fuerte, débil o solo hipótesis.'}
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {champions.map((champion) => (
+        <Card
+          key={champion.championName}
+          title={formatChampionName(champion.championName)}
+          subtitle={locale === 'en'
+            ? `${champion.games} visible games. The goal is not “most picked” but whether small swaps move the actual output of the champion.`
+            : `${champion.games} partidas visibles. El objetivo no es “most picked” sino si los swaps chicos mueven el output real del campeón.`}
+        >
+          <div style={{ display: 'grid', gap: 18 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              <ChampionIdentity
+                championName={champion.championName}
+                version={dataset.ddragonVersion}
+                subtitle={locale === 'en'
+                  ? 'Variants are grouped by keystone first, then compared inside the same family.'
+                  : 'Las variantes se agrupan primero por keystone y después se comparan dentro de la misma familia.'}
+                meta={
+                  <>
+                    {champion.strongReads ? <Badge tone="low">{locale === 'en' ? `${champion.strongReads} strong` : `${champion.strongReads} fuertes`}</Badge> : null}
+                    {champion.weakReads ? <Badge tone="medium">{locale === 'en' ? `${champion.weakReads} weak` : `${champion.weakReads} débiles`}</Badge> : null}
+                    {champion.hypothesisReads ? <Badge>{locale === 'en' ? `${champion.hypothesisReads} hypotheses` : `${champion.hypothesisReads} hipótesis`}</Badge> : null}
+                  </>
+                }
+              />
+            </div>
+
+            <div style={{ display: 'grid', gap: 14 }}>
+              {champion.keystones.map((keystone) => (
+                <section key={`${champion.championName}-${keystone.keystone}`} style={keystoneCardStyle}>
+                  <div style={{ display: 'grid', gap: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <div style={{ display: 'grid', gap: 4 }}>
+                        <div style={{ color: '#edf3ff', fontSize: 18, fontWeight: 800 }}>{keystone.keystone}</div>
+                        <div style={{ color: '#8d9bb0', fontSize: 13 }}>
+                          {locale === 'en'
+                            ? `${keystone.totalGames} games in this family · baseline = the most repeated page`
+                            : `${keystone.totalGames} partidas en esta familia · baseline = la página más repetida`}
+                        </div>
+                      </div>
+                      <Badge tone="default">
+                        {locale === 'en'
+                          ? `${keystone.variants.length} visible variants`
+                          : `${keystone.variants.length} variantes visibles`}
+                      </Badge>
+                    </div>
+
+                    <BaselinePanel baseline={keystone.baseline} locale={locale} />
+
+                    {keystone.comparisons.length ? (
+                      <div style={{ display: 'grid', gap: 12 }}>
+                        {keystone.comparisons.slice(0, 3).map((comparison) => (
+                          <ComparisonCard key={`${comparison.variant.key}-${comparison.differenceLabel}`} comparison={comparison} locale={locale} />
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={emptyComparisonStyle}>
+                        {locale === 'en'
+                          ? 'There is still only one visible page inside this keystone family, so the system keeps it as a baseline without forcing fake comparisons.'
+                          : 'Todavía hay una sola página visible dentro de esta familia de keystone, así que el sistema la guarda como baseline sin forzar comparaciones falsas.'}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </div>
+        </Card>
+      ))}
     </div>
   );
 }
 
-const runeCardStyle = {
+function SummaryTile({ label, value, hint }: { label: string; value: string; hint: string }) {
+  return (
+    <div style={summaryTileStyle}>
+      <div style={summaryLabelStyle}>{label}</div>
+      <div style={summaryValueStyle}>{value}</div>
+      <div style={summaryHintStyle}>{hint}</div>
+    </div>
+  );
+}
+
+function BaselinePanel({ baseline, locale }: { baseline: RuneVariantAggregate; locale: Locale }) {
+  return (
+    <div style={baselinePanelStyle}>
+      <div style={{ display: 'grid', gap: 6 }}>
+        <div style={sectionLabelStyle}>{locale === 'en' ? 'Baseline page' : 'Página baseline'}</div>
+        <div style={{ color: '#f6fbff', fontWeight: 800, fontSize: 18 }}>{baseline.compactLabel}</div>
+        <div style={{ color: '#8d9bb0', lineHeight: 1.6 }}>
+          {locale === 'en'
+            ? `${baseline.games} games · ${formatPercent(baseline.winRate)} WR · ${formatDecimal(baseline.avgScore)} average score`
+            : `${baseline.games} partidas · ${formatPercent(baseline.winRate)} WR · ${formatDecimal(baseline.avgScore)} de score medio`}
+        </div>
+      </div>
+
+      <div style={metricRowStyle}>
+        <MetricChip label="WR" value={formatPercent(baseline.winRate)} />
+        <MetricChip label={locale === 'en' ? 'Score' : 'Score'} value={formatDecimal(baseline.avgScore)} />
+        <MetricChip label={locale === 'en' ? 'Damage' : 'Daño'} value={formatInteger(baseline.avgDamageToChampions)} />
+        <MetricChip label="CS@15" value={formatDecimal(baseline.avgCsAt15)} />
+        <MetricChip label={locale === 'en' ? 'Pre14 deaths' : 'Muertes pre14'} value={formatDecimal(baseline.avgDeathsPre14)} />
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {baseline.topMatchups.map((matchup) => (
+          <div key={`${baseline.key}-${matchup.championName}`} style={contextPillStyle}>
+            <strong>{formatChampionName(matchup.championName)}</strong>
+            <span>{matchup.games} · {formatDecimal(matchup.share)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ComparisonCard({ comparison, locale }: { comparison: RuneComparison; locale: Locale }) {
+  return (
+    <div style={comparisonCardStyle}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gap: 5 }}>
+          <div style={sectionLabelStyle}>{locale === 'en' ? 'Micro-variant under review' : 'Microvariante bajo revisión'}</div>
+          <div style={{ color: '#eef4ff', fontSize: 17, fontWeight: 800 }}>{comparison.variant.compactLabel}</div>
+          <div style={{ color: '#8d9bb0', lineHeight: 1.6 }}>
+            {comparison.differenceLabel}
+          </div>
+        </div>
+        <Badge tone={evidenceTone(comparison.evidenceTier)}>
+          {evidenceBadgeLabel(comparison.evidenceTier, locale)}
+        </Badge>
+      </div>
+
+      <div style={deltaGridStyle}>
+        <DeltaTile label="WR" value={formatSignedNumber(comparison.deltas.winRate, 1, '%')} />
+        <DeltaTile label={locale === 'en' ? 'Score' : 'Score'} value={formatSignedNumber(comparison.deltas.score)} />
+        <DeltaTile label={locale === 'en' ? 'Damage' : 'Daño'} value={formatSignedNumber(comparison.deltas.damageToChampions, 0)} />
+        <DeltaTile label="CS@15" value={formatSignedNumber(comparison.deltas.csAt15)} />
+        <DeltaTile label={locale === 'en' ? 'Duration' : 'Duración'} value={formatSignedNumber(comparison.deltas.durationMinutes, 1, 'm')} />
+        <DeltaTile label={locale === 'en' ? 'Pre14 deaths' : 'Muertes pre14'} value={formatSignedNumber(comparison.deltas.deathsPre14)} />
+      </div>
+
+      <div style={{ display: 'grid', gap: 8 }}>
+        <div style={{ color: '#f0f6ff', lineHeight: 1.65, fontWeight: 700 }}>{comparison.summary}</div>
+        <div style={{ color: '#9aa7ba', lineHeight: 1.65 }}>{comparison.signalNote}</div>
+        {comparison.contextNote ? <div style={contextCalloutStyle}>{comparison.contextNote}</div> : null}
+        <div style={{ color: '#7f8da2', fontSize: 12, lineHeight: 1.6 }}>
+          {evidenceExplanation(
+            comparison.evidenceTier,
+            locale,
+            comparison.baseline.games + comparison.variant.games,
+            comparison.constraint
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetricChip({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={metricChipStyle}>
+      <div style={metricChipLabelStyle}>{label}</div>
+      <div style={metricChipValueStyle}>{value}</div>
+    </div>
+  );
+}
+
+function DeltaTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={deltaTileStyle}>
+      <div style={metricChipLabelStyle}>{label}</div>
+      <div style={deltaValueStyle}>{value}</div>
+    </div>
+  );
+}
+
+const summaryGridStyle = {
   display: 'grid',
-  gap: 16,
-  padding: 18,
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 12
+} as const;
+
+const summaryTileStyle = {
+  display: 'grid',
+  gap: 8,
+  padding: '14px 15px',
   borderRadius: 16,
-  background: '#060a10',
+  background: '#070d15',
   border: '1px solid rgba(255,255,255,0.06)'
 } as const;
 
-const runeMetricsGridStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
-  gap: 12
-} as const;
-
-const runeInsightRowStyle = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-  gap: 12
-} as const;
-
-const runeInsightCardStyle = {
-  display: 'grid',
-  gap: 8,
-  padding: '12px 13px',
-  borderRadius: 14,
-  background: '#090e16',
-  border: '1px solid rgba(255,255,255,0.05)'
-} as const;
-
-const metricBlockStyle = {
-  padding: '12px 10px',
-  borderRadius: 12,
-  background: '#090e16',
-  border: '1px solid rgba(255,255,255,0.04)'
-} as const;
-
-const metricLabelStyle = {
-  color: '#758091',
-  fontSize: 12,
-  marginBottom: 8
-} as const;
-
-const metricValueStyle = {
-  color: '#f4f7fb',
-  fontSize: 20,
-  fontWeight: 700
-} as const;
-
-const sectionLabelStyle = {
-  color: '#7b8595',
-  fontSize: 12,
+const summaryLabelStyle = {
+  color: '#7d8ba0',
+  fontSize: 11,
   textTransform: 'uppercase' as const,
   letterSpacing: '0.08em'
 } as const;
 
-const championPillStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  gap: 10,
-  padding: '10px 12px',
-  borderRadius: 12,
-  background: '#090e16',
+const summaryValueStyle = {
+  color: '#f5fbff',
+  fontSize: 30,
+  fontWeight: 800,
+  lineHeight: 1
+} as const;
+
+const summaryHintStyle = {
+  color: '#91a0b5',
+  lineHeight: 1.6
+} as const;
+
+const methodologyPanelStyle = {
+  display: 'grid',
+  gap: 8,
+  padding: '14px 15px',
+  borderRadius: 16,
+  background: 'linear-gradient(180deg, rgba(12,17,28,0.96), rgba(8,12,19,0.98))',
+  border: '1px solid rgba(216,253,241,0.08)'
+} as const;
+
+const keystoneCardStyle = {
+  display: 'grid',
+  gap: 14,
+  padding: 16,
+  borderRadius: 18,
+  background: '#060b12',
+  border: '1px solid rgba(255,255,255,0.06)'
+} as const;
+
+const baselinePanelStyle = {
+  display: 'grid',
+  gap: 12,
+  padding: '14px 15px',
+  borderRadius: 16,
+  background: 'linear-gradient(180deg, rgba(16,24,38,0.94), rgba(8,12,20,0.98))',
+  border: '1px solid rgba(255,255,255,0.06)'
+} as const;
+
+const sectionLabelStyle = {
+  color: '#7f8da2',
+  fontSize: 11,
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.08em'
+} as const;
+
+const metricRowStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+  gap: 10
+} as const;
+
+const metricChipStyle = {
+  display: 'grid',
+  gap: 5,
+  padding: '11px 12px',
+  borderRadius: 14,
+  background: 'rgba(255,255,255,0.03)',
   border: '1px solid rgba(255,255,255,0.05)'
 } as const;
 
-const runeIconStyle = {
-  borderRadius: 12,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: '#0f141d'
+const metricChipLabelStyle = {
+  color: '#7d8ba0',
+  fontSize: 11,
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.06em'
 } as const;
 
-const championIconStyle = {
-  borderRadius: 8,
-  border: '1px solid rgba(255,255,255,0.08)'
+const metricChipValueStyle = {
+  color: '#eef4ff',
+  fontSize: 18,
+  fontWeight: 800
+} as const;
+
+const contextPillStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '8px 10px',
+  borderRadius: 999,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.05)',
+  color: '#cbd7e8',
+  fontSize: 12
+} as const;
+
+const comparisonCardStyle = {
+  display: 'grid',
+  gap: 14,
+  padding: '15px 16px',
+  borderRadius: 16,
+  background: '#070d15',
+  border: '1px solid rgba(255,255,255,0.06)'
+} as const;
+
+const deltaGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+  gap: 10
+} as const;
+
+const deltaTileStyle = {
+  display: 'grid',
+  gap: 6,
+  padding: '11px 12px',
+  borderRadius: 14,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.05)'
+} as const;
+
+const deltaValueStyle = {
+  color: '#f4fbff',
+  fontSize: 18,
+  fontWeight: 800
+} as const;
+
+const contextCalloutStyle = {
+  padding: '10px 12px',
+  borderRadius: 14,
+  background: 'rgba(255, 196, 82, 0.07)',
+  border: '1px solid rgba(255, 196, 82, 0.14)',
+  color: '#e7d2a2',
+  lineHeight: 1.6
+} as const;
+
+const emptyComparisonStyle = {
+  padding: '14px 15px',
+  borderRadius: 14,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px dashed rgba(255,255,255,0.08)',
+  color: '#9aa7ba',
+  lineHeight: 1.7
+} as const;
+
+const noteBoxStyle = {
+  padding: '12px 14px',
+  borderRadius: 16,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.05)'
 } as const;

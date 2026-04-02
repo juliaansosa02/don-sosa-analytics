@@ -10,6 +10,60 @@ export interface RuneSelection {
   longDesc?: string;
 }
 
+export interface ItemCatalogEntry {
+  id: number;
+  name: string;
+  description: string;
+  plaintext?: string;
+  goldTotal: number;
+  tags: string[];
+  from: number[];
+  into: number[];
+  depth: number;
+}
+
+export interface ItemTransaction {
+  type: 'purchase' | 'sale' | 'destroy' | 'undo';
+  timestamp: number;
+  minute: number;
+  itemId?: number;
+  beforeId?: number;
+  afterId?: number;
+}
+
+export interface TimelineCheckpoint {
+  minute: number;
+  cs: number;
+  totalGold: number;
+  level: number;
+}
+
+export interface TeamParticipantSummary {
+  championName: string;
+  role?: string;
+  items: number[];
+}
+
+export interface ItemMilestoneSummary {
+  firstCompletedItemId?: number;
+  firstCompletedItemMinute?: number;
+  secondCompletedItemId?: number;
+  secondCompletedItemMinute?: number;
+  bootsId?: number;
+  bootsMinute?: number;
+  majorItemOrder: number[];
+}
+
+export interface ItemPlanSnapshot {
+  finalBuild: number[];
+  purchaseEvents: ItemTransaction[];
+  takedownMinutes: number[];
+  timelinePoints: TimelineCheckpoint[];
+  milestones: ItemMilestoneSummary;
+  allyTeam: TeamParticipantSummary[];
+  enemyTeam: TeamParticipantSummary[];
+}
+
 export interface ParticipantSnapshot {
   matchId: string;
   championName: string;
@@ -29,6 +83,7 @@ export interface ParticipantSnapshot {
   csPerMinute: number;
   goldEarned: number;
   goldPerMinute: number;
+  totalDamageDealt?: number;
   damageToChampions: number;
   damageTaken: number;
   visionScore: number;
@@ -50,6 +105,7 @@ export interface ParticipantSnapshot {
   item4?: number;
   item5?: number;
   item6?: number;
+  items?: ItemPlanSnapshot;
   primaryRunes: RuneSelection[];
   secondaryRunes: RuneSelection[];
   statRunes: number[];

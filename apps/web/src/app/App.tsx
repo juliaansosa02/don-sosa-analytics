@@ -43,6 +43,7 @@ import { RankBadge, RankEmblem } from '../features/profile/ProfilePrimitives';
 import { StatsTab } from '../features/stats/StatsTab';
 import { MatchupsTab } from '../features/matchups/MatchupsTab';
 import { RunesTab } from '../features/runes/RunesTab';
+import { BuildsTab } from '../features/builds/BuildsTab';
 import { ChampionPoolTab } from '../features/champion-pool/ChampionPoolTab';
 import { MatchesTab } from '../features/matches/MatchesTab';
 import { detectLocale, translateRole, type Locale } from '../lib/i18n';
@@ -54,6 +55,7 @@ const tabs = [
   { id: 'stats', label: { es: 'Métricas', en: 'Stats' } },
   { id: 'matchups', label: { es: 'Cruces', en: 'Matchups' } },
   { id: 'runes', label: { es: 'Runas', en: 'Runes' } },
+  { id: 'builds', label: { es: 'Builds / Items', en: 'Builds / Items' } },
   { id: 'champions', label: { es: 'Campeones', en: 'Champions' } },
   { id: 'matches', label: { es: 'Partidas', en: 'Matches' } }
 ] as const;
@@ -892,6 +894,8 @@ function AppShell() {
         return <MatchupsTab dataset={viewDataset} locale={locale} />;
       case 'runes':
         return <RunesTab dataset={viewDataset} locale={locale} />;
+      case 'builds':
+        return <BuildsTab dataset={viewDataset} locale={locale} />;
       case 'champions':
         return <ChampionPoolTab dataset={viewDataset} locale={locale} />;
       case 'matches':
@@ -2037,14 +2041,18 @@ function AppShell() {
                   <div><strong>Coach:</strong> main blocker, evidence, impact and active plan.</div>
                   <div><strong>Stats:</strong> aggregated metrics and recent evolution.</div>
                   <div><strong>Matchups:</strong> real performance into direct opponents.</div>
-                  <div><strong>Runes and champions:</strong> tactical read with more visual context.</div>
+                  <div><strong>Runes:</strong> same-champion micro-variants, keystone families and evidence tiers.</div>
+                  <div><strong>Builds / items:</strong> build families, timings, item leverage and comp-fit watchpoints.</div>
+                  <div><strong>Champions:</strong> tactical read with more visual context.</div>
                 </>
               ) : (
                 <>
                   <div><strong>Coach:</strong> problema principal, evidencia, impacto y plan activo.</div>
                   <div><strong>Stats:</strong> métricas agregadas y evolución.</div>
                   <div><strong>Matchups:</strong> rendimiento real frente a rivales directos.</div>
-                  <div><strong>Runes y champions:</strong> lectura táctica con más contexto visual.</div>
+                  <div><strong>Runas:</strong> microvariantes del mismo campeón, familias de keystone y tiers de evidencia.</div>
+                  <div><strong>Builds / items:</strong> familias de build, timings, leverage por item y watchpoints de comp-fit.</div>
+                  <div><strong>Campeones:</strong> lectura táctica con más contexto visual.</div>
                 </>
               )}
             </div>

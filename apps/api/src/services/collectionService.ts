@@ -1,8 +1,8 @@
 import { fileURLToPath } from 'node:url';
-import { buildAggregateSummary, type ParticipantSnapshot, type SummaryLocale } from '@don-sosa/core';
+import { buildAggregateSummary, type ItemCatalogEntry, type ParticipantSnapshot, type SummaryLocale } from '@don-sosa/core';
 import { env } from '../config/env.js';
 import { createParticipantSnapshot } from '../analysis/participantFactory.js';
-import { buildRuneIndex, getLatestDDragonVersion } from './dataDragon.js';
+import { buildItemCatalog, buildRuneIndex, getLatestDDragonVersion } from './dataDragon.js';
 import { buildBenchmarkCatalog, updateBenchmarkStore } from './benchmarkStore.js';
 import { exportSnapshot } from './exporter.js';
 import { loadProfileSnapshot, saveProfileSnapshot } from './profileStore.js';
@@ -118,10 +118,14 @@ export async function collectPlayerSnapshot({
 
   const riotClient = createRiotClient(routing);
   const existingDataset = await loadProfileSnapshot<StoredCollectionDataset>(gameName, tagLine, routing.platform);
-  const [runeIndex, ddragonVersion] = await Promise.all([
+  const [runeIndex, ddragonVersion, itemCatalog] = await Promise.all([
     buildRuneIndex(),
-    getLatestDDragonVersion()
+    getLatestDDragonVersion(),
+    buildItemCatalog()
   ]);
+  const itemCatalogMap = new Map<number, ItemCatalogEntry>(
+    Object.values(itemCatalog).map((item) => [item.id, item])
+  );
   const account = await riotClient.getAccountByRiotId(gameName, tagLine);
   const summoner = await riotClient.getSummonerByPuuid(account.puuid);
   const leagueEntries = await riotClient.getLeagueEntriesByPuuid(account.puuid);
@@ -172,7 +176,7 @@ export async function collectPlayerSnapshot({
     const participant = match.info.participants.find((entry) => entry.puuid === account.puuid);
     if (!participant) continue;
 
-    snapshots.push(createParticipantSnapshot(match, timeline, participant, runeIndex));
+    snapshots.push(createParticipantSnapshot(match, timeline, participant, runeIndex, itemCatalogMap));
   }
 
   const mergedSnapshotsMap = new Map<string, ParticipantSnapshot>();
@@ -203,6 +207,7 @@ export async function collectPlayerSnapshot({
   const result = {
     ...exported,
     ddragonVersion,
+    itemCatalog,
     rawMatchesFetched: snapshots.length,
     remakesExcluded,
     profile: mapProfile(summoner),

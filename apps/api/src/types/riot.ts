@@ -46,6 +46,7 @@ export interface RiotParticipant {
   totalMinionsKilled: number;
   neutralMinionsKilled: number;
   goldEarned: number;
+  totalDamageDealt?: number;
   totalDamageDealtToChampions: number;
   totalDamageTaken: number;
   visionScore: number;
@@ -105,6 +106,9 @@ export interface RiotTimelineEvent {
   victimId?: number;
   participantId?: number;
   creatorId?: number;
+  itemId?: number;
+  beforeId?: number;
+  afterId?: number;
   assistingParticipantIds?: number[];
   position?: { x: number; y: number };
 }
@@ -127,4 +131,17 @@ export interface RuneNode {
   shortDesc: string;
   longDesc: string;
   slots?: Array<{ runes: RuneNode[] }>;
+}
+
+export interface DataDragonItemNode {
+  name: string;
+  description: string;
+  plaintext?: string;
+  into?: string[];
+  from?: string[];
+  gold?: {
+    total?: number;
+  };
+  tags?: string[];
+  depth?: number;
 }

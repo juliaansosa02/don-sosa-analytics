@@ -1,4 +1,4 @@
-import type { AggregateSummary, ParticipantSnapshot } from '@don-sosa/core';
+import type { AggregateSummary, ItemCatalogEntry, ParticipantSnapshot } from '@don-sosa/core';
 import type { MembershipPlanDefinition, MembershipPlanId, MembershipStatus } from '@don-sosa/core';
 
 export type MatchSnapshot = ParticipantSnapshot & {
@@ -43,6 +43,7 @@ export interface Dataset {
   player: string;
   tagLine: string;
   ddragonVersion?: string;
+  itemCatalog?: Record<string, ItemCatalogEntry>;
   rawMatchesFetched?: number;
   remakesExcluded?: number;
   profile?: {

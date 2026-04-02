@@ -104,6 +104,11 @@ export function getProfileIconUrl(profileIconId, version) {
         return null;
     return `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/${profileIconId}.png`;
 }
+export function getItemIconUrl(itemId, version) {
+    if (!version || typeof itemId !== 'number' || itemId <= 0)
+        return null;
+    return `https://ddragon.leagueoflegends.com/cdn/${version}/img/item/${itemId}.png`;
+}
 export function normalizeRiotPlatform(value) {
     return value?.trim().toUpperCase() ?? '';
 }

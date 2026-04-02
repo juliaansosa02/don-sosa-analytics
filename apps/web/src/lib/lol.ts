@@ -115,6 +115,11 @@ export function getProfileIconUrl(profileIconId?: number, version?: string) {
   return `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/${profileIconId}.png`;
 }
 
+export function getItemIconUrl(itemId?: number, version?: string) {
+  if (!version || typeof itemId !== 'number' || itemId <= 0) return null;
+  return `https://ddragon.leagueoflegends.com/cdn/${version}/img/item/${itemId}.png`;
+}
+
 export function normalizeRiotPlatform(value?: string | null) {
   return value?.trim().toUpperCase() ?? '';
 }
