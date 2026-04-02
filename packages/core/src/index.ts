@@ -2190,7 +2190,7 @@ function refineInsights(matches: ParticipantSnapshot[], championPool: ChampionAg
     return (
       getHeadlineBoost(b) - getHeadlineBoost(a)
       || priorityWeight[b.priority] - priorityWeight[a.priority]
-      evidenceWeight[(b.evidenceStrength ?? 'low') as keyof typeof evidenceWeight] - evidenceWeight[(a.evidenceStrength ?? 'low') as keyof typeof evidenceWeight]
+      || evidenceWeight[(b.evidenceStrength ?? 'low') as keyof typeof evidenceWeight] - evidenceWeight[(a.evidenceStrength ?? 'low') as keyof typeof evidenceWeight]
       || severityWeight[b.severity] - severityWeight[a.severity]
       || (b.evidenceScore ?? 0) - (a.evidenceScore ?? 0)
     );
