@@ -1365,7 +1365,7 @@ function AppShell() {
                   <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
                     <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                      {rankTier ? <RankEmblem tier={rankTier} label={profile.rankLabel ?? ''} size={46} /> : null}
+                      {rankTier ? <RankEmblem tier={rankTier} label={profile.rankLabel ?? ''} size={40} /> : null}
                       <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible')}</div>
                     </div>
                     {savedPlatformInfo ? (
@@ -1561,34 +1561,36 @@ function AppShell() {
             <div style={{ display: 'grid', gap: 16 }}>
               <div style={heroIntroPanelStyle}>
                 <div style={profileHeroPanelStyle}>
-                  <div className="profile-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.08fr) minmax(280px, 0.92fr)', gap: 18, alignItems: 'start' }}>
+                  <div className="profile-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.18fr) minmax(300px, 0.82fr)', gap: 20, alignItems: 'start' }}>
                     <div style={{ display: 'grid', gap: 14 }}>
-                      <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>
-                        {locale === 'en' ? 'Current profile' : 'Perfil actual'}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>
+                          {locale === 'en' ? 'Current profile' : 'Perfil actual'}
+                        </div>
+                        <Badge tone="low">{locale === 'en' ? 'Saved coaching base' : 'Base guardada del coaching'}</Badge>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: profileIconUrl ? '96px minmax(0, 1fr)' : '1fr', gap: 18, alignItems: 'center' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: profileIconUrl ? '104px minmax(0, 1fr)' : '1fr', gap: 18, alignItems: 'start' }}>
                         {profileIconUrl ? (
                           <img
                             src={profileIconUrl}
                             alt={dataset.player}
-                            width={96}
-                            height={96}
-                            style={{ ...profileIconStyle, width: 96, height: 96, objectFit: 'cover', borderRadius: 22, boxShadow: '0 18px 40px rgba(0,0,0,0.24)' }}
+                            width={104}
+                            height={104}
+                            style={{ ...profileIconStyle, width: 104, height: 104, objectFit: 'cover', borderRadius: 24, boxShadow: '0 18px 40px rgba(0,0,0,0.24)' }}
                           />
                         ) : null}
-                        <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
-                          <h1 style={{ margin: 0, fontSize: 40, letterSpacing: '-0.05em', lineHeight: 1.02 }}>
+                        <div style={{ display: 'grid', gap: 10, minWidth: 0, alignContent: 'start' }}>
+                          <h1 style={{ margin: 0, fontSize: 38, letterSpacing: '-0.05em', lineHeight: 1.02 }}>
                             {dataset.player}<span style={{ color: '#8894ab' }}>#{dataset.tagLine}</span>
                           </h1>
                           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                             {dataset.profile ? <Badge>{locale === 'en' ? `Level ${dataset.profile.summonerLevel}` : `Nivel ${dataset.profile.summonerLevel}`}</Badge> : null}
                             {currentPlatformInfo ? <Badge tone="default">{`${currentPlatformInfo.platform} · ${currentPlatformInfo.shortLabel}`}</Badge> : null}
-                            <Badge tone="low">{locale === 'en' ? 'Saved coaching base' : 'Base guardada del coaching'}</Badge>
                           </div>
-                          <p style={{ margin: 0, color: '#96a1b4', maxWidth: 760, lineHeight: 1.68 }}>
+                          <p style={{ margin: 0, color: '#96a1b4', maxWidth: 620, lineHeight: 1.62 }}>
                             {locale === 'en'
-                              ? 'This saved sample is the root of the coaching read. The rest of the product can be explored without spending tokens again on every visual filter change.'
-                              : 'Esta muestra guardada es la base real del coaching. El resto del producto se puede explorar sin volver a gastar tokens por cada cambio visual de filtros.'}
+                              ? 'This saved block anchors the main coaching read. You can inspect the rest of the product without recalculating AI on every visual filter.'
+                              : 'Este bloque guardado sostiene la lectura principal del coaching. Podés explorar el resto del producto sin recalcular IA en cada filtro visual.'}
                           </p>
                         </div>
                       </div>
