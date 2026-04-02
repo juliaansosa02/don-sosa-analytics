@@ -39,6 +39,7 @@ const patchNotesSchema = z.object({
 });
 
 type PatchNotesFile = z.infer<typeof patchNotesSchema>;
+type CoachContextBeforeKnowledge = Omit<AICoachContext, 'patchContext' | 'knowledge' | 'diagnosis'>;
 
 type LatestPatchEntry = {
   patch: string;
@@ -249,7 +250,7 @@ function extractChampionSnippetsFromRawText(rawText: string, championNames: stri
   });
 }
 
-function extractSystemSnippetsFromRawText(rawText: string, context: Omit<AICoachContext, 'patchContext'>) {
+function extractSystemSnippetsFromRawText(rawText: string, context: CoachContextBeforeKnowledge) {
   const lines = toLines(rawText);
   const role = context.player.roleFilter.toLowerCase();
   const keywords = role === 'jungle'
@@ -391,7 +392,7 @@ function isRelevantChampion(update: PatchChampionUpdate, names: string[]) {
   return names.some((name) => normalizeChampionName(name) === target);
 }
 
-function isRelevantSystem(update: PatchSystemUpdate, context: Omit<AICoachContext, 'patchContext'>) {
+function isRelevantSystem(update: PatchSystemUpdate, context: CoachContextBeforeKnowledge) {
   const role = context.player.roleFilter.toLowerCase();
   const haystack = `${update.category} ${update.summary}`.toLowerCase();
 
@@ -440,7 +441,7 @@ function localizeSystemUpdate(update: PatchSystemUpdate, locale: 'es' | 'en', pa
   };
 }
 
-function buildLocalizedPatchSummary(currentNotes: PatchNotesFile, context: Omit<AICoachContext, 'patchContext'>, relevantChampionUpdates: PatchChampionUpdate[], relevantSystemUpdates: PatchSystemUpdate[]) {
+function buildLocalizedPatchSummary(currentNotes: PatchNotesFile, context: CoachContextBeforeKnowledge, relevantChampionUpdates: PatchChampionUpdate[], relevantSystemUpdates: PatchSystemUpdate[]) {
   if (context.player.locale === 'en') {
     return currentNotes.summary.slice(0, 3);
   }
@@ -520,7 +521,7 @@ export async function getCurrentPatchNotes() {
   return notes[0];
 }
 
-export async function getPatchContextForCoach(context: Omit<AICoachContext, 'patchContext'>): Promise<AICoachPatchContext> {
+export async function getPatchContextForCoach(context: CoachContextBeforeKnowledge): Promise<AICoachPatchContext> {
   const currentNotes = await getCurrentPatchNotes();
 
   if (!currentNotes) {

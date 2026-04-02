@@ -1,0 +1,47 @@
+{
+  "championName": "Garen",
+  "roles": ["TOP"],
+  "archetypes": ["bruiser", "lane_bully", "simple_exec", "snowball_reset"],
+  "economyProfile": "standard",
+  "mapProfiles": ["wave_pressure", "side_lane", "execution_reset"],
+  "evaluationWeights": {
+    "deaths_pre_10": 0.3,
+    "deaths_pre_14": 0.45,
+    "gold_diff_at_15": 0.2,
+    "lead_conversion": 0.1
+  },
+  "performanceAxes": [
+    { "en": "Trade and all-in discipline in the first three levels", "es": "Disciplina de trade y all-in en los primeros tres niveles" },
+    { "en": "Knowing when the champion can walk up for free and when he cannot", "es": "Saber cuando el campeon puede caminar gratis y cuando no" }
+  ],
+  "misreadWarnings": [
+    {
+      "focusMetric": "lead_conversion",
+      "message": {
+        "en": "If Garen is still taking free early deaths, lead conversion is rarely the first class to teach.",
+        "es": "Si Garen todavia esta tomando muertes gratis temprano, la conversion rara vez es la primera clase a dar."
+      }
+    }
+  ],
+  "priorityNotes": [
+    {
+      "bracket": "low_elo",
+      "message": {
+        "en": "A low-elo Garen usually needs cleaner level-1 to level-3 discipline before macro theory.",
+        "es": "Un Garen low elo suele necesitar primero disciplina mas limpia entre nivel 1 y 3 antes que teoria macro."
+      }
+    }
+  ],
+  "heuristics": [
+    {
+      "id": "garen-level-one-dive",
+      "title": { "en": "Level 1 dive detector", "es": "Detector de dive nivel 1" },
+      "status": "blocked_by_missing_data",
+      "requiredSignals": ["position_frames", "ability_usage"],
+      "note": {
+        "en": "To say Garen is diving level 1 we still need frame-level position and spell telemetry.",
+        "es": "Para afirmar que Garen esta diveando nivel 1 todavia faltan telemetrias frame a frame de posicion y hechizos."
+      }
+    }
+  ]
+}

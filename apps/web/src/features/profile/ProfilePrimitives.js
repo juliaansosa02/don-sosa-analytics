@@ -32,7 +32,9 @@ export function RankBadge({ rank, compact = false, locale = 'es' }) {
 export function RankEmblem({ tier, label, size }) {
     const emblem = getRankEmblemDataUrl(tier);
     const palette = getRankPalette(tier);
-    const assetSize = Math.round(size * 1.9);
+    const usesOfficialEmblem = Boolean(tier && tier !== 'UNRANKED');
+    const assetSize = Math.round(size * (usesOfficialEmblem ? 3.2 : 1.72));
+    const verticalOffset = Math.round(size * (usesOfficialEmblem ? 0.26 : 0.08));
     return (_jsx("div", { "aria-hidden": "true", style: {
             width: size,
             height: size,
@@ -41,13 +43,15 @@ export function RankEmblem({ tier, label, size }) {
             alignItems: 'center',
             justifyContent: 'center',
             borderRadius: Math.round(size * 0.24),
-            filter: `drop-shadow(0 16px 32px ${palette.primary}24)`
+            background: 'radial-gradient(circle at 50% 42%, rgba(255,255,255,0.07), rgba(255,255,255,0) 64%)',
+            filter: `drop-shadow(0 18px 34px ${palette.primary}24)`
         }, children: _jsx("img", { src: emblem, alt: label, width: assetSize, height: assetSize, style: {
                 display: 'block',
                 width: assetSize,
                 height: assetSize,
                 objectFit: 'contain',
-                transform: `translateY(${Math.round(size * 0.14)}px)`
+                maxWidth: 'none',
+                transform: `translateY(${verticalOffset}px)`
             } }) }));
 }
 export function TrendSparkline({ matches, locale = 'es' }) {

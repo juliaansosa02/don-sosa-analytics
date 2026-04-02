@@ -1,0 +1,47 @@
+{
+  "championName": "Corki",
+  "roles": ["MIDDLE", "BOTTOM"],
+  "archetypes": ["scaling_marksman", "poke", "package_playmaker", "mobility_risk"],
+  "economyProfile": "high_econ",
+  "mapProfiles": ["item_spike", "objective_setup", "angle_control"],
+  "evaluationWeights": {
+    "deaths_pre_14": 0.45,
+    "gold_diff_at_15": 0.3,
+    "cs_at_15": 0.2,
+    "objective_fight_deaths": 0.05
+  },
+  "performanceAxes": [
+    { "en": "Clean item curve into first package or first objective windows", "es": "Curva limpia de items hacia las primeras ventanas de package u objetivo" },
+    { "en": "Entering fights from angles, not from panic mobility", "es": "Entrar a peleas desde angulos y no desde movilidad en panico" }
+  ],
+  "misreadWarnings": [
+    {
+      "focusMetric": "objective_fight_deaths",
+      "message": {
+        "en": "Do not jump to high-level objective setup language if Corki is still using mobility in ways that create free deaths.",
+        "es": "No saltar a lenguaje de setup avanzado si Corki sigue usando movilidad de maneras que crean muertes gratis."
+      }
+    }
+  ],
+  "priorityNotes": [
+    {
+      "bracket": "low_elo",
+      "message": {
+        "en": "In low elo Corki usually needs cleaner survival and spell discipline before map classes.",
+        "es": "En low elo Corki suele necesitar primero supervivencia y disciplina de habilidades mas limpia antes de clases de mapa."
+      }
+    }
+  ],
+  "heuristics": [
+    {
+      "id": "corki-valkyrie-suicide",
+      "title": { "en": "Valkyrie misuse detector", "es": "Detector de mal uso de Valkyrie" },
+      "status": "blocked_by_missing_data",
+      "requiredSignals": ["ability_usage", "position_frames"],
+      "note": {
+        "en": "To say Corki is suiciding with Valkyrie we still need cast-level spell and position traces.",
+        "es": "Para afirmar que Corki se suicida con Valkyrie todavia faltan trazas de casteo y posicion."
+      }
+    }
+  ]
+}

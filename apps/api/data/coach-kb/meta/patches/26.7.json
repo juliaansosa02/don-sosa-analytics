@@ -1,0 +1,11 @@
+{
+  "patch": "26.7",
+  "updatedAt": "2026-04-02T00:00:00.000Z",
+  "status": "scaffold_only",
+  "summary": {
+    "en": "Meta patch scaffolding is ready for 26.7, but no curated tier/build/rune feed has been loaded yet.",
+    "es": "El scaffold de meta para 26.7 ya esta listo, pero todavia no se cargo ningun feed curado de tiers/builds/runas."
+  },
+  "roleHighlights": [],
+  "championBuilds": []
+}

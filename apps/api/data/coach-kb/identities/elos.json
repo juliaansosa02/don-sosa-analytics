@@ -1,0 +1,98 @@
+[
+  {
+    "bracket": "low_elo",
+    "tiers": ["UNRANKED", "IRON", "BRONZE", "SILVER"],
+    "coachStyle": {
+      "en": "Prioritize obvious deaths, spell discipline and lane-state stability before advanced setup language.",
+      "es": "Priorizar muertes obvias, disciplina de habilidades y estabilidad de lane state antes de hablar de setup avanzado."
+    },
+    "evaluationWeights": {
+      "deaths_pre_10": 0.35,
+      "deaths_pre_14": 0.45,
+      "gold_diff_at_15": 0.25,
+      "kill_participation": 0.1,
+      "cs_at_15": 0.1,
+      "objective_fight_deaths": -0.35,
+      "lead_conversion": -0.25,
+      "matchup_review": -0.1
+    },
+    "deEmphasizeIfDeathsHigh": ["objective_fight_deaths", "lead_conversion", "matchup_review"],
+    "reviewThemes": [
+      { "en": "First avoidable death", "es": "Primera muerte evitable" },
+      { "en": "Spell or engage misuse", "es": "Mal uso de habilidad o engage" },
+      { "en": "Wave and recall stability", "es": "Estabilidad de wave y recall" }
+    ]
+  },
+  {
+    "bracket": "mid_elo",
+    "tiers": ["GOLD", "PLATINUM", "EMERALD"],
+    "coachStyle": {
+      "en": "Balance execution leaks with map structure. Add one macro layer only if the sample is already playable.",
+      "es": "Balancear leaks de ejecucion con estructura de mapa. Agregar una capa de macro solo si la muestra ya es jugable."
+    },
+    "evaluationWeights": {
+      "deaths_pre_10": 0.2,
+      "deaths_pre_14": 0.3,
+      "gold_diff_at_15": 0.25,
+      "kill_participation": 0.1,
+      "cs_at_15": 0.2,
+      "objective_fight_deaths": 0.05,
+      "lead_conversion": 0.1,
+      "matchup_review": 0.05
+    },
+    "deEmphasizeIfDeathsHigh": ["lead_conversion"],
+    "reviewThemes": [
+      { "en": "Lane-to-map transition", "es": "Transicion de linea a mapa" },
+      { "en": "Resource discipline", "es": "Disciplina de recursos" },
+      { "en": "Objective arrival timing", "es": "Timing de llegada a objetivos" }
+    ]
+  },
+  {
+    "bracket": "high_elo",
+    "tiers": ["DIAMOND", "MASTER"],
+    "coachStyle": {
+      "en": "Use cleaner language around conversion, role edge and setup discipline. The player can absorb more context.",
+      "es": "Usar un lenguaje mas fino sobre conversion, edge del rol y disciplina de setup. El jugador puede absorber mas contexto."
+    },
+    "evaluationWeights": {
+      "deaths_pre_10": 0.1,
+      "deaths_pre_14": 0.2,
+      "gold_diff_at_15": 0.2,
+      "kill_participation": 0.1,
+      "cs_at_15": 0.1,
+      "objective_fight_deaths": 0.2,
+      "lead_conversion": 0.25,
+      "matchup_review": 0.15
+    },
+    "deEmphasizeIfDeathsHigh": [],
+    "reviewThemes": [
+      { "en": "Conversion after first edge", "es": "Conversion despues del primer edge" },
+      { "en": "Setup quality before fights", "es": "Calidad de setup antes de pelear" },
+      { "en": "Role-specific decision edge", "es": "Edge de decision especifico del rol" }
+    ]
+  },
+  {
+    "bracket": "apex",
+    "tiers": ["GRANDMASTER", "CHALLENGER"],
+    "coachStyle": {
+      "en": "Frame the leak as refinement: matchup edge, conversion detail and repeatability under pressure.",
+      "es": "Enfocar la fuga como refinamiento: edge de matchup, detalle de conversion y repetibilidad bajo presion."
+    },
+    "evaluationWeights": {
+      "deaths_pre_10": 0.05,
+      "deaths_pre_14": 0.15,
+      "gold_diff_at_15": 0.15,
+      "kill_participation": 0.1,
+      "cs_at_15": 0.05,
+      "objective_fight_deaths": 0.25,
+      "lead_conversion": 0.3,
+      "matchup_review": 0.2
+    },
+    "deEmphasizeIfDeathsHigh": [],
+    "reviewThemes": [
+      { "en": "Marginal edge around contested windows", "es": "Edge marginal alrededor de ventanas disputadas" },
+      { "en": "Matchup-specific punish and respect points", "es": "Puntos de castigo y respeto especificos del matchup" },
+      { "en": "Repeatability when both teams know the script", "es": "Repetibilidad cuando ambos equipos conocen el libreto" }
+    ]
+  }
+]

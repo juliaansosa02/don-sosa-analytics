@@ -1,0 +1,48 @@
+{
+  "championName": "Naafiri",
+  "roles": ["MIDDLE", "TOP"],
+  "archetypes": ["assassin", "snowball", "pick", "dive"],
+  "economyProfile": "high_econ",
+  "mapProfiles": ["pick_windows", "first_move", "snowball_pressure"],
+  "evaluationWeights": {
+    "deaths_pre_14": 0.4,
+    "gold_diff_at_15": 0.35,
+    "cs_at_15": 0.15,
+    "lead_conversion": 0.15,
+    "kill_participation": 0.1
+  },
+  "performanceAxes": [
+    { "en": "Gold curve before first all-in windows", "es": "Curva de oro antes de las primeras ventanas de all-in" },
+    { "en": "Pick quality instead of random engage volume", "es": "Calidad de picks en vez de volumen de engages random" }
+  ],
+  "misreadWarnings": [
+    {
+      "focusMetric": "lead_conversion",
+      "message": {
+        "en": "On Naafiri, conversion matters only after the sample is actually creating playable early leads.",
+        "es": "En Naafiri, la conversion importa solo despues de que la muestra realmente crea ventajas tempranas jugables."
+      }
+    }
+  ],
+  "priorityNotes": [
+    {
+      "bracket": "low_elo",
+      "message": {
+        "en": "If Naafiri keeps dying on force windows, coach the engage quality first and the macro later.",
+        "es": "Si Naafiri sigue muriendo en ventanas de force, primero corregir la calidad del engage y despues la macro."
+      }
+    }
+  ],
+  "heuristics": [
+    {
+      "id": "naafiri-snowball-check",
+      "title": { "en": "Snowball dependency check", "es": "Chequeo de dependencia de snowball" },
+      "status": "active",
+      "requiredSignals": ["match_summary", "timeline_gold_xp"],
+      "note": {
+        "en": "The system can already treat early gold and deaths as extra-sensitive on Naafiri.",
+        "es": "El sistema ya puede tratar el oro temprano y las muertes como senales extra-sensibles en Naafiri."
+      }
+    }
+  ]
+}

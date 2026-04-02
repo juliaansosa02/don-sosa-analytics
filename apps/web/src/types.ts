@@ -93,6 +93,10 @@ export interface AICoachResult {
       profileStrength?: 'developing' | 'advanced' | 'elite';
       profileStrengthReasons?: string[];
     };
+    performance?: {
+      avgLaneDeathsPre10?: number;
+      avgObjectiveFightDeaths?: number;
+    };
     patchContext: {
       currentPatch: string;
       sourceUrl: string;
@@ -110,6 +114,51 @@ export interface AICoachResult {
         impactLevel: 'low' | 'medium' | 'high';
       }>;
       note: string;
+    };
+    knowledge?: {
+      knowledgeVersion: string;
+      skillBracket: 'low_elo' | 'mid_elo' | 'high_elo' | 'apex';
+      roleIdentity: {
+        role: string;
+        label: string;
+        fundamentals: string[];
+        blindSpots: string[];
+      };
+      championIdentity?: {
+        championName: string;
+        archetypes: string[];
+        economyProfile: 'low_econ' | 'standard' | 'high_econ';
+        priorityNotes: string[];
+      } | null;
+      eloProfile: {
+        bracket: 'low_elo' | 'mid_elo' | 'high_elo' | 'apex';
+        coachStyle: string;
+        reviewThemes: string[];
+      };
+      metaReference: {
+        patch: string | null;
+        status: 'ready' | 'scaffold_only' | 'not_configured';
+        summary: string;
+      };
+    };
+    diagnosis?: {
+      primaryIssue: {
+        problemId: string;
+        focusMetric: string | null;
+        problem: string;
+        score: number;
+        reasons: string[];
+      } | null;
+      suppressedIssues: Array<{
+        problemId: string;
+        focusMetric: string | null;
+        problem: string;
+        score: number;
+        reasons: string[];
+      }>;
+      confidence: number;
+      reasonChain: string[];
+      dataGaps: string[];
     };
   };
   retrieval: {

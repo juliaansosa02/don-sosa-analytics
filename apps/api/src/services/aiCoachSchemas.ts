@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { supportedRiotPlatformTuple } from '../lib/riotRouting.js';
+import type { CoachDiagnosisSummary, CoachKnowledgeContext } from './coachKnowledgeSchemas.js';
 
 export const knowledgeCardSchema = z.object({
   id: z.string().min(1),
@@ -118,6 +119,8 @@ export interface AICoachContext {
     avgLevelDiffAt15: number;
     avgKillParticipation: number;
     avgDeathsPre14: number;
+    avgLaneDeathsPre10: number;
+    avgObjectiveFightDeaths: number;
     consistencyIndex: number;
   };
   coaching: {
@@ -259,6 +262,8 @@ export interface AICoachContext {
     latestGameCreation: number | null;
   };
   patchContext: AICoachPatchContext;
+  knowledge: CoachKnowledgeContext;
+  diagnosis: CoachDiagnosisSummary;
 }
 
 export interface AICoachContinuity {

@@ -1,0 +1,60 @@
+{
+  "championName": "Shen",
+  "roles": ["TOP"],
+  "archetypes": ["global", "tank", "side_pressure", "utility_frontline"],
+  "economyProfile": "low_econ",
+  "mapProfiles": ["cross_map", "side_lane", "protect_carry"],
+  "evaluationWeights": {
+    "deaths_pre_14": 0.35,
+    "kill_participation": 0.25,
+    "objective_fight_deaths": 0.1,
+    "lead_conversion": 0.15,
+    "cs_at_15": -0.45,
+    "gold_diff_at_15": -0.15
+  },
+  "performanceAxes": [
+    { "en": "Cross-map response quality", "es": "Calidad de respuesta cross-map" },
+    { "en": "Side timing before ultimate windows", "es": "Timing de side antes de ventanas de ultimate" },
+    { "en": "Frontline discipline after landing", "es": "Disciplina de frontline despues de llegar" }
+  ],
+  "misreadWarnings": [
+    {
+      "focusMetric": "cs_at_15",
+      "message": {
+        "en": "Low CS on Shen is not automatically the main problem if the pick is still converting ult tempo and cross-map numbers.",
+        "es": "El bajo CS en Shen no es automaticamente el problema principal si el pick sigue convirtiendo tempo de ult y numeros cross-map."
+      }
+    }
+  ],
+  "priorityNotes": [
+    {
+      "bracket": "all",
+      "message": {
+        "en": "Judge Shen by whether he preserves tempo, joins the right fights and creates impossible side-lane choices.",
+        "es": "Juzgar a Shen por si preserva tempo, entra en las peleas correctas y crea decisiones imposibles desde side."
+      }
+    }
+  ],
+  "heuristics": [
+    {
+      "id": "shen-low-econ-misread",
+      "title": { "en": "Low-econ misread guardrail", "es": "Guardrail contra lectura falsa de low econ" },
+      "status": "active",
+      "requiredSignals": ["match_summary", "timeline_gold_xp", "rank_context"],
+      "note": {
+        "en": "The system can already downweight pure farm coaching on Shen when the rest of the sample is still playable.",
+        "es": "El sistema ya puede bajar el peso del coaching puro de farm en Shen cuando el resto de la muestra sigue jugable."
+      }
+    },
+    {
+      "id": "shen-ult-impact",
+      "title": { "en": "Ultimate impact detection", "es": "Deteccion de impacto de ultimate" },
+      "status": "blocked_by_missing_data",
+      "requiredSignals": ["ability_usage", "position_frames"],
+      "note": {
+        "en": "To detect whether Shen is wasting global pressure we still need cast-level ultimate and movement telemetry.",
+        "es": "Para detectar si Shen desperdicia presion global todavia faltan telemetrias de casteo de ultimate y movimiento."
+      }
+    }
+  ]
+}

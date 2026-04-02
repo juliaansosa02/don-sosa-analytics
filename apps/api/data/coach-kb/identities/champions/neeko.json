@@ -1,0 +1,48 @@
+{
+  "championName": "Neeko",
+  "roles": ["MIDDLE", "UTILITY"],
+  "archetypes": ["deception_mage", "pick", "engage", "setup_punish"],
+  "economyProfile": "standard",
+  "mapProfiles": ["creative_angle", "setup_trap", "flank_entry"],
+  "evaluationWeights": {
+    "deaths_pre_14": 0.35,
+    "kill_participation": 0.25,
+    "gold_diff_at_15": 0.15,
+    "objective_fight_deaths": 0.1,
+    "lead_conversion": 0.1
+  },
+  "performanceAxes": [
+    { "en": "Threat creation through disguise, angle and patience", "es": "Creacion de amenaza con disfraz, angulo y paciencia" },
+    { "en": "Fight entry quality rather than raw spell count", "es": "Calidad de entrada a pelea en vez de cantidad bruta de hechizos" }
+  ],
+  "misreadWarnings": [
+    {
+      "focusMetric": "kill_participation",
+      "message": {
+        "en": "On Neeko, low impact can come from disguise and engage misuse even if generic lane numbers look acceptable.",
+        "es": "En Neeko, el bajo impacto puede venir del mal uso del disfraz y del engage aunque los numeros genericos de linea parezcan aceptables."
+      }
+    }
+  ],
+  "priorityNotes": [
+    {
+      "bracket": "low_elo",
+      "message": {
+        "en": "If Neeko is not threatening with disguise or R windows, coach the actual trick and engage usage before abstract macro.",
+        "es": "Si Neeko no amenaza con el disfraz o con ventanas de R, conviene corregir el truco real y el uso del engage antes que macro abstracta."
+      }
+    }
+  ],
+  "heuristics": [
+    {
+      "id": "neeko-passive-usage",
+      "title": { "en": "Passive exploitation detector", "es": "Detector de explotacion de pasiva" },
+      "status": "blocked_by_missing_data",
+      "requiredSignals": ["ability_usage", "position_frames"],
+      "note": {
+        "en": "To detect whether Neeko is actually using passive pressure we need disguise and movement-state telemetry.",
+        "es": "Para detectar si Neeko realmente usa la presion de la pasiva faltan telemetrias de disfraz y estado de movimiento."
+      }
+    }
+  ]
+}

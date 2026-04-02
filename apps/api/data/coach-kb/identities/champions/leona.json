@@ -1,0 +1,48 @@
+{
+  "championName": "Leona",
+  "roles": ["UTILITY"],
+  "archetypes": ["engage_support", "setup_frontline", "cooldown_window"],
+  "economyProfile": "low_econ",
+  "mapProfiles": ["vision_setup", "bot_lane_force", "objective_entry"],
+  "evaluationWeights": {
+    "deaths_pre_14": 0.35,
+    "kill_participation": 0.2,
+    "objective_fight_deaths": 0.2,
+    "lead_conversion": 0.1,
+    "cs_at_15": -0.75
+  },
+  "performanceAxes": [
+    { "en": "Engage timing that does not donate lane or river first", "es": "Timing de engage que no regala primero la lane ni el rio" },
+    { "en": "Vision and entry discipline before starting the fight", "es": "Disciplina de vision y entrada antes de iniciar la pelea" }
+  ],
+  "misreadWarnings": [
+    {
+      "focusMetric": "cs_at_15",
+      "message": {
+        "en": "Leona should not be evaluated through farm. The real question is whether the engage windows create useful map value.",
+        "es": "Leona no deberia evaluarse por farm. La pregunta real es si las ventanas de engage crean valor util de mapa."
+      }
+    }
+  ],
+  "priorityNotes": [
+    {
+      "bracket": "low_elo",
+      "message": {
+        "en": "If Leona dies first on every force, coach the actual engage selection before teaching advanced setup theory.",
+        "es": "Si Leona muere primera en cada force, conviene corregir la seleccion del engage antes de ensenar teoria avanzada de setup."
+      }
+    }
+  ],
+  "heuristics": [
+    {
+      "id": "leona-low-econ-guardrail",
+      "title": { "en": "Low-econ support guardrail", "es": "Guardrail de support low econ" },
+      "status": "active",
+      "requiredSignals": ["match_summary", "objective_windows"],
+      "note": {
+        "en": "The system can already avoid overvaluing CS on Leona and push more weight into deaths and setup windows.",
+        "es": "El sistema ya puede evitar sobrevalorar el CS en Leona y mover mas peso hacia muertes y ventanas de setup."
+      }
+    }
+  ]
+}

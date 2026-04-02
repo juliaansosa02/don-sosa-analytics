@@ -1,0 +1,169 @@
+[
+  {
+    "role": "ALL",
+    "label": { "en": "all roles", "es": "todos los roles" },
+    "csAt15Target": 100,
+    "stableDeathsPre14": 1,
+    "killParticipationTarget": 50,
+    "goldDiffAt15Target": 0,
+    "levelDiffAt15Target": 0,
+    "evaluationWeights": {
+      "deaths_pre_14": 0.35,
+      "gold_diff_at_15": 0.25,
+      "cs_at_15": 0.2,
+      "kill_participation": 0.1,
+      "objective_fight_deaths": 0.05,
+      "lead_conversion": 0.05
+    },
+    "fundamentals": [
+      { "en": "Protect early tempo before chasing complexity.", "es": "Proteger el tempo temprano antes de perseguir complejidad." },
+      { "en": "Judge each role by how it creates value, not by one copied KPI.", "es": "Juzgar cada rol por como crea valor, no por un KPI copiado." }
+    ],
+    "blindSpots": [
+      { "en": "Generic macro can hide a more basic execution leak.", "es": "La macro generica puede tapar una fuga mas basica de ejecucion." }
+    ],
+    "reviewPrompts": [
+      { "en": "What is the first avoidable mistake that changed your game state?", "es": "Cual fue el primer error evitable que cambio tu estado de partida?" }
+    ]
+  },
+  {
+    "role": "TOP",
+    "label": { "en": "top", "es": "top" },
+    "csAt15Target": 102,
+    "stableDeathsPre14": 1,
+    "killParticipationTarget": 44,
+    "goldDiffAt15Target": 50,
+    "levelDiffAt15Target": 0.1,
+    "evaluationWeights": {
+      "deaths_pre_14": 0.35,
+      "gold_diff_at_15": 0.3,
+      "cs_at_15": 0.15,
+      "lead_conversion": 0.15,
+      "objective_fight_deaths": 0.05,
+      "kill_participation": 0
+    },
+    "fundamentals": [
+      { "en": "Wave state and recall quality decide how much map you can play later.", "es": "El estado de la wave y la calidad del recall deciden cuanto mapa podes jugar despues." },
+      { "en": "Weakside discipline matters more than ego trades.", "es": "La disciplina en weakside importa mas que los trades de ego." },
+      { "en": "Side lane value comes from timing, not only from hitting towers.", "es": "El valor de side viene del timing, no solo de pegar torre." }
+    ],
+    "blindSpots": [
+      { "en": "Top players often confuse side pressure with staying one wave too long.", "es": "Muchos tops confunden side pressure con quedarse una wave de mas." }
+    ],
+    "reviewPrompts": [
+      { "en": "Which wave or trade removed your option to move first?", "es": "Que wave o trade te saco la opcion de moverte primero?" }
+    ]
+  },
+  {
+    "role": "JUNGLE",
+    "label": { "en": "jungle", "es": "jungla" },
+    "csAt15Target": 95,
+    "stableDeathsPre14": 1,
+    "killParticipationTarget": 58,
+    "goldDiffAt15Target": 150,
+    "levelDiffAt15Target": 0.2,
+    "evaluationWeights": {
+      "deaths_pre_14": 0.3,
+      "gold_diff_at_15": 0.2,
+      "kill_participation": 0.15,
+      "objective_fight_deaths": 0.2,
+      "lead_conversion": 0.15,
+      "cs_at_15": 0.1
+    },
+    "fundamentals": [
+      { "en": "Camp tempo only matters if it connects into the right play windows.", "es": "El tempo de campamentos solo importa si conecta con las ventanas de jugada correctas." },
+      { "en": "Read lane states before committing to ganks, covers or invades.", "es": "Leer estados de linea antes de comprometer ganks, covers o invades." },
+      { "en": "Objective setup is created 45 to 70 seconds before the spawn, not on spawn.", "es": "El setup del objetivo se crea 45 a 70 segundos antes del spawn, no sobre el spawn." }
+    ],
+    "blindSpots": [
+      { "en": "Jungle samples can look active while still bleeding tempo through low-return detours.", "es": "La muestra de jungla puede verse activa y aun asi perder tempo en desvios de bajo retorno." }
+    ],
+    "reviewPrompts": [
+      { "en": "Which detour actually broke your route and made the next map play worse?", "es": "Que desvio rompio de verdad tu ruta y empeoro la siguiente jugada de mapa?" }
+    ]
+  },
+  {
+    "role": "MIDDLE",
+    "label": { "en": "mid", "es": "mid" },
+    "csAt15Target": 105,
+    "stableDeathsPre14": 1,
+    "killParticipationTarget": 52,
+    "goldDiffAt15Target": 100,
+    "levelDiffAt15Target": 0.15,
+    "evaluationWeights": {
+      "deaths_pre_14": 0.3,
+      "gold_diff_at_15": 0.25,
+      "cs_at_15": 0.15,
+      "kill_participation": 0.1,
+      "lead_conversion": 0.1,
+      "objective_fight_deaths": 0.1
+    },
+    "fundamentals": [
+      { "en": "Mid value is priority, not only lane mechanics.", "es": "El valor de mid es prioridad, no solo mecanica de linea." },
+      { "en": "Rotations should preserve wave state instead of donating it for free.", "es": "Las rotaciones deberian preservar la wave en vez de regalarla gratis." },
+      { "en": "The best mid players move to the live side before the fight exists.", "es": "Los mejores mids se mueven al lado vivo antes de que exista la pelea." }
+    ],
+    "blindSpots": [
+      { "en": "A flashy roam can still be wrong if it donates mid control.", "es": "Un roam vistoso puede seguir siendo malo si regala el control de mid." }
+    ],
+    "reviewPrompts": [
+      { "en": "Which mid wave or reset removed your first move?", "es": "Que wave o reset de medio te saco el primer move?" }
+    ]
+  },
+  {
+    "role": "BOTTOM",
+    "label": { "en": "adc", "es": "adc" },
+    "csAt15Target": 108,
+    "stableDeathsPre14": 1,
+    "killParticipationTarget": 50,
+    "goldDiffAt15Target": 120,
+    "levelDiffAt15Target": 0.1,
+    "evaluationWeights": {
+      "deaths_pre_14": 0.35,
+      "cs_at_15": 0.25,
+      "gold_diff_at_15": 0.2,
+      "objective_fight_deaths": 0.1,
+      "lead_conversion": 0.05,
+      "kill_participation": 0.05
+    },
+    "fundamentals": [
+      { "en": "Bot lane economy determines how much real DPS you bring to the first big fights.", "es": "La economia de bot determina cuanto DPS real llevas a las primeras peleas grandes." },
+      { "en": "Good ADC play is mostly spacing, recall timing and clean fight entry.", "es": "Jugar bien adc es mayormente spacing, timing de recall y entrada limpia a la pelea." },
+      { "en": "One greedy death can delay the whole item curve.", "es": "Una muerte greedy puede atrasar toda la curva de items." }
+    ],
+    "blindSpots": [
+      { "en": "ADC players often call a positioning issue macro when the real leak was one reset or one extra wave.", "es": "Muchos ADC llaman macro a un problema cuyo leak real fue un reset o una wave de mas." }
+    ],
+    "reviewPrompts": [
+      { "en": "Which reset, wave or front-to-back entry made the fight unwinnable for you?", "es": "Que reset, wave o entrada front-to-back volvio injugable la pelea para vos?" }
+    ]
+  },
+  {
+    "role": "UTILITY",
+    "label": { "en": "support", "es": "support" },
+    "csAt15Target": 22,
+    "stableDeathsPre14": 2,
+    "killParticipationTarget": 60,
+    "goldDiffAt15Target": 0,
+    "levelDiffAt15Target": 0,
+    "evaluationWeights": {
+      "deaths_pre_14": 0.3,
+      "kill_participation": 0.25,
+      "objective_fight_deaths": 0.2,
+      "gold_diff_at_15": 0.05,
+      "lead_conversion": 0.1,
+      "cs_at_15": -0.7
+    },
+    "fundamentals": [
+      { "en": "Support value is generated through setup, information and timing, not CS.", "es": "El valor del support se genera con setup, informacion y timing, no con CS." },
+      { "en": "Roams only count when they do not break bot wave and objective structure.", "es": "Los roams solo cuentan si no rompen la wave de bot ni la estructura del objetivo." },
+      { "en": "Vision is useful only if the support stays alive long enough to use it.", "es": "La vision sirve solo si el support sigue vivo lo suficiente para usarla." }
+    ],
+    "blindSpots": [
+      { "en": "Low economy is normal on support. The real question is whether the map value justified it.", "es": "La baja economia es normal en support. La pregunta real es si el valor de mapa la justifico." }
+    ],
+    "reviewPrompts": [
+      { "en": "Which roam, ward or engage removed you from the important setup?", "es": "Que roam, ward o engage te saco del setup importante?" }
+    ]
+  }
+]

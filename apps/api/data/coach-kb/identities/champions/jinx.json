@@ -1,0 +1,40 @@
+{
+  "championName": "Jinx",
+  "roles": ["BOTTOM"],
+  "archetypes": ["hypercarry", "teamfight_dps", "reset_scaling"],
+  "economyProfile": "high_econ",
+  "mapProfiles": ["item_spike", "front_to_back", "objective_dps"],
+  "evaluationWeights": {
+    "deaths_pre_14": 0.35,
+    "cs_at_15": 0.3,
+    "gold_diff_at_15": 0.2,
+    "objective_fight_deaths": 0.1,
+    "lead_conversion": 0.05
+  },
+  "performanceAxes": [
+    { "en": "Arrive to the first big fight with a stable item curve", "es": "Llegar a la primera pelea grande con curva de items estable" },
+    { "en": "Keep damage uptime without donating entry deaths", "es": "Mantener uptime de dano sin regalar muertes de entrada" }
+  ],
+  "misreadWarnings": [],
+  "priorityNotes": [
+    {
+      "bracket": "all",
+      "message": {
+        "en": "Jinx should be judged hard on economy and survival because both directly gate her real carry window.",
+        "es": "A Jinx conviene juzgarla fuerte en economia y supervivencia porque ambas habilitan su verdadera ventana de carry."
+      }
+    }
+  ],
+  "heuristics": [
+    {
+      "id": "jinx-econ-curve",
+      "title": { "en": "Economy curve emphasis", "es": "Enfasis en curva de economia" },
+      "status": "active",
+      "requiredSignals": ["match_summary", "timeline_gold_xp", "items_runes"],
+      "note": {
+        "en": "The system can already treat CS and early gold as high-signal on Jinx.",
+        "es": "El sistema ya puede tratar CS y oro temprano como senales de alto valor en Jinx."
+      }
+    }
+  ]
+}

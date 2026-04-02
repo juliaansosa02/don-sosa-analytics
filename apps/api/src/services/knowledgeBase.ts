@@ -44,6 +44,30 @@ function comparePatch(left?: string | null, right?: string | null) {
   return a.minor - b.minor;
 }
 
+function getFocusMetricKeywords(focusMetric?: string | null) {
+  switch (focusMetric) {
+    case 'deaths_pre_10':
+    case 'deaths_pre_14':
+      return ['death', 'deaths', 'discipline', 'tempo', 'stability'];
+    case 'cs_at_15':
+      return ['farm', 'cs', 'wave', 'reset', 'economy'];
+    case 'gold_diff_at_15':
+      return ['lane', 'gold', 'tempo', 'trade', 'priority'];
+    case 'kill_participation':
+      return ['roam', 'map', 'move', 'skirmish', 'connection'];
+    case 'objective_fight_deaths':
+      return ['objective', 'setup', 'reset', 'vision', 'arrival'];
+    case 'lead_conversion':
+      return ['convert', 'lead', 'macro', 'pressure', 'side'];
+    case 'champion_pool_stability':
+      return ['pool', 'champion', 'review'];
+    case 'matchup_review':
+      return ['matchup', 'lane', 'draft', 'review'];
+    default:
+      return [];
+  }
+}
+
 function scorePatchRelevance(card: KnowledgeCard) {
   const currentPatch = env.CURRENT_LOL_PATCH;
 
@@ -82,6 +106,8 @@ function scoreCard(card: KnowledgeCard, context: AICoachContext) {
     : [context.player.primaryRole ?? context.player.roleFilter];
   const preferredPhase = inferPreferredPhase(context);
   const topProblemText = context.coaching.topProblems.map((problem) => `${problem.problem} ${problem.title} ${problem.cause}`).join(' ').toLowerCase();
+  const primaryIssueKeywords = getFocusMetricKeywords(context.diagnosis.primaryIssue?.focusMetric);
+  const championArchetypes = context.knowledge.championIdentity?.archetypes ?? [];
 
   if (scopedRoles.includes(card.role)) score += 40;
   else if (card.role === 'ALL') score += 12;
@@ -100,8 +126,11 @@ function scoreCard(card: KnowledgeCard, context: AICoachContext) {
 
   for (const tag of card.tags) {
     if (topProblemText.includes(tag.toLowerCase())) score += 6;
+    if (primaryIssueKeywords.some((keyword) => tag.toLowerCase().includes(keyword))) score += 4;
+    if (championArchetypes.some((archetype) => tag.toLowerCase().includes(archetype.toLowerCase()))) score += 3;
   }
 
+  if (primaryIssueKeywords.some((keyword) => card.concept.toLowerCase().includes(keyword))) score += 10;
   if (topProblemText.includes(card.concept.toLowerCase().replace(/_/g, ' '))) score += 10;
   return score;
 }

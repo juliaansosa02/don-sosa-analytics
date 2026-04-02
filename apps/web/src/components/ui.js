@@ -4,7 +4,7 @@ export function Shell({ sidebar, children }) {
     return (_jsxs("div", { className: "app-shell", style: { display: 'grid', gridTemplateColumns: sidebar ? 'minmax(280px, 320px) minmax(0, 1fr)' : '1fr', minHeight: '100vh', background: 'radial-gradient(circle at top left, rgba(56, 44, 116, 0.16), transparent 28%), #04070c' }, children: [sidebar ? _jsx("aside", { className: "app-sidebar", style: { borderRight: '1px solid rgba(255,255,255,0.07)', padding: 24, background: '#05080e' }, children: sidebar }) : null, _jsx("main", { style: { padding: 28 }, children: children })] }));
 }
 export function Card({ title, subtitle, children }) {
-    return (_jsxs("section", { style: { background: 'linear-gradient(180deg, rgba(8,12,20,0.98), rgba(5,8,14,0.98))', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 20, padding: 20, boxShadow: '0 18px 50px rgba(0,0,0,0.18)' }, children: [_jsxs("div", { style: { marginBottom: 18, display: 'grid', gap: 8 }, children: [_jsx("h3", { style: { margin: 0, fontSize: 18, letterSpacing: '-0.02em' }, children: title }), subtitle ? _jsx("p", { style: { margin: 0, color: '#7f8898', lineHeight: 1.6 }, children: subtitle }) : null] }), children] }));
+    return (_jsxs("section", { style: { display: 'grid', alignContent: 'start', gap: 18, height: '100%', background: 'linear-gradient(180deg, rgba(8,12,20,0.98), rgba(5,8,14,0.98))', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 22, padding: 22, boxShadow: '0 22px 56px rgba(0,0,0,0.2)' }, children: [_jsxs("div", { style: { display: 'grid', gap: 8 }, children: [_jsx("h3", { style: { margin: 0, fontSize: 18, letterSpacing: '-0.02em' }, children: title }), subtitle ? _jsx("p", { style: { margin: 0, color: '#7f8898', lineHeight: 1.6 }, children: subtitle }) : null] }), children] }));
 }
 export function KPI({ label, value, hint, info, trend }) {
     return (_jsxs("div", { style: { padding: 15, borderRadius: 16, background: '#070b12', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gap: 6 }, children: [_jsxs("div", { style: { color: '#7f8898', fontSize: 12, display: 'flex', alignItems: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }, children: [label, info ? _jsx(InfoHint, { text: info }) : null] }), _jsx("div", { style: { fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em' }, children: value }), hint || trend ? (_jsxs("div", { style: { color: '#7f8898', fontSize: 12, lineHeight: 1.5, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }, children: [hint ? _jsx("span", { children: hint }) : null, trend ? _jsx(TrendIndicator, { direction: trend.direction, tone: trend.tone, label: trend.label }) : null] })) : null] }));
@@ -39,18 +39,19 @@ export function InfoHint({ text }) {
     return (_jsxs("span", { className: "info-hint", style: hintWrapperStyle, title: text, children: [_jsx("span", { style: hintIconStyle, children: "?" }), _jsx("span", { className: "info-hint-tooltip", style: hintTooltipStyle, children: text })] }));
 }
 export function TrendIndicator({ direction, tone, label }) {
+    const isNeutral = tone === 'neutral' || direction === 'steady';
     const color = tone === 'positive'
         ? '#7ef5c7'
         : tone === 'negative'
             ? '#ff8f8f'
-            : '#8ea0bb';
+            : '#8293ac';
     const markerStyle = direction === 'steady'
         ? {
-            width: 8,
-            height: 8,
-            borderRadius: 2,
-            background: color,
-            transform: 'rotate(45deg)'
+            width: 6,
+            height: 6,
+            borderRadius: 999,
+            background: `${color}33`,
+            border: `1px solid ${color}`
         }
         : direction === 'up'
             ? {
@@ -67,7 +68,7 @@ export function TrendIndicator({ direction, tone, label }) {
                 borderRight: '5px solid transparent',
                 borderTop: `8px solid ${color}`
             };
-    return (_jsxs("span", { style: { display: 'inline-flex', alignItems: 'center', gap: 6, color, fontWeight: 700, fontSize: 12, lineHeight: 1.1, textAlign: 'left' }, children: [_jsx("span", { "aria-hidden": "true", style: markerStyle }), label ? _jsx("span", { children: label }) : null] }));
+    return (_jsxs("span", { style: { display: 'inline-flex', alignItems: 'center', gap: isNeutral ? 5 : 6, color, fontWeight: isNeutral ? 600 : 700, fontSize: isNeutral ? 11 : 12, lineHeight: 1.1, textAlign: 'left', whiteSpace: 'nowrap' }, children: [_jsx("span", { "aria-hidden": "true", style: markerStyle }), label ? _jsx("span", { style: { letterSpacing: isNeutral ? '0.01em' : undefined }, children: label }) : null] }));
 }
 const hintWrapperStyle = {
     position: 'relative',
