@@ -90,6 +90,8 @@ export interface AICoachResult {
       regionalRoute?: string;
       coachRoles?: string[];
       roleScopeLabel?: string;
+      profileStrength?: 'developing' | 'advanced' | 'elite';
+      profileStrengthReasons?: string[];
     };
     patchContext: {
       currentPatch: string;
@@ -127,6 +129,37 @@ export interface AICoachResult {
     knowledgeCardIds: string[];
     confidence: number;
   };
+}
+
+export interface RoleReferenceProfile {
+  slotId: 'kr_best' | 'euw_best' | 'home_best';
+  slotLabel: string;
+  requestedPlatform: string;
+  sourcePlatform: string;
+  fallbackUsed: boolean;
+  gameName: string;
+  tagLine: string;
+  role: 'TOP' | 'JUNGLE' | 'MIDDLE' | 'BOTTOM' | 'UTILITY';
+  profileIconId?: number;
+  ddragonVersion?: string;
+  rankLabel: string;
+  highestTier: string;
+  leaguePoints: number;
+  matches: number;
+  recentWinRate: number;
+  avgPerformance: number;
+  avgKda: number;
+  avgKillParticipation: number;
+  avgCsAt15: number;
+  avgGoldAt15: number;
+  avgDeathsPre14: number;
+  consistencyIndex: number;
+  topChampions: string[];
+}
+
+export interface RoleReferenceResponse {
+  role: 'TOP' | 'JUNGLE' | 'MIDDLE' | 'BOTTOM' | 'UTILITY';
+  references: RoleReferenceProfile[];
 }
 
 export interface MembershipAccount {

@@ -12,6 +12,7 @@ import type { collectPlayerSnapshot } from './collectionService.js';
 import { assertCoachEntitlement, limitDatasetToMembership, type MembershipContext } from './membershipService.js';
 
 type StoredDataset = Awaited<ReturnType<typeof collectPlayerSnapshot>>;
+const AI_COACH_LOGIC_VERSION = '2026-04-product-sprint-v2';
 
 const openai = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
 
@@ -313,12 +314,111 @@ function getRoleTargets(role: string) {
   }
 }
 
+function classifyProfileStrength(input: {
+  highestTier?: string;
+  highestLp?: number;
+  winRate: number;
+  avgPerformance: number;
+  consistencyIndex: number;
+  visibleMatches: number;
+  avgDeathsPre14: number;
+  primaryRole: string;
+}) {
+  const targets = getRoleTargets(input.primaryRole);
+  const highestTier = input.highestTier ?? 'UNRANKED';
+  const highestLp = input.highestLp ?? 0;
+
+  if (
+    highestTier === 'CHALLENGER' ||
+    highestTier === 'GRANDMASTER' ||
+    (highestTier === 'MASTER' && (
+      highestLp >= 220 ||
+      (
+        input.visibleMatches >= 24 &&
+        input.winRate >= 56 &&
+        input.avgPerformance >= 74 &&
+        input.consistencyIndex >= 82 &&
+        input.avgDeathsPre14 <= targets.stableDeathsPre14 + 0.4
+      )
+    ))
+  ) {
+    return 'elite' as const;
+  }
+
+  if (
+    ['MASTER', 'DIAMOND'].includes(highestTier) ||
+    (
+      input.visibleMatches >= 20 &&
+      input.winRate >= 53 &&
+      input.avgPerformance >= 69 &&
+      input.consistencyIndex >= 76
+    )
+  ) {
+    return 'advanced' as const;
+  }
+
+  return 'developing' as const;
+}
+
+function buildProfileStrengthReasons(input: {
+  locale: 'es' | 'en';
+  strength: 'developing' | 'advanced' | 'elite';
+  highestTier?: string;
+  highestLp?: number;
+  visibleMatches: number;
+  winRate: number;
+  avgPerformance: number;
+  consistencyIndex: number;
+}) {
+  const reasons: string[] = [];
+
+  if (input.highestTier && input.highestTier !== 'UNRANKED') {
+    reasons.push(input.locale === 'en'
+      ? `Visible rank context: ${input.highestTier}${typeof input.highestLp === 'number' ? ` ${input.highestLp} LP` : ''}.`
+      : `Contexto de rango visible: ${input.highestTier}${typeof input.highestLp === 'number' ? ` ${input.highestLp} LP` : ''}.`);
+  }
+
+  reasons.push(input.locale === 'en'
+    ? `Scoped sample: ${input.visibleMatches} matches with ${input.winRate}% WR and ${input.avgPerformance} average performance.`
+    : `Muestra del scope: ${input.visibleMatches} partidas con ${input.winRate}% WR y ${input.avgPerformance} de rendimiento promedio.`);
+
+  if (input.strength !== 'developing') {
+    reasons.push(input.locale === 'en'
+      ? `Consistency signal: ${input.consistencyIndex} consistency index across the current block.`
+      : `Señal de consistencia: ${input.consistencyIndex} de índice de consistencia en el bloque actual.`);
+  }
+
+  return reasons;
+}
+
 async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest): Promise<AICoachContext> {
   const matches = filterMatches(dataset, input);
   const coachRoles = normalizeCoachRoles(input);
   const roleScopeLabel = buildRoleScopeLabel(coachRoles, input.locale);
   const summary = buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, matches, input.locale);
   const primaryRole = summary.primaryRole ?? coachRoles[0] ?? undefined;
+  const highestTier = dataset.rank?.highest.tier;
+  const highestLp = dataset.rank?.highest.leaguePoints;
+  const profileStrength = classifyProfileStrength({
+    highestTier,
+    highestLp,
+    winRate: summary.winRate,
+    avgPerformance: summary.avgPerformanceScore,
+    consistencyIndex: summary.consistencyIndex,
+    visibleMatches: summary.matches,
+    avgDeathsPre14: summary.avgDeathsPre14,
+    primaryRole: primaryRole ?? 'ALL'
+  });
+  const profileStrengthReasons = buildProfileStrengthReasons({
+    locale: input.locale,
+    strength: profileStrength,
+    highestTier,
+    highestLp,
+    visibleMatches: summary.matches,
+    winRate: summary.winRate,
+    avgPerformance: summary.avgPerformanceScore,
+    consistencyIndex: summary.consistencyIndex
+  });
   const anchorChampion = summary.championPool[0]?.championName ?? null;
   const matchupAlert = summary.problematicMatchup
     ? {
@@ -342,6 +442,7 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
   const visibleMatchIds = matches.map((match) => match.matchId).slice(0, 20);
   const sampleSignature = createHash('sha1')
     .update(JSON.stringify({
+      coachLogicVersion: AI_COACH_LOGIC_VERSION,
       roleFilter: input.roleFilter,
       coachRoles,
       queueFilter: input.queueFilter,
@@ -364,9 +465,12 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       windowFilter: input.windowFilter,
       visibleMatches: summary.matches,
       rankLabel: dataset.rank?.highest.label,
-      highestTier: dataset.rank?.highest.tier,
+      highestTier,
+      highestLp,
       primaryRole,
-      anchorChampion
+      anchorChampion,
+      profileStrength,
+      profileStrengthReasons
     },
     performance: {
       winRate: summary.winRate,
@@ -417,6 +521,13 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       opponentChampionName: item.opponentChampionName,
       gameCreation: item.gameCreation,
       win: item.win,
+      kills: item.kills,
+      deaths: item.deaths,
+      assists: item.assists,
+      cs: item.cs,
+      damageToChampions: item.damageToChampions,
+      killParticipation: item.killParticipation,
+      performanceScore: item.performanceScore,
       title: item.title,
       reason: item.reason,
       question: item.question,
@@ -588,6 +699,35 @@ function buildPersonalizedMainLeak(context: AICoachContext, coach: AICoachOutput
 
   if (!topProblem) return coach.mainLeak;
 
+  if (context.player.profileStrength === 'elite') {
+    switch (topProblem.focusMetric) {
+      case 'objective_fight_deaths':
+        return locale === 'en'
+          ? `In an otherwise strong sample, the clearest edge is not mechanics inside the fight. It is how cleanly you are arriving to objective windows, because even a small setup leak costs real conversion at this level.`
+          : `En una muestra que ya es fuerte, el borde más claro no está en la mecánica dentro de la pelea. Está en cuán limpio llegás a las ventanas de objetivo, porque a este nivel una fuga chica de setup ya cuesta conversiones reales.`;
+      case 'deaths_pre_14':
+        return locale === 'en'
+          ? `This is not a low-floor profile. The narrow leak is that your first unstable death is still shaving too much conversion from an otherwise high-level block.`
+          : `No es un perfil de piso bajo. La fuga fina es que tu primera muerte inestable todavía le está sacando demasiada conversión a un bloque por lo demás de nivel alto.`;
+      case 'gold_diff_at_15':
+        return locale === 'en'
+          ? `The next gain is marginal but important: your block is still donating a bit too much state by minute 15 for a profile that is already playing from strong fundamentals.`
+          : `La mejora siguiente es marginal pero importante: tu bloque todavía está cediendo un poco más de estado al 15 de lo que conviene en un perfil que ya juega desde fundamentos fuertes.`;
+      case 'lead_conversion':
+        return locale === 'en'
+          ? `You are already opening enough games well. The real edge now is how often those openings turn into stable map control instead of resetting back to neutral.`
+          : `Ya estás abriendo suficientes partidas bien. El edge real ahora está en cuántas de esas aperturas terminan en control estable del mapa en vez de resetearse a neutral.`;
+      case 'matchup_review':
+        return context.problematicMatchup
+          ? (locale === 'en'
+            ? `${context.problematicMatchup.opponentChampionName} is not just a bad draw here. It is one of the few recurring crosses still taxing an otherwise strong scope, so it deserves deliberate prep.`
+            : `${context.problematicMatchup.opponentChampionName} no es solo un cruce incómodo. Es de los pocos cruces recurrentes que todavía están cobrando caro en un scope por lo demás fuerte, así que merece preparación deliberada.`)
+          : coach.mainLeak;
+      default:
+        break;
+    }
+  }
+
   switch (topProblem.focusMetric) {
     case 'deaths_pre_14':
       return locale === 'en'
@@ -637,6 +777,24 @@ function buildPersonalizedSummary(context: AICoachContext, coach: AICoachOutput)
   const topProblem = context.coaching.topProblems[0];
 
   if (!topProblem) return coach.summary;
+
+  if (context.player.profileStrength === 'elite') {
+    if (topProblem.focusMetric === 'objective_fight_deaths') {
+      return locale === 'en'
+        ? `This read should be taken as edge refinement, not as a foundational leak. The sample is already strong; the next jump comes from protecting setup quality around the windows that actually decide the game.`
+        : `Esta lectura hay que tomarla como refinamiento de edge, no como fuga fundacional. La muestra ya es fuerte; el salto siguiente viene de proteger mejor la calidad del setup alrededor de las ventanas que de verdad deciden la partida.`;
+    }
+
+    if (topProblem.focusMetric === 'matchup_review' && context.problematicMatchup) {
+      return locale === 'en'
+        ? `${context.problematicMatchup.summary} In a profile this strong, that kind of repeated cross matters because it trims the margin in games you otherwise already know how to play.`
+        : `${context.problematicMatchup.summary} En un perfil así de fuerte, ese tipo de cruce repetido importa porque te recorta margen en partidas que, por estructura general, ya sabés jugar.`;
+    }
+
+    return locale === 'en'
+      ? `The account already shows a strong competitive baseline. This block is about narrowing the specific edge that is still costing conversion, not rebuilding fundamentals from zero.`
+      : `La cuenta ya muestra una base competitiva fuerte. Este bloque pasa por achicar el edge específico que todavía te está costando conversión, no por reconstruir fundamentos desde cero.`;
+  }
 
   if (topProblem.focusMetric === 'deaths_pre_14') {
     return locale === 'en'
@@ -717,6 +875,8 @@ Rules:
 - If a review agenda is provided, convert it into concrete replay questions instead of generic "review your games" advice.
 - Always turn the diagnosis into review instructions and next-game habits.
 - Write with the tone of a high-level analyst coaching a serious player.
+- If player.profileStrength is elite, do not talk like a beginner coach. Frame the read as marginal optimization, conversion edge and repeatable refinement unless the evidence for a foundational leak is overwhelming.
+- If player.profileStrength is advanced, keep the read disciplined and specific. Do not recycle low-elo boilerplate.
 - If the evidence is weak, say so and lower confidence.
 - Return only structured JSON that matches the schema.`;
 
@@ -745,8 +905,8 @@ function buildUserPrompt(
         }
       : null,
     instruction: context.player.locale === 'en'
-      ? 'Use the diagnosis, role fundamentals, patch context, positive signals, review agenda and retrieved coaching knowledge to produce the next coaching block. Write only in English, make the main leak concrete and personalized, keep the read inside the scoped role and picks unless the connection is explicit, surface real strengths when they exist, and if previous coaching exists, update the guidance with continuity instead of restarting from zero.'
-      : 'Usá el diagnóstico, los fundamentos del rol, el contexto de parche, las señales positivas, la agenda de review y el conocimiento recuperado para producir el siguiente bloque de coaching. Escribí solo en español, hacé que el problema principal sea concreto y personalizado, mantené la lectura dentro del rol y de los picks del scope salvo conexión explícita, mostrà fortalezas reales cuando existan, y si existe coaching previo, actualizá la guía con continuidad en vez de reiniciarla desde cero.'
+      ? 'Use the diagnosis, role fundamentals, patch context, positive signals, review agenda and retrieved coaching knowledge to produce the next coaching block. Write only in English, make the main leak concrete and personalized, keep the read inside the scoped role and picks unless the connection is explicit, surface real strengths when they exist, and if previous coaching exists, update the guidance with continuity instead of restarting from zero. Respect player.profileStrength: elite profiles need fine-grained optimization language, not generic leak-hunting.'
+      : 'Usá el diagnóstico, los fundamentos del rol, el contexto de parche, las señales positivas, la agenda de review y el conocimiento recuperado para producir el siguiente bloque de coaching. Escribí solo en español, hacé que el problema principal sea concreto y personalizado, mantené la lectura dentro del rol y de los picks del scope salvo conexión explícita, mostrà fortalezas reales cuando existan, y si existe coaching previo, actualizá la guía con continuidad en vez de reiniciarla desde cero. Respetá player.profileStrength: los perfiles elite necesitan lenguaje de optimización fina, no caza de leaks genéricos.'
   });
 }
 

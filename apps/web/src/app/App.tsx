@@ -11,6 +11,7 @@ import {
   fetchCachedProfile,
   fetchCoachPlayers,
   fetchMembershipCatalog,
+  fetchRoleReferences,
   generateAICoach,
   login,
   logout,
@@ -32,7 +33,8 @@ import type {
   CoachRosterEntry,
   Dataset,
   MembershipCatalogResponse,
-  MembershipMeResponse
+  MembershipMeResponse,
+  RoleReferenceProfile
 } from '../types';
 import { Shell, Card, Badge } from '../components/ui';
 import { CoachingHome } from '../features/coach/CoachingHome';
@@ -281,6 +283,9 @@ function AppShell() {
   const [aiCoach, setAICoach] = useState<AICoachResult | null>(null);
   const [aiCoachLoading, setAICoachLoading] = useState(false);
   const [aiCoachError, setAICoachError] = useState<string | null>(null);
+  const [roleReferences, setRoleReferences] = useState<RoleReferenceProfile[]>([]);
+  const [roleReferencesLoading, setRoleReferencesLoading] = useState(false);
+  const [roleReferencesError, setRoleReferencesError] = useState<string | null>(null);
   const [lastAICoachRequestKey, setLastAICoachRequestKey] = useState<string | null>(null);
   const [lastGeneratedCoachScopeKey, setLastGeneratedCoachScopeKey] = useState<string | null>(null);
   const [membershipCatalog, setMembershipCatalog] = useState<MembershipCatalogResponse | null>(null);
@@ -804,6 +809,56 @@ function AppShell() {
     if (!lastGeneratedCoachScopeKey) return false;
     return coachScopeKey !== lastGeneratedCoachScopeKey;
   }, [coachScopeKey, lastGeneratedCoachScopeKey]);
+  const coachReferenceRole = useMemo(() => {
+    const scopedRole = coachDataset?.summary.primaryRole?.toUpperCase();
+    if (scopedRole && scopedRole !== 'ALL' && scopedRole !== 'NONE') {
+      return scopedRole as RoleReferenceProfile['role'];
+    }
+
+    const firstCoachRole = coachRoles[0]?.toUpperCase();
+    if (firstCoachRole && firstCoachRole !== 'ALL' && firstCoachRole !== 'NONE') {
+      return firstCoachRole as RoleReferenceProfile['role'];
+    }
+
+    return null;
+  }, [coachDataset?.summary.primaryRole, coachRoles]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!dataset?.summary.platform || !coachReferenceRole) {
+      setRoleReferences([]);
+      setRoleReferencesError(null);
+      setRoleReferencesLoading(false);
+      return;
+    }
+
+    setRoleReferencesLoading(true);
+    setRoleReferencesError(null);
+
+    void fetchRoleReferences({
+      platform: dataset.summary.platform,
+      role: coachReferenceRole,
+      locale
+    })
+      .then((result) => {
+        if (cancelled) return;
+        setRoleReferences(result.references);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setRoleReferences([]);
+        setRoleReferencesError(err instanceof Error ? err.message : 'Unknown error');
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setRoleReferencesLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dataset?.summary.platform, coachReferenceRole, locale]);
 
   const renderedTab = useMemo(() => {
     if (activeTab === 'coach') {
@@ -816,6 +871,9 @@ function AppShell() {
           aiCoach={aiCoach}
           generatingAICoach={aiCoachLoading}
           aiCoachError={aiCoachError}
+          roleReferences={roleReferences}
+          roleReferencesLoading={roleReferencesLoading}
+          roleReferencesError={roleReferencesError}
           onGenerateAICoach={() => void handleGenerateAICoach(true)}
           onSendFeedback={(verdict: 'useful' | 'mixed' | 'generic' | 'incorrect') => void handleAICoachFeedback(verdict)}
         />
@@ -836,7 +894,7 @@ function AppShell() {
       case 'matches':
         return <MatchesTab dataset={viewDataset} locale={locale} />;
     }
-  }, [activeTab, coachDataset, viewDataset, locale, aiCoach, aiCoachLoading, aiCoachError]);
+  }, [activeTab, coachDataset, viewDataset, locale, aiCoach, aiCoachLoading, aiCoachError, roleReferences, roleReferencesLoading, roleReferencesError]);
 
   const csBenchmark = useMemo(() => {
     if (!viewDataset?.rank) return null;
@@ -1437,10 +1495,14 @@ function AppShell() {
               <Card
                 title={locale === 'en' ? 'Coaching scope' : 'Alcance del coaching'}
                 subtitle={locale === 'en'
-                  ? 'Choose the one or two roles you truly want to improve. The AI block is generated only from this scope.'
-                  : 'Elegí el o los dos roles que de verdad querés mejorar. El bloque de IA se genera solo sobre este alcance.'}
+                  ? 'Choose the one or two roles you truly want to improve. This selector changes the main AI coaching read only.'
+                  : 'Elegí el o los dos roles que de verdad querés mejorar. Este selector cambia solo la lectura principal del coaching IA.'}
               >
                 <div style={{ display: 'grid', gap: 14 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <Badge tone="low">{locale === 'en' ? 'Affects: coaching' : 'Afecta: coaching'}</Badge>
+                    <Badge tone="default">{locale === 'en' ? 'Does not rewrite stats or matchups' : 'No reescribe stats ni matchups'}</Badge>
+                  </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {coachRoleOptions.map((role) => {
                       const selected = coachRoles.includes(role);
@@ -1466,7 +1528,7 @@ function AppShell() {
                   </div>
                   <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr repeat(2, minmax(0, 1fr))', gap: 12 }}>
                     <div style={scopeMetaCardStyle}>
-                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Current scope' : 'Alcance actual'}</div>
+                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Current coaching scope' : 'Scope actual del coaching'}</div>
                       <div style={{ ...heroMetaValueStyle, fontSize: 20 }}>{coachScopeLabel}</div>
                       <div style={heroMetaSubtleStyle}>
                         {coachRoles.length >= (planEntitlements?.maxCoachRoles ?? 2)
@@ -1477,14 +1539,14 @@ function AppShell() {
                       </div>
                     </div>
                     <div style={scopeMetaCardStyle}>
-                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Token policy' : 'Política de tokens'}</div>
+                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Refresh rule' : 'Regla de refresh'}</div>
                       <div style={{ ...heroMetaValueStyle, fontSize: 20 }}>{locale === 'en' ? 'Manual refresh' : 'Refresh manual'}</div>
                       <div style={heroMetaSubtleStyle}>
                         {locale === 'en' ? 'Changing this scope does not regenerate coaching until you refresh.' : 'Cambiar este alcance no regenera coaching hasta que vos actualices.'}
                       </div>
                     </div>
                     <div style={scopeMetaCardStyle}>
-                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Current queue read' : 'Lectura de colas'}</div>
+                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Saved queue context' : 'Contexto de colas guardado'}</div>
                       <div style={{ ...heroMetaValueStyle, fontSize: 20 }}>{formatQueueSummary(dataset, locale)}</div>
                       <div style={heroMetaSubtleStyle}>{locale === 'en' ? 'Saved ranked context' : 'Contexto ranked guardado'}</div>
                     </div>
@@ -1767,9 +1829,13 @@ function AppShell() {
           {viewDataset && activeTab !== 'coach' ? (
             <div style={roleFilterPanelStyle}>
                 <div style={{ display: 'grid', gap: 3 }}>
-                  <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Exploration filters' : 'Filtros de exploración'}</div>
-                <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>{locale === 'en' ? 'Open the exact slice you want to inspect' : 'Abrí el recorte exacto que querés inspeccionar'}</div>
-                <div style={{ color: '#8793a8', fontSize: 13 }}>{locale === 'en' ? 'These filters only affect stats, matchups, runes, champions and match review. They no longer trigger a new AI coaching block.' : 'Estos filtros afectan solo métricas, cruces, runas, campeones y review de partidas. Ya no disparan un bloque nuevo de coaching IA.'}</div>
+                  <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Exploration scope' : 'Scope de exploración'}</div>
+                <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>{locale === 'en' ? 'Inspect the exact slice without touching the main coaching read' : 'Inspeccioná el recorte exacto sin tocar la lectura principal del coaching'}</div>
+                <div style={{ color: '#8793a8', fontSize: 13 }}>{locale === 'en' ? 'These filters affect stats, matchups, runes, champions and match review only. Coaching keeps using its own saved role scope.' : 'Estos filtros afectan solo métricas, cruces, runas, campeones y review de partidas. El coaching sigue usando su propio scope guardado de roles.'}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Badge tone="default">{locale === 'en' ? 'Affects: stats, matchups, matches' : 'Afecta: stats, matchups, partidas'}</Badge>
+                <Badge tone="low">{locale === 'en' ? `Coaching keeps ${coachScopeLabel}` : `El coaching sigue en ${coachScopeLabel}`}</Badge>
               </div>
               <div className="role-pill-grid" style={rolePillGridStyle}>
                 {preferredRoles.map((role) => (
@@ -1836,7 +1902,7 @@ function AppShell() {
                   </div>
                 </div>
                 <div style={contextGroupStyle}>
-                  <div style={contextLabelStyle}>{locale === 'en' ? 'Current slice' : 'Recorte actual'}</div>
+                  <div style={contextLabelStyle}>{locale === 'en' ? 'Current exploration slice' : 'Recorte actual de exploración'}</div>
                   <div style={{ color: '#dce7f9', fontSize: 13, lineHeight: 1.5 }}>
                     {locale === 'en'
                       ? `${translateRole(roleFilter, 'en')} · ${queueFilter === 'ALL' ? 'all queues' : queueFilter === 'RANKED' ? 'ranked queues' : queueFilter === 'RANKED_SOLO' ? 'solo/duo' : queueFilter === 'RANKED_FLEX' ? 'flex' : 'other queues'}`
@@ -1855,7 +1921,7 @@ function AppShell() {
           <div style={navigationPanelStyle}>
               <div style={{ display: 'grid', gap: 3 }}>
               <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Product navigation' : 'Navegación del producto'}</div>
-              <div style={{ color: '#eef4ff', fontSize: 15, fontWeight: 800 }}>{locale === 'en' ? 'One coaching read, several exploration layers' : 'Una lectura de coaching, varias capas de exploración'}</div>
+              <div style={{ color: '#eef4ff', fontSize: 15, fontWeight: 800 }}>{locale === 'en' ? 'One coaching scope, several exploration layers' : 'Un scope de coaching, varias capas de exploración'}</div>
             </div>
             <div className="tab-grid" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {tabs.map((tab) => (
@@ -2056,7 +2122,7 @@ const topBarPrimaryButtonStyle: CSSProperties = {
 
 const heroGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: '1.18fr .82fr',
+  gridTemplateColumns: 'minmax(0, 1.05fr) minmax(380px, 0.95fr)',
   gap: 20,
   alignItems: 'start'
 };
@@ -2064,7 +2130,7 @@ const heroGridStyle: CSSProperties = {
 const heroIntroPanelStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
-  padding: 28,
+  padding: 24,
   borderRadius: 28,
   border: '1px solid rgba(255,255,255,0.08)',
   background: 'radial-gradient(circle at top left, rgba(79, 56, 146, 0.34), transparent 42%), linear-gradient(180deg, rgba(17,20,31,0.96), rgba(7,10,16,0.98))',
@@ -2189,9 +2255,10 @@ const roleFilterPanelStyle: CSSProperties = {
   display: 'grid',
   gap: 14,
   padding: '16px 18px',
-  borderRadius: 16,
+  borderRadius: 18,
   background: 'linear-gradient(180deg, rgba(13,18,28,0.98), rgba(7,10,16,0.98))',
-  border: '1px solid rgba(216,253,241,0.1)'
+  border: '1px solid rgba(216,253,241,0.1)',
+  boxShadow: '0 18px 46px rgba(0,0,0,0.16)'
 };
 
 const rolePillGridStyle: CSSProperties = {
@@ -2266,7 +2333,8 @@ const navigationPanelStyle: CSSProperties = {
   padding: '16px 18px',
   borderRadius: 18,
   background: '#060a10',
-  border: '1px solid rgba(255,255,255,0.06)'
+  border: '1px solid rgba(255,255,255,0.06)',
+  boxShadow: '0 18px 46px rgba(0,0,0,0.14)'
 };
 
 const savedProfilesSectionStyle: CSSProperties = {
@@ -2360,9 +2428,9 @@ const sparklineCardStyle: CSSProperties = {
 
 const heroMetaChipStyle: CSSProperties = {
   display: 'grid',
-  gap: 2,
+  gap: 4,
   minWidth: 128,
-  padding: '10px 12px',
+  padding: '12px 13px',
   borderRadius: 14,
   background: 'rgba(8,12,20,0.88)',
   border: '1px solid rgba(255,255,255,0.06)'

@@ -99,6 +99,20 @@ export async function fetchCachedProfile(gameName, tagLine, platform, locale = '
     }
     return response.json();
 }
+export async function fetchRoleReferences(input) {
+    const params = new URLSearchParams({
+        platform: input.platform,
+        role: input.role,
+        locale: input.locale
+    });
+    const response = await apiFetch(`${API_BASE}/analytics/role-references?${params.toString()}`, {
+        headers: apiHeaders()
+    });
+    if (!response.ok) {
+        throw new Error(await readErrorMessage(response));
+    }
+    return response.json();
+}
 export async function generateAICoach(input) {
     const response = await apiFetch(`${API_BASE}/ai/coach/generate`, {
         method: 'POST',

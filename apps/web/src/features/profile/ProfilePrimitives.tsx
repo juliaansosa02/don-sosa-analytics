@@ -7,10 +7,10 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
   const palette = getRankPalette(rank.highest.tier);
   const lpProgress = Math.max(0, Math.min(rank.highest.leaguePoints, 100));
   const showFlex = rank.flexQueue.tier !== 'UNRANKED';
-  const soloSummary = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR`;
-  const flexSummary = showFlex
-    ? `${locale === 'en' ? 'Flex' : 'Flex'} · ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR`
-    : null;
+  const primaryQueueSummary = `${rank.highest.queueLabel ?? (locale === 'en' ? 'Ranked' : 'Ranked')} · ${rank.highest.winRate}% WR`;
+  const secondaryQueueSummary = rank.highest.queueLabel === 'Flex'
+    ? (rank.soloQueue.tier !== 'UNRANKED' ? `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'} · ${rank.soloQueue.winRate}% WR` : null)
+    : (showFlex ? `${locale === 'en' ? 'Flex' : 'Flex'} · ${rank.flexQueue.winRate}% WR` : null);
   const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR${showFlex ? `\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR` : ''}`;
 
   if (compact) {
@@ -35,8 +35,8 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
               <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.highest.leaguePoints} LP`}</span>
             </div>
             <div style={{ display: 'grid', gap: 5 }}>
-              <span style={rankQueuePillStyle}>{soloSummary}</span>
-              {flexSummary ? <span style={rankQueuePillStyle}>{flexSummary}</span> : null}
+              <span style={rankQueuePillStyle}>{primaryQueueSummary}</span>
+              {secondaryQueueSummary ? <span style={rankQueuePillStyle}>{secondaryQueueSummary}</span> : null}
             </div>
           </div>
         </div>
@@ -66,8 +66,8 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
             <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.highest.leaguePoints} LP`}</span>
           </div>
           <div style={{ display: 'grid', gap: 5 }}>
-            <span style={rankQueuePillStyle}>{soloSummary}</span>
-            {flexSummary ? <span style={rankQueuePillStyle}>{flexSummary}</span> : null}
+            <span style={rankQueuePillStyle}>{primaryQueueSummary}</span>
+            {secondaryQueueSummary ? <span style={rankQueuePillStyle}>{secondaryQueueSummary}</span> : null}
           </div>
         </div>
       </div>
@@ -86,7 +86,7 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
 export function RankEmblem({ tier, label, size }: { tier?: string; label: string; size: number }) {
   const emblem = getRankEmblemDataUrl(tier);
   const palette = getRankPalette(tier);
-  const assetSize = Math.round(size * 5.2);
+  const assetSize = Math.round(size * 1.06);
 
   return (
     <div
@@ -94,10 +94,12 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
       style={{
         width: size,
         height: size,
-        overflow: 'hidden',
+        overflow: 'visible',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
+        paddingTop: Math.round(size * 0.02),
+        paddingBottom: Math.round(size * 0.02),
         filter: `drop-shadow(0 16px 32px ${palette.primary}24)`
       }}
     >
@@ -110,8 +112,7 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
           display: 'block',
           width: assetSize,
           height: assetSize,
-          objectFit: 'contain',
-          transform: `translateY(${Math.round(size * 0.3)}px)`
+          objectFit: 'contain'
         }}
       />
     </div>

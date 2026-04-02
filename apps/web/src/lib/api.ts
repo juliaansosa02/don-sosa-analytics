@@ -6,6 +6,7 @@ import type {
   Dataset,
   MembershipCatalogResponse,
   MembershipMeResponse,
+  RoleReferenceResponse,
   SafeAuthUser
 } from '../types';
 import type { Locale } from './i18n';
@@ -151,6 +152,28 @@ export async function fetchCachedProfile(gameName: string, tagLine: string, plat
   }
 
   return response.json() as Promise<Dataset>;
+}
+
+export async function fetchRoleReferences(input: {
+  platform: string;
+  role: 'TOP' | 'JUNGLE' | 'MIDDLE' | 'BOTTOM' | 'UTILITY';
+  locale: Locale;
+}): Promise<RoleReferenceResponse> {
+  const params = new URLSearchParams({
+    platform: input.platform,
+    role: input.role,
+    locale: input.locale
+  });
+
+  const response = await apiFetch(`${API_BASE}/analytics/role-references?${params.toString()}`, {
+    headers: apiHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json() as Promise<RoleReferenceResponse>;
 }
 
 export async function generateAICoach(input: {

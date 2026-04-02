@@ -1,9 +1,9 @@
 import type { PropsWithChildren } from 'react';
 import { Badge, Card, ChampionIdentity, InfoHint, TrendIndicator, type TrendDirection, type TrendTone } from '../../components/ui';
-import type { AICoachResult, Dataset } from '../../types';
+import type { AICoachResult, Dataset, RoleReferenceProfile } from '../../types';
 import { formatDecimal, formatInteger } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
-import { formatChampionName } from '../../lib/lol';
+import { formatChampionName, getProfileIconUrl } from '../../lib/lol';
 
 type TrendSignal = { direction: TrendDirection; tone: TrendTone; label?: string };
 type MatchEntry = Dataset['matches'][number];
@@ -36,8 +36,18 @@ function withSteadyLabel(trend: TrendSignal, steadyLabel: string, movingLabel?: 
 
 function comparisonDetail(locale: Locale, baselineLabel: string, recentLabel: string, baselineMatches: number, recentMatches: number) {
   return locale === 'en'
-    ? `${baselineMatches} earlier: ${baselineLabel} -> ${recentMatches} recent: ${recentLabel}`
-    : `${baselineMatches} previas: ${baselineLabel} -> ${recentMatches} recientes: ${recentLabel}`;
+    ? `Now ${recentLabel} in ${recentMatches} recent games. Before: ${baselineLabel} across ${baselineMatches} earlier games.`
+    : `Ahora ${recentLabel} en ${recentMatches} partidas recientes. Antes: ${baselineLabel} en ${baselineMatches} partidas previas.`;
+}
+
+function formatKda(kills: number, deaths: number, assists: number) {
+  return `${kills}/${deaths}/${assists}`;
+}
+
+function buildProfileStrengthLabel(strength?: AICoachResult['context']['player']['profileStrength'], locale: Locale = 'es') {
+  if (strength === 'elite') return locale === 'en' ? 'Elite profile' : 'Perfil elite';
+  if (strength === 'advanced') return locale === 'en' ? 'High-elo profile' : 'Perfil high elo';
+  return locale === 'en' ? 'Improvement block' : 'Bloque de mejora';
 }
 
 function buildFallbackReviewAgenda(matches: MatchEntry[], locale: Locale): ReviewAgendaEntry[] {
@@ -52,6 +62,13 @@ function buildFallbackReviewAgenda(matches: MatchEntry[], locale: Locale): Revie
           opponentChampionName: match.opponentChampionName,
           gameCreation: match.gameCreation,
           win: match.win,
+          kills: match.kills,
+          deaths: match.deaths,
+          assists: match.assists,
+          cs: match.cs,
+          damageToChampions: match.damageToChampions,
+          killParticipation: match.killParticipation,
+          performanceScore: match.score.total,
           title: t(locale, 'Revisá el minuto previo al objetivo', 'Review the minute before the objective'),
           reason: t(locale, 'La partida se rompe alrededor del setup y no solo durante la pelea.', 'The game breaks around the setup, not only during the fight.'),
           question: t(locale, '¿Qué te faltó hacer 45-60 segundos antes para no llegar apurado a la ventana?', 'What did you fail to do 45-60 seconds earlier so you would not arrive rushing the window?'),
@@ -67,6 +84,13 @@ function buildFallbackReviewAgenda(matches: MatchEntry[], locale: Locale): Revie
           opponentChampionName: match.opponentChampionName,
           gameCreation: match.gameCreation,
           win: match.win,
+          kills: match.kills,
+          deaths: match.deaths,
+          assists: match.assists,
+          cs: match.cs,
+          damageToChampions: match.damageToChampions,
+          killParticipation: match.killParticipation,
+          performanceScore: match.score.total,
           title: t(locale, 'Encontrá la primera muerte evitable', 'Find the first avoidable death'),
           reason: t(locale, 'El early pierde jugabilidad demasiado pronto y te obliga a compensar desde atrás.', 'The early game loses playability too soon and forces you to compensate from behind.'),
           question: t(locale, '¿Qué información, recurso o cobertura faltaba antes de comprometerte?', 'What information, resource or coverage was missing before you committed?'),
@@ -81,6 +105,13 @@ function buildFallbackReviewAgenda(matches: MatchEntry[], locale: Locale): Revie
         opponentChampionName: match.opponentChampionName,
         gameCreation: match.gameCreation,
         win: match.win,
+        kills: match.kills,
+        deaths: match.deaths,
+        assists: match.assists,
+        cs: match.cs,
+        damageToChampions: match.damageToChampions,
+        killParticipation: match.killParticipation,
+        performanceScore: match.score.total,
         title: t(locale, 'Aislá dónde se cortó tu economía', 'Isolate where your economy got cut'),
         reason: t(locale, 'La partida llega al 15 más débil de lo que tu rol necesita.', 'The game is reaching minute 15 weaker than your role needs.'),
         question: t(locale, '¿Qué reset, desvío o pelea te sacó del piso económico normal del rol?', 'What reset, detour or fight pulled you off the role’s normal economy floor?'),
@@ -98,6 +129,13 @@ function buildFallbackReviewAgenda(matches: MatchEntry[], locale: Locale): Revie
       opponentChampionName: referenceGame.opponentChampionName,
       gameCreation: referenceGame.gameCreation,
       win: referenceGame.win,
+      kills: referenceGame.kills,
+      deaths: referenceGame.deaths,
+      assists: referenceGame.assists,
+      cs: referenceGame.cs,
+      damageToChampions: referenceGame.damageToChampions,
+      killParticipation: referenceGame.killParticipation,
+      performanceScore: referenceGame.score.total,
       title: t(locale, 'Usala como partida espejo', 'Use it as a mirror game'),
       reason: t(locale, 'Acá aparece una versión más limpia del plan que querés repetir.', 'This one shows a cleaner version of the plan you want to repeat.'),
       question: t(locale, '¿Qué hiciste antes del 14 para llegar ordenado al primer objetivo?', 'What did you do before minute 14 to arrive organized to the first objective?'),
@@ -122,7 +160,10 @@ export function CoachingHome({
   generatingAICoach = false,
   aiCoachError,
   onGenerateAICoach,
-  onSendFeedback
+  onSendFeedback,
+  roleReferences = [],
+  roleReferencesLoading = false,
+  roleReferencesError = null
 }: {
   dataset: Dataset;
   locale?: Locale;
@@ -131,6 +172,9 @@ export function CoachingHome({
   aiCoachError?: string | null;
   onGenerateAICoach?: () => void;
   onSendFeedback?: (verdict: 'useful' | 'mixed' | 'generic' | 'incorrect') => void;
+  roleReferences?: RoleReferenceProfile[];
+  roleReferencesLoading?: boolean;
+  roleReferencesError?: string | null;
 }) {
   const { summary } = dataset;
   const matchesByDate = [...dataset.matches].sort((a, b) => a.gameCreation - b.gameCreation);
@@ -171,7 +215,21 @@ export function CoachingHome({
   const activePlan = summary.coaching.activePlan;
   const fallbackPositives = summary.insights.filter((insight) => insight.category === 'positive');
   const positives = (summary.positiveSignals?.length ? summary.positiveSignals : fallbackPositives).slice(0, 2);
-  const reviewAgenda = (summary.reviewAgenda?.length ? summary.reviewAgenda : buildFallbackReviewAgenda(dataset.matches, locale)).slice(0, 3);
+  const reviewAgenda = (summary.reviewAgenda?.length ? summary.reviewAgenda : buildFallbackReviewAgenda(dataset.matches, locale))
+    .map((item) => {
+      const match = dataset.matches.find((entry) => entry.matchId === item.matchId);
+      return {
+        ...item,
+        kills: item.kills ?? match?.kills ?? 0,
+        deaths: item.deaths ?? match?.deaths ?? 0,
+        assists: item.assists ?? match?.assists ?? 0,
+        cs: item.cs ?? match?.cs ?? 0,
+        damageToChampions: item.damageToChampions ?? match?.damageToChampions ?? 0,
+        killParticipation: item.killParticipation ?? match?.killParticipation ?? 0,
+        performanceScore: item.performanceScore ?? match?.score.total ?? 0
+      };
+    })
+    .slice(0, 3);
   const stableMatches = dataset.matches.filter((match) => match.timeline.deathsPre14 <= summary.avgDeathsPre14 && match.timeline.csAt15 >= summary.avgCsAt15);
   const stableWinRate = stableMatches.length ? (stableMatches.filter((match) => match.win).length / stableMatches.length) * 100 : null;
   const mainProblem = topProblems[0] ?? null;
@@ -240,6 +298,7 @@ export function CoachingHome({
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {mainProblem ? <Badge tone={infoTone(mainProblem.priority)}>{t(locale, `Prioridad ${mainProblem.priority}`, `${mainProblem.priority} priority`)}</Badge> : null}
               {aiCoach ? <Badge tone="default">{`${Math.round(aiCoach.coach.confidence * 100)}% ${t(locale, 'confianza', 'confidence')}`}</Badge> : null}
+              {aiCoach ? <Badge tone={aiCoach.context.player.profileStrength === 'elite' ? 'low' : aiCoach.context.player.profileStrength === 'advanced' ? 'default' : 'medium'}>{buildProfileStrengthLabel(aiCoach.context.player.profileStrength, locale)}</Badge> : null}
               {aiCoach?.continuity.mode === 'reused' ? <Badge tone="default">{t(locale, 'Bloque reutilizado', 'Reused block')}</Badge> : null}
               {aiCoach?.continuity.mode === 'updated' ? <Badge tone="low">{t(locale, `+${aiCoach.continuity.newVisibleMatches} nuevas`, `+${aiCoach.continuity.newVisibleMatches} new`)}</Badge> : null}
             </div>
@@ -329,6 +388,13 @@ export function CoachingHome({
                 </div>
                 <div style={{ color: '#eef4ff', fontSize: 18, fontWeight: 800, lineHeight: 1.2 }}>{item.title}</div>
                 <div style={{ color: '#9aa5b7', lineHeight: 1.65 }}>{item.reason}</div>
+                <div className="review-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 10 }}>
+                  <ReviewMetric label="KDA" value={formatKda(item.kills, item.deaths, item.assists)} />
+                  <ReviewMetric label="CS" value={formatInteger(item.cs)} />
+                  <ReviewMetric label={t(locale, 'Daño', 'Damage')} value={formatInteger(item.damageToChampions)} />
+                  <ReviewMetric label="KP" value={`${formatDecimal(item.killParticipation)}%`} />
+                  <ReviewMetric label={t(locale, 'Rend.', 'Perf.')} value={formatDecimal(item.performanceScore)} />
+                </div>
                 <div style={questionStyle}>
                   <SectionEyebrow title={t(locale, 'Pregunta de review', 'Review question')} />
                   <div style={{ color: '#eff7f2', lineHeight: 1.65 }}>{item.question}</div>
@@ -448,6 +514,24 @@ export function CoachingHome({
           </div>
         </Card>
       </section>
+
+      <Card title={t(locale, 'Referencias challenger del rol', 'Challenger role references')} subtitle={t(locale, 'Usalas para poner en contexto tu bloque: qué métricas ya están cerca, cuáles todavía marcan distancia y qué baseline competitivo vale la pena imitar.', 'Use them to contextualize your block: which metrics are already close, which still show distance and which competitive baseline is worth imitating.')}>
+        {roleReferencesError ? <div style={errorStyle}>{roleReferencesError}</div> : null}
+        {roleReferencesLoading ? <div style={emptyStyle}>{t(locale, 'Buscando referencias challenger del rol...', 'Loading challenger role references...')}</div> : null}
+        {!roleReferencesLoading && !roleReferences.length ? <div style={emptyStyle}>{t(locale, 'Todavía no hay referencias challenger listas para este rol.', 'There are no challenger references ready for this role yet.')}</div> : null}
+        {roleReferences.length ? (
+          <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+            {roleReferences.map((reference) => (
+              <ReferencePlayerCard
+                key={`${reference.slotId}-${reference.gameName}-${reference.tagLine}`}
+                reference={reference}
+                dataset={dataset}
+                locale={locale}
+              />
+            ))}
+          </div>
+        ) : null}
+      </Card>
     </div>
   );
 }
@@ -471,6 +555,15 @@ function MetaStat({ label, value, caption }: { label: string; value: string; cap
       <div style={{ color: '#8c98ad', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
       <div style={{ color: '#eef4ff', fontSize: 20, fontWeight: 800, lineHeight: 1.15 }}>{value}</div>
       {caption ? <div style={{ color: '#8e9cb0', fontSize: 13, lineHeight: 1.55 }}>{caption}</div> : null}
+    </div>
+  );
+}
+
+function ReviewMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={reviewMetricStyle}>
+      <div style={{ color: '#8c98ad', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
+      <div style={{ color: '#eef4ff', fontSize: 18, fontWeight: 800, lineHeight: 1.1 }}>{value}</div>
     </div>
   );
 }
@@ -503,6 +596,44 @@ function InfoBlock({ title, info, children }: PropsWithChildren<{ title: string;
   );
 }
 
+function ReferencePlayerCard({ reference, dataset, locale }: { reference: RoleReferenceProfile; dataset: Dataset; locale: Locale }) {
+  const profileIconUrl = getProfileIconUrl(reference.profileIconId, reference.ddragonVersion ?? dataset.ddragonVersion);
+  const performanceDiff = reference.avgPerformance - dataset.summary.avgPerformanceScore;
+  const recentWrDiff = reference.recentWinRate - dataset.summary.coaching.trend.recentWinRate;
+
+  return (
+    <div style={referenceCardStyle}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
+        <Badge tone={reference.sourcePlatform === 'KR' ? 'low' : 'default'}>{reference.slotLabel}</Badge>
+        {reference.fallbackUsed ? <Badge>{t(locale, 'fallback', 'fallback')}</Badge> : null}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: profileIconUrl ? '54px minmax(0, 1fr)' : '1fr', gap: 12, alignItems: 'center' }}>
+        {profileIconUrl ? <img src={profileIconUrl} alt={reference.gameName} width={54} height={54} style={{ width: 54, height: 54, borderRadius: 14, objectFit: 'cover', border: '1px solid rgba(255,255,255,0.08)' }} /> : null}
+        <div style={{ display: 'grid', gap: 4 }}>
+          <div style={{ color: '#eef4ff', fontSize: 20, fontWeight: 800, lineHeight: 1.1 }}>{reference.gameName}<span style={{ color: '#8f9aad' }}>#{reference.tagLine}</span></div>
+          <div style={{ color: '#9aa5b7', lineHeight: 1.5 }}>{`${reference.rankLabel} · ${reference.leaguePoints} LP`}</div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {reference.topChampions.slice(0, 2).map((champion) => <Badge key={champion}>{formatChampionName(champion)}</Badge>)}
+          </div>
+        </div>
+      </div>
+      <div className="reference-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+        <MetaStat label={t(locale, 'WR reciente', 'Recent WR')} value={`${formatDecimal(reference.recentWinRate)}%`} caption={t(locale, `${reference.matches} partidas`, `${reference.matches} games`)} />
+        <MetaStat label={t(locale, 'Rendimiento', 'Performance')} value={formatDecimal(reference.avgPerformance)} caption={performanceDiff >= 0 ? t(locale, `${formatDecimal(performanceDiff)} sobre tu bloque`, `${formatDecimal(performanceDiff)} above your block`) : t(locale, `${formatDecimal(Math.abs(performanceDiff))} debajo de tu bloque`, `${formatDecimal(Math.abs(performanceDiff))} below your block`)} />
+        <MetaStat label="KDA" value={formatDecimal(reference.avgKda)} caption={recentWrDiff >= 0 ? t(locale, `${formatDecimal(recentWrDiff)} pts WR sobre vos`, `${formatDecimal(recentWrDiff)} WR pts over you`) : t(locale, `${formatDecimal(Math.abs(recentWrDiff))} pts WR debajo`, `${formatDecimal(Math.abs(recentWrDiff))} WR pts below`) } />
+        <MetaStat label="KP" value={`${formatDecimal(reference.avgKillParticipation)}%`} />
+        <MetaStat label="CS@15" value={formatDecimal(reference.avgCsAt15)} />
+        <MetaStat label="Gold@15" value={formatInteger(reference.avgGoldAt15)} />
+      </div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <span style={chipStyle}><TrendIndicator direction={signal(performanceDiff, 'up', 0.3).direction} tone={signal(performanceDiff, 'up', 0.3).tone} /><span>{t(locale, 'rendimiento', 'performance')}</span></span>
+        <span style={chipStyle}><TrendIndicator direction={signal(reference.avgDeathsPre14 - dataset.summary.avgDeathsPre14, 'down', 0.15).direction} tone={signal(reference.avgDeathsPre14 - dataset.summary.avgDeathsPre14, 'down', 0.15).tone} /><span>{t(locale, 'disciplina early', 'early discipline')}</span></span>
+        <span style={chipStyle}><TrendIndicator direction={signal(reference.consistencyIndex - dataset.summary.consistencyIndex, 'up', 0.8).direction} tone={signal(reference.consistencyIndex - dataset.summary.consistencyIndex, 'up', 0.8).tone} /><span>{t(locale, 'consistencia', 'consistency')}</span></span>
+      </div>
+    </div>
+  );
+}
+
 const panelStyle = { display: 'grid', gap: 12, padding: '16px 16px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;
 const tileStyle = { display: 'grid', gap: 8, padding: '15px 16px', borderRadius: 16, background: 'linear-gradient(180deg, rgba(11, 15, 24, 0.98), rgba(7, 10, 16, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;
 const metaStyle = { display: 'grid', gap: 8, padding: '14px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' } as const;
@@ -520,3 +651,5 @@ const progressRowStyle = { display: 'flex', justifyContent: 'space-between', gap
 const chipStyle = { display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.05)', color: '#dfe7f4', fontSize: 12, fontWeight: 700 } as const;
 const buttonStyle = { border: 0, padding: '12px 14px', borderRadius: 12, background: '#d8fdf1', color: '#05111e', fontWeight: 800, cursor: 'pointer' } as const;
 const feedbackStyle = { border: '1px solid rgba(255,255,255,0.08)', padding: '9px 11px', borderRadius: 10, background: '#0a0f18', color: '#dfe8f6', fontWeight: 700, cursor: 'pointer' } as const;
+const reviewMetricStyle = { display: 'grid', gap: 6, padding: '10px 11px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' } as const;
+const referenceCardStyle = { display: 'grid', gap: 12, padding: '16px 16px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;

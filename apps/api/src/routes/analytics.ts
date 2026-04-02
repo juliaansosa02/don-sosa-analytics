@@ -7,6 +7,7 @@ import { collectPlayerSnapshot } from '../services/collectionService.js';
 import { createJob, getJob, updateJob } from '../services/jobStore.js';
 import { loadProfileSnapshot } from '../services/profileStore.js';
 import { assertCollectionEntitlement, limitDatasetToMembership, registerViewedProfile, resolveMembershipContext } from '../services/membershipService.js';
+import { getRoleReferenceProfiles } from '../services/roleReferenceService.js';
 
 type CachedProfileDataset = Awaited<ReturnType<typeof collectPlayerSnapshot>>;
 
@@ -22,6 +23,12 @@ const bodySchema = z.object({
 const profileQuerySchema = z.object({
   locale: z.enum(['es', 'en']).optional(),
   platform: z.string().trim().transform((value) => value.toUpperCase()).pipe(z.enum(supportedRiotPlatformTuple)).optional()
+});
+
+const roleReferenceQuerySchema = z.object({
+  locale: z.enum(['es', 'en']).optional(),
+  platform: z.string().trim().transform((value) => value.toUpperCase()).pipe(z.enum(supportedRiotPlatformTuple)),
+  role: z.enum(['TOP', 'JUNGLE', 'MIDDLE', 'BOTTOM', 'UTILITY'])
 });
 
 export const analyticsRouter = Router();
@@ -202,4 +209,24 @@ analyticsRouter.get('/profile/:gameName/:tagLine', async (req, res) => {
     ...limitedDataset,
     summary: buildAggregateSummary(limitedDataset.player, limitedDataset.tagLine, limitedDataset.summary.region, limitedDataset.summary.platform, limitedDataset.matches, locale)
   });
+});
+
+analyticsRouter.get('/role-references', async (req, res) => {
+  const query = roleReferenceQuerySchema.safeParse(req.query);
+  if (!query.success) {
+    res.status(400).json({ error: formatCollectionError(query.error, req.query.locale === 'en' ? 'en' : 'es') });
+    return;
+  }
+
+  try {
+    const result = await getRoleReferenceProfiles({
+      role: query.data.role,
+      platform: query.data.platform,
+      locale: query.data.locale ?? 'es'
+    });
+
+    res.json(result);
+  } catch (error) {
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+  }
 });

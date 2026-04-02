@@ -103,8 +103,11 @@ export interface AICoachContext {
     visibleMatches: number;
     rankLabel?: string;
     highestTier?: string;
+    highestLp?: number;
     primaryRole?: string;
     anchorChampion?: string | null;
+    profileStrength: 'developing' | 'advanced' | 'elite';
+    profileStrengthReasons: string[];
   };
   performance: {
     winRate: number;
@@ -186,6 +189,13 @@ export interface AICoachContext {
     opponentChampionName?: string;
     gameCreation: number;
     win: boolean;
+    kills: number;
+    deaths: number;
+    assists: number;
+    cs: number;
+    damageToChampions: number;
+    killParticipation: number;
+    performanceScore: number;
     title: string;
     reason: string;
     question: string;

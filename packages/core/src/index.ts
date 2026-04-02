@@ -174,6 +174,13 @@ export interface ReviewAgendaItem {
   opponentChampionName?: string;
   gameCreation: number;
   win: boolean;
+  kills: number;
+  deaths: number;
+  assists: number;
+  cs: number;
+  damageToChampions: number;
+  killParticipation: number;
+  performanceScore: number;
   title: string;
   reason: string;
   question: string;
@@ -694,7 +701,10 @@ function buildProblematicMatchupSummary(matches: ParticipantSnapshot[], locale: 
         Math.max(0, 55 - entry.overallWinRate) * 0.7 +
         Math.max(0, -entry.avgGoldDiffAt15) / 110 +
         Math.max(0, -entry.avgLevelDiffAt15) * 8 +
-        (directMatches.length >= 2 ? 3 : 0);
+        (directMatches.length >= 2 ? 3 : 0) +
+        Math.min(entry.overallGames, 6) * 1.6 +
+        Math.min(entry.recentList.length, 4) * 1.4 -
+        (entry.overallGames <= 1 && directMatches.length <= 1 ? 12 : 0);
 
       return {
         ...entry,
@@ -838,6 +848,41 @@ function buildPositiveSignals(matches: ParticipantSnapshot[], championPool: Cham
   const topChampionMatches = topChampion ? matches.filter((match) => match.championName === topChampion.championName) : [];
   const otherChampionMatches = topChampion ? matches.filter((match) => match.championName !== topChampion.championName) : [];
   const positives: CoachInsight[] = [];
+  const totalWins = matches.filter((match) => match.win).length;
+  const sampleWinRate = percent(totalWins, matches.length);
+  const avgScore = avg(matches.map((match) => match.score.total));
+  const avgDeathsPre14 = avg(matches.map((match) => match.timeline.deathsPre14));
+  const avgKillParticipation = avg(matches.map((match) => match.killParticipation));
+  const consistency = calculateConsistencyIndex(matches);
+
+  if (
+    matches.length >= 10 &&
+    sampleWinRate >= 56 &&
+    avgScore >= 72 &&
+    consistency >= 82 &&
+    avgDeathsPre14 <= roleProfile.stableDeathsPre14 + 0.45
+  ) {
+    positives.push({
+      id: 'high-level-baseline-positive',
+      title: text(locale, `Tu baseline actual en ${roleProfile.label} ya tiene una base competitiva real.`, `Your current ${roleProfile.label} baseline already looks genuinely competitive.`),
+      problem: text(locale, 'Ya hay una versión fuerte de tu juego funcionando con bastante consistencia', 'A strong version of your game is already working with real consistency'),
+      category: 'positive',
+      severity: 'low',
+      priority: 'low',
+      evidence: [
+        text(locale, `En esta muestra quedás en ${recordLabel(totalWins, matches.length, locale)} con score promedio ${round(avgScore, 1)}.`, `Across this sample you land at ${recordLabel(totalWins, matches.length, locale)} with an average score of ${round(avgScore, 1)}.`),
+        text(locale, `La consistencia del bloque queda en ${round(consistency, 1)} y las muertes pre14 bajan a ${round(avgDeathsPre14, 1)}.`, `Block consistency lands at ${round(consistency, 1)} and deaths pre14 stay down at ${round(avgDeathsPre14, 1)}.`),
+        text(locale, `Tu conexión con las jugadas del rol también acompaña: ${round(avgKillParticipation, 1)}% de KP promedio en la muestra.`, `Your connection to role-defining plays also holds up: ${round(avgKillParticipation, 1)}% average KP in the sample.`)
+      ],
+      impact: text(locale, 'Esto cambia el tipo de coaching que conviene hacer: menos rescate básico y más cuidar los pequeños edges que convierten una muestra fuerte en una muestra elite.', 'This changes the kind of coaching that makes sense: less basic leak rescue and more protecting the small edges that turn a strong sample into an elite one.'),
+      cause: text(locale, 'Tu versión buena ya existe y aparece con frecuencia suficiente como para usarla como base real del siguiente bloque.', 'Your good version already exists and appears often enough to be used as the real baseline for the next block.'),
+      actions: [
+        text(locale, 'Tomá esta base fuerte como referencia y revisá solo los quiebres finos que te sacan de ella.', 'Use this strong baseline as the reference and review only the finer breaks that pull you away from it.'),
+        text(locale, 'No abras demasiadas variables nuevas: el salto siguiente pasa por sostener mejor lo que ya está dando nivel.', 'Do not open too many new variables: the next jump comes from holding what is already giving you level a bit more often.')
+      ],
+      focusMetric: 'high_level_baseline_positive'
+    });
+  }
 
   if (topChampion && topChampionMatches.length >= 5) {
     const topChampionWins = topChampionMatches.filter((match) => match.win).length;
@@ -972,6 +1017,13 @@ function buildReviewAgenda(matches: ParticipantSnapshot[], locale: SummaryLocale
         opponentChampionName: match.opponentChampionName,
         gameCreation: match.gameCreation,
         win: match.win,
+        kills: match.kills,
+        deaths: match.deaths,
+        assists: match.assists,
+        cs: match.cs,
+        damageToChampions: match.damageToChampions,
+        killParticipation: match.killParticipation,
+        performanceScore: match.score.total,
         title,
         reason,
         question,
@@ -1001,6 +1053,13 @@ function buildReviewAgenda(matches: ParticipantSnapshot[], locale: SummaryLocale
       opponentChampionName: referenceGame.opponentChampionName,
       gameCreation: referenceGame.gameCreation,
       win: referenceGame.win,
+      kills: referenceGame.kills,
+      deaths: referenceGame.deaths,
+      assists: referenceGame.assists,
+      cs: referenceGame.cs,
+      damageToChampions: referenceGame.damageToChampions,
+      killParticipation: referenceGame.killParticipation,
+      performanceScore: referenceGame.score.total,
       title: text(locale, 'Usala como partida espejo', 'Use it as a mirror game'),
       reason: text(locale, 'Acá aparece una versión de tu plan que sí entra limpia al mid game.', 'This one shows a version of your plan that actually enters mid game cleanly.'),
       question: text(locale, '¿Qué hiciste antes del 14 para que esta partida llegara ordenada al primer objetivo?', 'What did you do before minute 14 that let this game reach the first objective in order?'),
