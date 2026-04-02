@@ -25,7 +25,7 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
       }}>
         <div style={{ display: 'grid', gridTemplateColumns: '96px minmax(0, 1fr)', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={92} />
+            <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={100} />
           </div>
           <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
             <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Competitive rank' : 'Rango competitivo'}</div>
@@ -56,8 +56,8 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
       background: compact ? 'rgba(9, 14, 22, 0.86)' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
       border: `1px solid ${palette.primary}33`
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '104px minmax(0, 1fr)', alignItems: 'center', gap: 12 }}>
-        <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={104} />
+      <div style={{ display: 'grid', gridTemplateColumns: '112px minmax(0, 1fr)', alignItems: 'center', gap: 12 }}>
+        <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={112} />
         <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
           <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Competitive rank' : 'Rango competitivo'}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
@@ -82,7 +82,7 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
   const palette = getRankPalette(tier);
   const usesOfficialEmblem = Boolean(tier && tier !== 'UNRANKED');
   const tuning = rankEmblemTuning[tier ?? 'UNRANKED'] ?? rankEmblemTuning.DEFAULT;
-  const emblemHeight = usesOfficialEmblem ? Math.round(size * 0.74) : size;
+  const emblemHeight = usesOfficialEmblem ? Math.round(size * 0.82) : size;
   const assetSize = Math.round(size * (usesOfficialEmblem ? 1.18 : 1.82));
 
   return (
@@ -90,14 +90,17 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
       aria-hidden="true"
       style={{
         width: size,
-        height: emblemHeight,
+        height: size,
         display: 'inline-flex',
-        alignItems: 'center',
+        alignItems: usesOfficialEmblem ? 'end' : 'center',
         justifyContent: 'center',
         position: 'relative',
         flexShrink: 0,
-        background: 'radial-gradient(circle at 50% 52%, rgba(255,255,255,0.08), rgba(255,255,255,0) 72%)',
-        filter: `drop-shadow(0 16px 30px ${palette.primary}2e)`
+        paddingBottom: usesOfficialEmblem ? Math.round(size * 0.02) : 0,
+        background: usesOfficialEmblem
+          ? `radial-gradient(circle at 50% 64%, ${palette.primary}22 0%, rgba(255,255,255,0.08) 22%, rgba(255,255,255,0.03) 42%, rgba(255,255,255,0) 78%)`
+          : 'radial-gradient(circle at 50% 52%, rgba(255,255,255,0.08), rgba(255,255,255,0) 72%)',
+        filter: `drop-shadow(0 18px 34px ${palette.primary}2e)`
       }}
     >
       {usesOfficialEmblem ? (

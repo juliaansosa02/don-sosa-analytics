@@ -17,7 +17,7 @@ export function RankBadge({ rank, compact = false, locale = 'es' }) {
                 borderRadius: 18,
                 background: 'rgba(9, 14, 22, 0.86)',
                 border: `1px solid ${palette.primary}33`
-            }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '96px minmax(0, 1fr)', alignItems: 'center', gap: 12 }, children: [_jsx("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'center' }, children: _jsx(RankEmblem, { tier: anchorQueue.tier, label: anchorQueue.label, size: 92 }) }), _jsxs("div", { style: { display: 'grid', gap: 6, minWidth: 0 }, children: [_jsx("div", { style: { color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Competitive rank' : 'Rango competitivo' }), _jsxs("div", { style: { display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }, children: [_jsx("span", { style: { fontSize: 19, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }, children: soloText }), rank.soloQueue.tier !== 'UNRANKED' ? _jsx("span", { style: { color: palette.glow, fontSize: 13, fontWeight: 800 }, children: `${rank.soloQueue.leaguePoints} LP` }) : null] }), _jsxs("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' }, children: [_jsx("span", { style: rankQueueSummaryStyle, children: `${rank.soloQueue.winRate}% WR` }), flexSummary ? _jsx("span", { style: rankQueueSummaryStyle, children: `Flex · ${flexSummary}` }) : null] })] })] }), _jsx("div", { style: { height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }, children: _jsx("div", { style: { width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` } }) })] }));
+            }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '96px minmax(0, 1fr)', alignItems: 'center', gap: 12 }, children: [_jsx("div", { style: { display: 'flex', alignItems: 'center', justifyContent: 'center' }, children: _jsx(RankEmblem, { tier: anchorQueue.tier, label: anchorQueue.label, size: 100 }) }), _jsxs("div", { style: { display: 'grid', gap: 6, minWidth: 0 }, children: [_jsx("div", { style: { color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Competitive rank' : 'Rango competitivo' }), _jsxs("div", { style: { display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }, children: [_jsx("span", { style: { fontSize: 19, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }, children: soloText }), rank.soloQueue.tier !== 'UNRANKED' ? _jsx("span", { style: { color: palette.glow, fontSize: 13, fontWeight: 800 }, children: `${rank.soloQueue.leaguePoints} LP` }) : null] }), _jsxs("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap' }, children: [_jsx("span", { style: rankQueueSummaryStyle, children: `${rank.soloQueue.winRate}% WR` }), flexSummary ? _jsx("span", { style: rankQueueSummaryStyle, children: `Flex · ${flexSummary}` }) : null] })] })] }), _jsx("div", { style: { height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }, children: _jsx("div", { style: { width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` } }) })] }));
     }
     return (_jsxs("div", { title: title, style: {
             display: 'grid',
@@ -27,25 +27,28 @@ export function RankBadge({ rank, compact = false, locale = 'es' }) {
             borderRadius: 16,
             background: compact ? 'rgba(9, 14, 22, 0.86)' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
             border: `1px solid ${palette.primary}33`
-        }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '104px minmax(0, 1fr)', alignItems: 'center', gap: 12 }, children: [_jsx(RankEmblem, { tier: anchorQueue.tier, label: anchorQueue.label, size: 104 }), _jsxs("div", { style: { display: 'grid', gap: 6, minWidth: 0 }, children: [_jsx("div", { style: { color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Competitive rank' : 'Rango competitivo' }), _jsxs("div", { style: { display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }, children: [_jsx("span", { style: { fontSize: 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }, children: soloText }), rank.soloQueue.tier !== 'UNRANKED' ? _jsx("span", { style: { color: palette.glow, fontSize: 13, fontWeight: 800 }, children: `${rank.soloQueue.leaguePoints} LP` }) : null] }), _jsxs("div", { style: { display: 'grid', gap: 7 }, children: [_jsx("span", { style: rankQueueSummaryStyle, children: `${rank.soloQueue.winRate}% WR · Solo/Duo` }), flexSummary ? _jsx("span", { style: rankQueueSummaryStyle, children: `Flex · ${flexSummary}` }) : null] })] })] }), _jsx("div", { style: { height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }, children: _jsx("div", { style: { width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` } }) })] }));
+        }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: '112px minmax(0, 1fr)', alignItems: 'center', gap: 12 }, children: [_jsx(RankEmblem, { tier: anchorQueue.tier, label: anchorQueue.label, size: 112 }), _jsxs("div", { style: { display: 'grid', gap: 6, minWidth: 0 }, children: [_jsx("div", { style: { color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Competitive rank' : 'Rango competitivo' }), _jsxs("div", { style: { display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }, children: [_jsx("span", { style: { fontSize: 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }, children: soloText }), rank.soloQueue.tier !== 'UNRANKED' ? _jsx("span", { style: { color: palette.glow, fontSize: 13, fontWeight: 800 }, children: `${rank.soloQueue.leaguePoints} LP` }) : null] }), _jsxs("div", { style: { display: 'grid', gap: 7 }, children: [_jsx("span", { style: rankQueueSummaryStyle, children: `${rank.soloQueue.winRate}% WR · Solo/Duo` }), flexSummary ? _jsx("span", { style: rankQueueSummaryStyle, children: `Flex · ${flexSummary}` }) : null] })] })] }), _jsx("div", { style: { height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }, children: _jsx("div", { style: { width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` } }) })] }));
 }
 export function RankEmblem({ tier, label, size }) {
     const emblem = getRankEmblemDataUrl(tier);
     const palette = getRankPalette(tier);
     const usesOfficialEmblem = Boolean(tier && tier !== 'UNRANKED');
     const tuning = rankEmblemTuning[tier ?? 'UNRANKED'] ?? rankEmblemTuning.DEFAULT;
-    const emblemHeight = usesOfficialEmblem ? Math.round(size * 0.74) : size;
+    const emblemHeight = usesOfficialEmblem ? Math.round(size * 0.82) : size;
     const assetSize = Math.round(size * (usesOfficialEmblem ? 1.18 : 1.82));
     return (_jsx("div", { "aria-hidden": "true", style: {
             width: size,
-            height: emblemHeight,
+            height: size,
             display: 'inline-flex',
-            alignItems: 'center',
+            alignItems: usesOfficialEmblem ? 'end' : 'center',
             justifyContent: 'center',
             position: 'relative',
             flexShrink: 0,
-            background: 'radial-gradient(circle at 50% 52%, rgba(255,255,255,0.08), rgba(255,255,255,0) 72%)',
-            filter: `drop-shadow(0 16px 30px ${palette.primary}2e)`
+            paddingBottom: usesOfficialEmblem ? Math.round(size * 0.02) : 0,
+            background: usesOfficialEmblem
+                ? `radial-gradient(circle at 50% 64%, ${palette.primary}22 0%, rgba(255,255,255,0.08) 22%, rgba(255,255,255,0.03) 42%, rgba(255,255,255,0) 78%)`
+                : 'radial-gradient(circle at 50% 52%, rgba(255,255,255,0.08), rgba(255,255,255,0) 72%)',
+            filter: `drop-shadow(0 18px 34px ${palette.primary}2e)`
         }, children: usesOfficialEmblem ? (_jsx("div", { "aria-hidden": "true", style: {
                 width: '100%',
                 height: '100%',
