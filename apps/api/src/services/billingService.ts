@@ -22,6 +22,21 @@ interface StripePrice {
   lookup_key: string | null;
 }
 
+interface StripeSubscription {
+  id: string;
+  customer?: string;
+  current_period_end?: number;
+  status?: string;
+  metadata?: Record<string, string>;
+  items?: {
+    data?: Array<{
+      price?: {
+        id?: string;
+      };
+    }>;
+  };
+}
+
 function getStripeHeaders() {
   if (!env.STRIPE_SECRET_KEY) {
     throw new HttpError(501, 'billing://stripe-not-configured', 'Stripe no está configurado todavía.');
@@ -59,6 +74,10 @@ async function stripeGet<T>(path: string) {
     throw new HttpError(response.status, `${stripeApiBase}${path}`, text);
   }
   return JSON.parse(text) as T;
+}
+
+async function loadStripeSubscription(subscriptionId: string) {
+  return stripeGet<StripeSubscription>(`/subscriptions/${encodeURIComponent(subscriptionId)}`);
 }
 
 async function resolveStripePriceId(planId: MembershipPlanId) {
@@ -251,7 +270,16 @@ export async function handleStripeWebhook(rawBody: Buffer, signatureHeader: stri
   const event = verifyStripeWebhookSignature(rawBody, signatureHeader);
 
   switch (event.type) {
-    case 'checkout.session.completed':
+    case 'checkout.session.completed': {
+      const subscriptionId = event.data.object.subscription;
+      if (subscriptionId) {
+        const subscription = await loadStripeSubscription(subscriptionId);
+        await syncStripeMembershipFromObject(subscription);
+      } else {
+        await syncStripeMembershipFromObject(event.data.object);
+      }
+      break;
+    }
     case 'customer.subscription.created':
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted':
