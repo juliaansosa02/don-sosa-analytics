@@ -174,7 +174,7 @@ export async function buildBenchmarkCatalog(rank: RankShape, championNames: stri
 
   return {
     source: 'internal',
-    note: 'Base propia en construcción. Solo se muestra como referencia cuando ya hay muestra acumulada suficiente.',
+    note: 'Base propia e interna. Solo debería leerse como referencia fuerte cuando ya junta muestra suficiente por rol, cola, tier y, si aplica, campeón.',
     totalTrackedEntries: Object.keys(store.processedEntries).length,
     roleBenchmarks,
     championBenchmarks

@@ -501,12 +501,18 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
         title: problem.title,
         category: problem.category,
         priority: problem.priority,
+        severity: problem.severity,
         evidence: problem.evidence,
         impact: problem.impact,
         cause: problem.cause,
         actions: problem.actions,
         focusMetric: problem.focusMetric,
-        winRateDelta: problem.winRateDelta
+        winRateDelta: problem.winRateDelta,
+        evidenceStrength: problem.evidenceStrength,
+        evidenceScore: problem.evidenceScore,
+        interpretation: problem.interpretation,
+        sampleSize: problem.sampleSize,
+        sampleWarning: problem.sampleWarning
       })),
       activePlan: summary.coaching.activePlan,
       trend: summary.coaching.trend
@@ -517,12 +523,18 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       title: signal.title,
       category: signal.category,
       priority: signal.priority,
+      severity: signal.severity,
       evidence: signal.evidence,
       impact: signal.impact,
       cause: signal.cause,
       actions: signal.actions,
       focusMetric: signal.focusMetric,
-      winRateDelta: signal.winRateDelta
+      winRateDelta: signal.winRateDelta,
+      evidenceStrength: signal.evidenceStrength,
+      evidenceScore: signal.evidenceScore,
+      interpretation: signal.interpretation,
+      sampleSize: signal.sampleSize,
+      sampleWarning: signal.sampleWarning
     })),
     reviewAgenda: summary.reviewAgenda.map((item) => ({
       matchId: item.matchId,
@@ -541,7 +553,8 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       reason: item.reason,
       question: item.question,
       focus: item.focus,
-      tags: item.tags
+      tags: item.tags,
+      severity: item.severity
     })),
     championPool: summary.championPool.slice(0, 4).map((champion) => ({
       championName: champion.championName,
@@ -627,7 +640,9 @@ function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: 
         ? 'There is not enough signal yet to define a sharp AI coaching read.'
         : 'Todavía no hay suficiente señal para definir una lectura de coaching IA realmente filosa.',
     mainLeak: diagnosedIssue?.problem ?? topProblem?.problem ?? (context.player.locale === 'en' ? 'Insufficient sample' : 'Muestra insuficiente'),
-    whyItHappens: diagnosedIssue?.reasons[0] ?? topProblem?.cause ?? (context.player.locale === 'en'
+    whyItHappens: topProblem?.sampleWarning
+      ? `${diagnosedIssue?.reasons[0] ?? topProblem?.cause ?? ''} ${topProblem.sampleWarning}`.trim()
+      : diagnosedIssue?.reasons[0] ?? topProblem?.cause ?? (context.player.locale === 'en'
       ? 'The current sample is still too small or too mixed to isolate a real root cause.'
       : 'La muestra todavía es demasiado chica o demasiado mezclada como para aislar una causa raíz real.'),
     whatToReview: [
@@ -678,7 +693,7 @@ function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: 
       ...topCards.map((card) => card.title)
     ].filter(Boolean).slice(0, 4) as string[],
     knowledgeCardIds: topCards.map((card) => card.id),
-    confidence: topProblem ? (context.reviewAgenda.length ? 0.68 : 0.62) : (topPositive ? 0.42 : 0.32)
+    confidence: context.diagnosis.confidence
   };
 }
 
@@ -717,6 +732,11 @@ function buildPersonalizedMainLeak(context: AICoachContext, coach: AICoachOutput
   const roleText = context.player.roleScopeLabel || getRoleLabel(context.player.roleFilter, locale);
 
   if (!topProblem) return coach.mainLeak;
+  if (topProblem.interpretation === 'observational') {
+    return locale === 'en'
+      ? `${coach.mainLeak}. Treat this as a signal worth checking, not as a hard diagnosis yet.${topProblem.sampleWarning ? ` ${topProblem.sampleWarning}` : ''}`
+      : `${coach.mainLeak}. Tomalo como una señal para revisar, no como un diagnóstico cerrado todavía.${topProblem.sampleWarning ? ` ${topProblem.sampleWarning}` : ''}`;
+  }
 
   if (context.player.profileStrength === 'elite') {
     switch (topProblem.focusMetric) {
@@ -796,6 +816,11 @@ function buildPersonalizedSummary(context: AICoachContext, coach: AICoachOutput)
   const topProblem = context.coaching.topProblems[0];
 
   if (!topProblem) return coach.summary;
+  if (topProblem.interpretation === 'observational') {
+    return locale === 'en'
+      ? `The current block points to a pattern worth checking, but the evidence is not strong enough yet to frame it as a structural leak.${topProblem.sampleWarning ? ` ${topProblem.sampleWarning}` : ''}`
+      : `El bloque actual apunta a un patrón que vale la pena revisar, pero la evidencia todavía no alcanza para leerlo como una fuga estructural.${topProblem.sampleWarning ? ` ${topProblem.sampleWarning}` : ''}`;
+  }
 
   if (context.player.profileStrength === 'elite') {
     if (topProblem.focusMetric === 'objective_fight_deaths') {
@@ -883,6 +908,7 @@ Rules:
 - Use retrieved coaching knowledge only to explain or sharpen the recommendation.
 - Use patch context to warn about recent champion or system changes when it materially affects the advice.
 - Treat diagnosis.primaryIssue as the default hierarchy unless the raw evidence clearly contradicts it.
+- Respect coaching.topProblems[].interpretation and coaching.topProblems[].evidenceStrength: structural reads can be firmer, situational reads should stay scoped, observational reads must stay cautious.
 - Use knowledge.roleIdentity, knowledge.championIdentity and knowledge.eloProfile to avoid applying generic advice that does not fit the pick, role or elo.
 - If diagnosis.dataGaps says a champion-specific read is blocked by missing telemetry, do not pretend you detected that mechanic directly.
 - Write every field fully in the player's locale. Never mix Spanish and English inside the same answer.

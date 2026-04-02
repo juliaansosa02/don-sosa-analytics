@@ -132,12 +132,18 @@ export interface AICoachContext {
       title: string;
       category: string;
       priority: string;
+      severity: string;
       evidence: string[];
       impact: string;
       cause: string;
       actions: string[];
       focusMetric?: string;
       winRateDelta?: number;
+      evidenceStrength?: 'high' | 'medium' | 'low';
+      evidenceScore?: number;
+      interpretation?: 'structural' | 'situational' | 'observational';
+      sampleSize?: number;
+      sampleWarning?: string | null;
     }>;
     activePlan: {
       focus: string;
@@ -179,12 +185,18 @@ export interface AICoachContext {
     title: string;
     category: string;
     priority: string;
+    severity: string;
     evidence: string[];
     impact: string;
     cause: string;
     actions: string[];
     focusMetric?: string;
     winRateDelta?: number;
+    evidenceStrength?: 'high' | 'medium' | 'low';
+    evidenceScore?: number;
+    interpretation?: 'structural' | 'situational' | 'observational';
+    sampleSize?: number;
+    sampleWarning?: string | null;
   }>;
   reviewAgenda: Array<{
     matchId: string;
@@ -204,6 +216,7 @@ export interface AICoachContext {
     question: string;
     focus: string;
     tags: string[];
+    severity?: 'high' | 'medium' | 'low';
   }>;
   championPool: Array<{
     championName: string;

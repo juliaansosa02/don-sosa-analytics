@@ -10,11 +10,11 @@
   "skillLevel": "gold_plus",
   "patch": null,
   "tags": ["tempo", "consistency", "timeline", "farm", "information", "gamble plays"],
-  "body": "The default timeline for jungle should be simple: farm, react to information, then return to farming unless a high-value play is clearly available. A lot of inconsistent jungle games come from replacing this timeline with low-certainty detours that are not backed by information.",
+  "body": "The default jungle timeline should stay simple: farm, react to information, then return to farming unless a high-value play is clearly available. A lot of inconsistent jungle games come from breaking that route for low-certainty plays that are not backed by information.",
   "actionables": [
     "Treat farming as your default state until a lane state, vision, or enemy reveal creates a real decision point.",
     "After every completed action, ask whether you are still on your farm timeline or deliberately breaking it for value.",
-    "Review every early detour and label it as information-based or feeling-based."
+    "Review every early route break and label it as information-based or feeling-based."
   ],
   "source": {
     "coach": "Coach Leo",

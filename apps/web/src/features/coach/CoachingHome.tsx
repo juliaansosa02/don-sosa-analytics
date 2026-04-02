@@ -184,6 +184,20 @@ function infoTone(priority: string) {
   return 'medium' as const;
 }
 
+function interpretationLabel(value?: 'structural' | 'situational' | 'observational', locale: Locale = 'es') {
+  if (value === 'structural') return locale === 'en' ? 'Structural' : 'Estructural';
+  if (value === 'situational') return locale === 'en' ? 'Situational' : 'Situacional';
+  if (value === 'observational') return locale === 'en' ? 'Observational' : 'Observacional';
+  return null;
+}
+
+function evidenceLabel(value?: 'high' | 'medium' | 'low', locale: Locale = 'es') {
+  if (value === 'high') return locale === 'en' ? 'High evidence' : 'Evidencia alta';
+  if (value === 'medium') return locale === 'en' ? 'Medium evidence' : 'Evidencia media';
+  if (value === 'low') return locale === 'en' ? 'Low evidence' : 'Evidencia baja';
+  return null;
+}
+
 export function CoachingHome({
   dataset,
   locale = 'es',
@@ -500,6 +514,8 @@ export function CoachingHome({
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <Badge tone={infoTone(problem.priority)}>{t(locale, `Prioridad ${problem.priority}`, `${problem.priority} priority`)}</Badge>
                     <Badge>{problem.category}</Badge>
+                    {problem.interpretation ? <Badge tone={problem.interpretation === 'structural' ? 'high' : problem.interpretation === 'situational' ? 'default' : 'medium'}>{interpretationLabel(problem.interpretation, locale)}</Badge> : null}
+                    {problem.evidenceStrength ? <Badge tone={problem.evidenceStrength === 'high' ? 'low' : problem.evidenceStrength === 'medium' ? 'default' : 'medium'}>{evidenceLabel(problem.evidenceStrength, locale)}</Badge> : null}
                   </div>
                 </div>
                 <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
@@ -510,6 +526,12 @@ export function CoachingHome({
                   <>
                     <SectionEyebrow title={t(locale, 'Se ve en', 'Shows up in')} />
                     <div style={listStyle}>{problem.evidence[0]}</div>
+                  </>
+                ) : null}
+                {problem.sampleWarning ? (
+                  <>
+                    <SectionEyebrow title={t(locale, 'Cautela', 'Caution')} />
+                    <div style={listStyle}>{problem.sampleWarning}</div>
                   </>
                 ) : null}
                 {problem.actions.length ? (

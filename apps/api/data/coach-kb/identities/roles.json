@@ -76,10 +76,10 @@
       { "en": "Objective setup is created 45 to 70 seconds before the spawn, not on spawn.", "es": "El setup del objetivo se crea 45 a 70 segundos antes del spawn, no sobre el spawn." }
     ],
     "blindSpots": [
-      { "en": "Jungle samples can look active while still bleeding tempo through low-return detours.", "es": "La muestra de jungla puede verse activa y aun asi perder tempo en desvios de bajo retorno." }
+      { "en": "Jungle samples can look active while still losing tempo through route breaks that return almost no value.", "es": "La muestra de jungla puede verse activa y aun asi perder tempo por desvíos de ruta que devuelven muy poco valor." }
     ],
     "reviewPrompts": [
-      { "en": "Which detour actually broke your route and made the next map play worse?", "es": "Que desvio rompio de verdad tu ruta y empeoro la siguiente jugada de mapa?" }
+      { "en": "Which route break actually cost you camps, timing or first move on the next play?", "es": "Qué desvío de ruta te costó campamentos, timing o first move en la jugada siguiente?" }
     ]
   },
   {

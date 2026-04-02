@@ -509,6 +509,24 @@ function evaluateProblem(params: {
     score += Math.min(14, Math.abs(problem.winRateDelta) * 0.45);
   }
 
+  if (problem.evidenceStrength === 'high') {
+    score += 8;
+    reasons.push(locale === 'en'
+      ? 'The evidence layer already rates this pattern as strong.'
+      : 'La capa de evidencia ya marca este patron como fuerte.');
+  } else if (problem.evidenceStrength === 'low') {
+    score -= 8;
+    reasons.push(locale === 'en'
+      ? 'The evidence layer still treats this as a tentative signal.'
+      : 'La capa de evidencia todavia trata esto como una señal tentativa.');
+  }
+
+  if (problem.interpretation === 'observational') {
+    score -= 6;
+  } else if (problem.interpretation === 'structural') {
+    score += 4;
+  }
+
   if (focusMetric) {
     const roleWeight = knowledge.roleIdentity.evaluationWeights[focusMetric] ?? 0;
     const championWeight = knowledge.championIdentity?.evaluationWeights[focusMetric] ?? 0;
