@@ -1182,6 +1182,39 @@ function AppShell() {
     }
   }
 
+  const progressStatusLabel = progress?.message ?? (matchCount >= 75
+    ? (locale === 'en' ? 'Analyzing a large sample. This can take several minutes because of Riot rate limits.' : 'Analizando una muestra grande. Esto puede tardar varios minutos por los límites de Riot.')
+    : (locale === 'en' ? 'Analyzing matches. This can take anywhere from a few seconds to about a minute.' : 'Analizando partidas. Esto puede tardar entre unos segundos y alrededor de un minuto.'));
+
+  const progressPanel = loading && progress ? (
+    <div style={progressPanelStyle}>
+      <div style={{ color: '#d8fdf1', fontSize: 13, lineHeight: 1.6 }}>
+        {progressStatusLabel}
+      </div>
+      <div style={{ display: 'grid', gap: 8 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', color: '#9eb0c7', fontSize: 12 }}>
+          <span>{progress.stage}</span>
+          <span>{`${Math.min(progress.current, progress.total)} / ${progress.total}`}</span>
+        </div>
+        <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+          <div style={{ width: `${Math.max(8, (progress.current / Math.max(progress.total, 1)) * 100)}%`, height: '100%', background: '#67d6a4' }} />
+        </div>
+      </div>
+    </div>
+  ) : null;
+
+  const accountHubTitle = !dataset
+    ? (locale === 'en' ? 'Load Riot account' : 'Cargar cuenta de Riot')
+    : showAccountControls
+      ? (locale === 'en' ? 'Switch or recover an account' : 'Cambiar o recuperar una cuenta')
+      : (locale === 'en' ? 'Active account' : 'Cuenta activa');
+
+  const accountHubSubtitle = !dataset
+    ? (locale === 'en' ? 'Enter the Riot ID you want to analyze and choose the depth of the first sample.' : 'Ingresá el Riot ID que querés analizar y elegí la profundidad de la primera muestra.')
+    : showAccountControls
+      ? (locale === 'en' ? 'Your current profile stays active until you load another one. You can also jump back into a saved account from this same hub.' : 'Tu perfil actual sigue activo hasta que cargues otro. También podés volver a una cuenta guardada desde este mismo hub.')
+      : (locale === 'en' ? 'Your account is ready. Refresh only what is missing or switch profiles whenever you want.' : 'Tu cuenta ya está lista. Refrescá solo lo que falta o cambiá de perfil cuando quieras.');
+
   return (
     <Shell>
       <div style={{ display: 'grid', gap: 18, maxWidth: 1440, margin: '0 auto' }}>
@@ -1294,24 +1327,6 @@ function AppShell() {
                     ? 'Clear diagnosis, actionable decisions and an organized view of matchups, runes, champions and review. First you understand what to fix, then you go deeper.'
                     : 'Diagnóstico claro, decisiones accionables y una vista ordenada de matchups, runas, campeones y revisión. Primero entendés qué corregir; después entrás al detalle.'}
                 </p>
-                {loading ? (
-                  <div style={{ color: '#d8fdf1', fontSize: 13, lineHeight: 1.6 }}>
-                    {progress?.message ?? (matchCount >= 75
-                      ? (locale === 'en' ? 'Analyzing a large sample. This can take several minutes because of Riot rate limits.' : 'Analizando una muestra grande. Esto puede tardar varios minutos por los límites de Riot.')
-                      : (locale === 'en' ? 'Analyzing matches. This can take anywhere from a few seconds to about a minute.' : 'Analizando partidas. Esto puede tardar entre unos segundos y alrededor de un minuto.'))}
-                  </div>
-                ) : null}
-                {loading && progress ? (
-                  <div style={{ display: 'grid', gap: 8, maxWidth: 460 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: '#9eb0c7', fontSize: 12 }}>
-                      <span>{progress.stage}</span>
-                      <span>{`${Math.min(progress.current, progress.total)} / ${progress.total}`}</span>
-                    </div>
-                    <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-                      <div style={{ width: `${Math.max(8, (progress.current / Math.max(progress.total, 1)) * 100)}%`, height: '100%', background: '#67d6a4' }} />
-                    </div>
-                  </div>
-                ) : null}
                 {!loading ? (
                   <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
                     {[
@@ -1472,13 +1487,31 @@ function AppShell() {
           )}
 
           <Card
-            title={showAccountControls ? (locale === 'en' ? 'Load Riot account' : 'Cargar cuenta de Riot') : (locale === 'en' ? 'Active account' : 'Cuenta activa')}
-            subtitle={showAccountControls
-              ? (locale === 'en' ? 'Enter the Riot ID you want to analyze and choose the depth of the first sample.' : 'Ingresá el Riot ID que querés analizar y elegí la profundidad de la primera muestra.')
-              : (locale === 'en' ? 'Your account is ready. Refresh only what is missing or switch profiles whenever you want.' : 'Tu cuenta ya está lista. Refrescá solo lo que falta o cambiá de perfil cuando quieras.')}
+            title={accountHubTitle}
+            subtitle={accountHubSubtitle}
           >
+            {progressPanel}
             {showAccountControls || !dataset ? (
               <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 16 }}>
+                {dataset ? (
+                  <div style={softPanelStyle}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'grid', gap: 4 }}>
+                        <div style={{ color: '#eef4ff', lineHeight: 1.5, fontWeight: 700 }}>
+                          {gameName && tagLine ? `${gameName}#${tagLine}` : (locale === 'en' ? 'Current active account' : 'Cuenta activa actual')}
+                        </div>
+                        <div style={{ color: '#8a95a8', fontSize: 13, lineHeight: 1.6 }}>
+                          {locale === 'en'
+                            ? 'This profile stays loaded while you search another Riot ID or jump back into a saved profile.'
+                            : 'Este perfil sigue cargado mientras buscás otro Riot ID o volvés a una cuenta guardada.'}
+                        </div>
+                      </div>
+                      <button type="button" style={secondaryButtonStyle} onClick={() => setShowAccountControls(false)}>
+                        {locale === 'en' ? 'Back to active account' : 'Volver a la cuenta activa'}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
                 <div style={riotSearchShellStyle}>
                   <div style={{ display: 'grid', gap: 5 }}>
                     <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -1650,64 +1683,68 @@ function AppShell() {
                 </div>
               </div>
             )}
+            {savedProfiles.length ? (
+              <div style={savedProfilesSectionStyle}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'grid', gap: 3 }}>
+                    <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Saved profiles' : 'Perfiles guardados'}</div>
+                    <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>{locale === 'en' ? 'Jump between accounts without rebuilding the flow' : 'Saltá entre cuentas sin reconstruir el flujo'}</div>
+                  </div>
+                  <div style={{ color: '#8f9bad', fontSize: 13 }}>
+                    {locale === 'en' ? `${savedProfiles.length} profile${savedProfiles.length === 1 ? '' : 's'} ready on this device` : `${savedProfiles.length} perfil${savedProfiles.length === 1 ? '' : 'es'} listos en este dispositivo`}
+                  </div>
+                </div>
+                <div style={savedProfilesGridStyle}>
+                  {savedProfiles.map((profile) => {
+                    const isActive = buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform) === buildProfileIdentityKey(gameName, tagLine, platform);
+                    const rankTier = extractRankTierFromLabel(profile.rankLabel);
+                    const profileIcon = getProfileIconUrl(profile.profileIconId, profile.ddragonVersion ?? dataset?.ddragonVersion);
+                    const savedPlatformInfo = getRiotPlatformInfo(profile.platform);
+                    return (
+                      <button
+                        key={buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform)}
+                        type="button"
+                        onClick={() => loadSavedProfile(profile)}
+                        style={{
+                          ...savedProfileCardStyle,
+                          ...(isActive ? activeSavedProfileCardStyle : {})
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: profileIcon ? '56px minmax(0, 1fr)' : '1fr', gap: 12, alignItems: 'center', textAlign: 'left', minWidth: 0 }}>
+                            {profileIcon ? (
+                              <img
+                                src={profileIcon}
+                                alt={profile.gameName}
+                                width={56}
+                                height={56}
+                                style={{ ...profileIconStyle, width: 56, height: 56, objectFit: 'cover', borderRadius: 14 }}
+                              />
+                            ) : null}
+                            <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+                              <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                                {rankTier ? <RankEmblem tier={rankTier} label={profile.rankLabel ?? ''} size={40} /> : null}
+                                <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible')}</div>
+                              </div>
+                              {savedPlatformInfo ? (
+                                <div style={{ color: '#6f7c93', fontSize: 11 }}>{`${savedPlatformInfo.platform} · ${savedPlatformInfo.shortLabel}`}</div>
+                              ) : null}
+                            </div>
+                          </div>
+                          <Badge tone={isActive ? 'low' : 'default'}>{locale === 'en' ? `${profile.matches} matches` : `${profile.matches} partidas`}</Badge>
+                        </div>
+                        <div style={{ color: '#748198', fontSize: 12, textAlign: 'left' }}>
+                          {locale === 'en' ? 'Last update' : 'Última actualización'} {new Date(profile.lastSyncedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </Card>
         </section>
-
-        {savedProfiles.length ? (
-          <section style={savedProfilesSectionStyle}>
-            <div style={{ display: 'grid', gap: 3 }}>
-              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Saved profiles' : 'Perfiles guardados'}</div>
-              <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>{locale === 'en' ? 'Jump back into accounts you already analyzed' : 'Volvé rápido a cuentas que ya analizaste'}</div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-              {savedProfiles.map((profile) => {
-                const isActive = buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform) === buildProfileIdentityKey(gameName, tagLine, platform);
-                const rankTier = extractRankTierFromLabel(profile.rankLabel);
-                const profileIcon = getProfileIconUrl(profile.profileIconId, profile.ddragonVersion ?? dataset?.ddragonVersion);
-                const savedPlatformInfo = getRiotPlatformInfo(profile.platform);
-                return (
-                  <button
-                    key={buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform)}
-                    type="button"
-                    onClick={() => loadSavedProfile(profile)}
-                    style={{
-                      ...savedProfileCardStyle,
-                      ...(isActive ? activeSavedProfileCardStyle : {})
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: profileIcon ? '56px minmax(0, 1fr)' : '1fr', gap: 12, alignItems: 'center', textAlign: 'left', minWidth: 0 }}>
-                        {profileIcon ? (
-                          <img
-                            src={profileIcon}
-                            alt={profile.gameName}
-                            width={56}
-                            height={56}
-                            style={{ ...profileIconStyle, width: 56, height: 56, objectFit: 'cover', borderRadius: 14 }}
-                          />
-                        ) : null}
-                        <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
-                          <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                            {rankTier ? <RankEmblem tier={rankTier} label={profile.rankLabel ?? ''} size={34} /> : null}
-                            <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible')}</div>
-                          </div>
-                          {savedPlatformInfo ? (
-                            <div style={{ color: '#6f7c93', fontSize: 11 }}>{`${savedPlatformInfo.platform} · ${savedPlatformInfo.shortLabel}`}</div>
-                          ) : null}
-                        </div>
-                      </div>
-                      <Badge tone={isActive ? 'low' : 'default'}>{locale === 'en' ? `${profile.matches} matches` : `${profile.matches} partidas`}</Badge>
-                    </div>
-                    <div style={{ color: '#748198', fontSize: 12, textAlign: 'left' }}>
-                      {locale === 'en' ? 'Last update' : 'Última actualización'} {new Date(profile.lastSyncedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
 
         <section style={{ display: 'grid', gap: 12 }}>
           {viewDataset && activeTab !== 'coach' ? (
@@ -2218,9 +2255,23 @@ const navigationPanelStyle: CSSProperties = {
 const savedProfilesSectionStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
-  padding: '14px 16px',
+  padding: '16px 0 0',
+  marginTop: 4,
+  borderTop: '1px solid rgba(255,255,255,0.06)'
+};
+
+const savedProfilesGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+  gap: 10
+};
+
+const progressPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 10,
+  padding: '12px 14px',
   borderRadius: 16,
-  background: '#060a10',
+  background: 'rgba(216,253,241,0.06)',
   border: '1px solid rgba(255,255,255,0.06)'
 };
 

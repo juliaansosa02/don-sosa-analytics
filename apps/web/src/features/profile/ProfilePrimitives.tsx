@@ -7,7 +7,45 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
   const palette = getRankPalette(rank.highest.tier);
   const lpProgress = Math.max(0, Math.min(rank.highest.leaguePoints, 100));
   const showFlex = rank.flexQueue.tier !== 'UNRANKED';
+  const soloSummary = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR`;
+  const flexSummary = showFlex
+    ? `${locale === 'en' ? 'Flex' : 'Flex'} · ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR`
+    : null;
   const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR${showFlex ? `\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR` : ''}`;
+
+  if (compact) {
+    return (
+      <div title={title} style={{
+        display: 'grid',
+        gap: 10,
+        minWidth: 0,
+        padding: '12px 14px',
+        borderRadius: 16,
+        background: 'rgba(9, 14, 22, 0.86)',
+        border: `1px solid ${palette.primary}33`
+      }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '80px minmax(0, 1fr)', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <RankEmblem tier={rank.highest.tier} label={rank.highest.label} size={80} />
+          </div>
+          <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+            <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Current rank' : 'Rango actual'}</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 17, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.highest.label}</span>
+              <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.highest.leaguePoints} LP`}</span>
+            </div>
+            <div style={{ display: 'grid', gap: 5 }}>
+              <span style={rankQueuePillStyle}>{soloSummary}</span>
+              {flexSummary ? <span style={rankQueuePillStyle}>{flexSummary}</span> : null}
+            </div>
+          </div>
+        </div>
+        <div style={{ height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+          <div style={{ width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` }} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div title={title} style={{
@@ -19,23 +57,17 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
       background: compact ? 'rgba(9, 14, 22, 0.86)' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
       border: `1px solid ${palette.primary}33`
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: `${compact ? 94 : 104}px minmax(0, 1fr)`, alignItems: 'center', gap: compact ? 4 : 10 }}>
-        <RankEmblem tier={rank.highest.tier} label={rank.highest.label} size={compact ? 94 : 104} />
+      <div style={{ display: 'grid', gridTemplateColumns: '104px minmax(0, 1fr)', alignItems: 'center', gap: 10 }}>
+        <RankEmblem tier={rank.highest.tier} label={rank.highest.label} size={104} />
         <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
-          <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{rank.highest.queueLabel ?? (locale === 'en' ? 'Ranked' : 'Ranked')}</div>
+          <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Current rank' : 'Rango actual'}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: compact ? 17 : 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.highest.label}</span>
+            <span style={{ fontSize: 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.highest.label}</span>
             <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.highest.leaguePoints} LP`}</span>
           </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={rankQueuePillStyle}>
-              <strong>{locale === 'en' ? 'Solo' : 'Solo'}</strong> {rank.soloQueue.label} · {rank.soloQueue.leaguePoints} LP
-            </span>
-            {showFlex ? (
-              <span style={rankQueuePillStyle}>
-                <strong>Flex</strong> {rank.flexQueue.label} · {rank.flexQueue.leaguePoints} LP
-              </span>
-            ) : null}
+          <div style={{ display: 'grid', gap: 5 }}>
+            <span style={rankQueuePillStyle}>{soloSummary}</span>
+            {flexSummary ? <span style={rankQueuePillStyle}>{flexSummary}</span> : null}
           </div>
         </div>
       </div>
@@ -43,11 +75,9 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
         <div style={{ height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
           <div style={{ width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` }} />
         </div>
-        {!compact ? (
-          <div style={{ color: '#7e889b', fontSize: 11 }}>
-            {locale === 'en' ? 'Hover to view Solo/Duo and Flex' : 'Hover para ver Solo/Duo y Flex'}
-          </div>
-        ) : null}
+        <div style={{ color: '#7e889b', fontSize: 11 }}>
+          {locale === 'en' ? 'Hover to view Solo/Duo and Flex' : 'Hover para ver Solo/Duo y Flex'}
+        </div>
       </div>
     </div>
   );
@@ -56,7 +86,7 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
 export function RankEmblem({ tier, label, size }: { tier?: string; label: string; size: number }) {
   const emblem = getRankEmblemDataUrl(tier);
   const palette = getRankPalette(tier);
-  const assetSize = Math.round(size * 3);
+  const assetSize = Math.round(size * 5.2);
 
   return (
     <div
@@ -81,7 +111,7 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
           width: assetSize,
           height: assetSize,
           objectFit: 'contain',
-          marginTop: Math.round(size * 0.04)
+          transform: `translateY(${Math.round(size * 0.3)}px)`
         }}
       />
     </div>
