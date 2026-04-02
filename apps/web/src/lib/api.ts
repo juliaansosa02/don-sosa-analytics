@@ -288,7 +288,7 @@ export async function requestPasswordReset(input: { email: string }) {
     body: JSON.stringify(input)
   });
   if (!response.ok) throw new Error(await readErrorMessage(response));
-  return response.json() as Promise<{ ok: true; devResetToken: string | null }>;
+  return response.json() as Promise<{ ok: true; devResetToken: string | null; devResetUrl: string | null }>;
 }
 
 export async function resetPassword(input: { token: string; newPassword: string }) {

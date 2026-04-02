@@ -98,6 +98,14 @@ Implemented:
 - password reset request
 - password reset confirm
 - password change
+- account center UI with profile, membership, security, coach workspace and admin tools
+
+In dev, reset request now returns:
+
+- `devResetToken`
+- `devResetUrl`
+
+The reset URL opens the web app directly in password reset mode through query params so the full flow can be validated end-to-end without external email delivery.
 
 Session cookie envs:
 

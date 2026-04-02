@@ -36,13 +36,15 @@ import type {
 } from '../types';
 import { Shell, Card, Badge } from '../components/ui';
 import { CoachingHome } from '../features/coach/CoachingHome';
+import { AccountCenter, type AccountPanelTab } from '../features/account/AccountCenter';
+import { RankBadge, RankEmblem } from '../features/profile/ProfilePrimitives';
 import { StatsTab } from '../features/stats/StatsTab';
 import { MatchupsTab } from '../features/matchups/MatchupsTab';
 import { RunesTab } from '../features/runes/RunesTab';
 import { ChampionPoolTab } from '../features/champion-pool/ChampionPoolTab';
 import { MatchesTab } from '../features/matches/MatchesTab';
 import { detectLocale, translateRole, type Locale } from '../lib/i18n';
-import { buildProfileIdentityKey, getProfileIconUrl, getQueueBucket, getQueueLabel, getRankEmblemDataUrl, getRankPalette, getRiotPlatformInfo, getRoleLabel, guessDefaultRiotPlatform, supportedRiotPlatforms, type RiotPlatform } from '../lib/lol';
+import { buildProfileIdentityKey, getProfileIconUrl, getQueueBucket, getQueueLabel, getRiotPlatformInfo, getRoleLabel, guessDefaultRiotPlatform, supportedRiotPlatforms, type RiotPlatform } from '../lib/lol';
 import { buildCs15Benchmark } from '../lib/benchmarks';
 
 const tabs = [
@@ -268,6 +270,8 @@ function AppShell() {
   const [gameName, setGameName] = useState('');
   const [tagLine, setTagLine] = useState('');
   const [showAccountControls, setShowAccountControls] = useState(true);
+  const [accountPanelOpen, setAccountPanelOpen] = useState(false);
+  const [accountPanelTab, setAccountPanelTab] = useState<AccountPanelTab>('auth');
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<ProgressState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -295,6 +299,7 @@ function AppShell() {
   const [resetToken, setResetToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [resetTokenPreview, setResetTokenPreview] = useState<string | null>(null);
+  const [resetLinkPreview, setResetLinkPreview] = useState<string | null>(null);
   const [adminUsers, setAdminUsers] = useState<AdminUserRecord[]>([]);
   const [adminLoading, setAdminLoading] = useState(false);
   const [coachRoster, setCoachRoster] = useState<CoachRosterEntry[]>([]);
@@ -322,6 +327,11 @@ function AppShell() {
   const canOpenBillingPortal = Boolean(membership?.account.stripeCustomerId && billingReady);
   const canManageCoachRoster = Boolean(actorUser && (actorUser.role === 'coach' || actorUser.role === 'admin'));
   const isAdmin = actorUser?.role === 'admin';
+
+  function openAccountPanel(nextTab?: AccountPanelTab) {
+    setAccountPanelTab(nextTab ?? (authUser ? 'profile' : 'auth'));
+    setAccountPanelOpen(true);
+  }
 
   async function refreshIdentity() {
     setMembershipLoading(true);
@@ -382,15 +392,24 @@ function AppShell() {
       } else {
         const result = await requestPasswordReset({ email: authEmail });
         setResetTokenPreview(result.devResetToken);
+        setResetLinkPreview(result.devResetUrl);
+        if (result.devResetToken) {
+          setResetToken(result.devResetToken);
+        }
         setSyncMessage(locale === 'en'
-          ? 'If the account exists, we generated a reset flow. In dev, the reset token appears below.'
-          : 'Si la cuenta existe, generamos el flujo de recuperación. En dev, el token aparece abajo.');
+          ? result.devResetUrl
+            ? 'If the account exists, we generated the recovery flow. In dev, the reset link is ready and the token was autofilled so you can finish the reset now.'
+            : 'If the account exists, we generated the recovery flow. Check your email for the reset link or token.'
+          : result.devResetUrl
+            ? 'Si la cuenta existe, generamos el flujo de recuperación. En dev, el link quedó listo y el token se autocompletó para que puedas terminar el reset ahora.'
+            : 'Si la cuenta existe, generamos el flujo de recuperación. Revisá tu email para seguir con el reset.');
       }
 
       if (authMode !== 'reset') {
         setAuthPassword('');
         setNewPassword('');
         setResetToken('');
+        setResetLinkPreview(null);
         await refreshIdentity();
       }
     } catch (err) {
@@ -415,6 +434,7 @@ function AppShell() {
       setResetToken('');
       setNewPassword('');
       setResetTokenPreview(null);
+      setResetLinkPreview(null);
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
@@ -536,6 +556,17 @@ function AppShell() {
     setCoachRoster([]);
   }, [actorUser?.id, actorUser?.role]);
 
+  useEffect(() => {
+    if (!authUser) {
+      setAccountPanelTab('auth');
+      return;
+    }
+
+    if (accountPanelTab === 'auth') {
+      setAccountPanelTab('profile');
+    }
+  }, [authUser?.id]);
+
   async function hydrateFromServer(gameNameValue: string, tagLineValue: string, platformValue: string) {
     try {
       const serverDataset = await fetchCachedProfile(gameNameValue, tagLineValue, platformValue, locale);
@@ -565,6 +596,49 @@ function AppShell() {
   useEffect(() => {
     void refreshIdentity();
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    let touched = false;
+
+    const billingState = params.get('billing');
+    if (billingState === 'success') {
+      setSyncMessage(locale === 'en'
+        ? 'Billing confirmed. We are refreshing your account state and membership.'
+        : 'Facturación confirmada. Estamos refrescando el estado de tu cuenta y tu membresía.');
+      openAccountPanel('membership');
+      touched = true;
+      params.delete('billing');
+    } else if (billingState === 'cancel') {
+      setSyncMessage(locale === 'en'
+        ? 'Checkout was canceled. Your current plan stays unchanged.'
+        : 'El checkout se canceló. Tu plan actual sigue igual.');
+      openAccountPanel('membership');
+      touched = true;
+      params.delete('billing');
+    }
+
+    const resetTokenFromUrl = params.get('resetToken');
+    const authModeFromUrl = params.get('authMode');
+    if (resetTokenFromUrl || authModeFromUrl === 'reset') {
+      setAuthMode('reset');
+      if (resetTokenFromUrl) {
+        setResetToken(resetTokenFromUrl);
+      }
+      setAccountPanelTab('auth');
+      setAccountPanelOpen(true);
+      touched = true;
+      params.delete('resetToken');
+      params.delete('authMode');
+      params.delete('account');
+    }
+
+    if (touched) {
+      const nextQuery = params.toString();
+      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+      window.history.replaceState({}, '', nextUrl);
+    }
+  }, [locale]);
 
   useEffect(() => {
     const rawProfiles = window.localStorage.getItem(savedProfilesStorageKey);
@@ -1025,6 +1099,89 @@ function AppShell() {
     }
   }
 
+  async function handleStopImpersonation() {
+    setAuthActionLoading(true);
+    setAuthError(null);
+    try {
+      await stopAdminImpersonation();
+      await refreshIdentity();
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setAuthActionLoading(false);
+    }
+  }
+
+  async function handleAddCoachPlayer() {
+    if (!coachPlayerEmail.trim()) return;
+    setCoachRosterLoading(true);
+    setAuthError(null);
+    try {
+      await addCoachPlayer({ playerEmail: coachPlayerEmail.trim(), note: coachPlayerNote.trim() || undefined });
+      setCoachPlayerEmail('');
+      setCoachPlayerNote('');
+      await refreshCoachRoster();
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setCoachRosterLoading(false);
+    }
+  }
+
+  async function handleRemoveCoachRosterPlayer(userId: string) {
+    setCoachRosterLoading(true);
+    setAuthError(null);
+    try {
+      await removeCoachPlayer(userId);
+      await refreshCoachRoster();
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setCoachRosterLoading(false);
+    }
+  }
+
+  async function handleAdminRoleUpdate(userId: string, role: 'user' | 'coach' | 'admin') {
+    setAuthActionLoading(true);
+    setAuthError(null);
+    try {
+      await updateAdminUserRole(userId, role);
+      await refreshAdminUsers();
+      await refreshIdentity();
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setAuthActionLoading(false);
+    }
+  }
+
+  async function handleAdminPlanUpdate(userId: string, planId: 'free' | 'pro_player' | 'pro_coach') {
+    setMembershipActionLoading(true);
+    setAuthError(null);
+    try {
+      await updateAdminUserPlan(userId, planId);
+      await refreshAdminUsers();
+      await refreshIdentity();
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setMembershipActionLoading(false);
+    }
+  }
+
+  async function handleAdminImpersonation(userId: string) {
+    setAuthActionLoading(true);
+    setAuthError(null);
+    try {
+      await startAdminImpersonation(userId);
+      await refreshIdentity();
+    } catch (err) {
+      setAuthError(err instanceof Error ? err.message : 'Unknown error');
+    } finally {
+      setAuthActionLoading(false);
+    }
+  }
+
   return (
     <Shell>
       <div style={{ display: 'grid', gap: 18, maxWidth: 1440, margin: '0 auto' }}>
@@ -1036,489 +1193,91 @@ function AppShell() {
             </div>
           </div>
           <div style={accountAccessStyle}>
-            {authUser ? (
-              <div style={{ display: 'grid', gap: 12, width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'grid', gap: 4 }}>
-                    <div style={{ color: '#dfe8f6', fontSize: 13, fontWeight: 700 }}>
-                      {locale === 'en' ? 'Signed in account' : 'Cuenta iniciada'}
-                    </div>
-                    <div style={{ color: '#eef4ff', fontSize: 18, fontWeight: 800 }}>
-                      {authUser.displayName}
-                    </div>
-                    <div style={{ color: '#8190a6', fontSize: 12 }}>
-                      {authUser.email}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                    <Badge tone="default">{currentPlan?.name ?? (locale === 'en' ? 'Loading plan' : 'Cargando plan')}</Badge>
-                    {actorUser ? <Badge tone="low">{actorUser.role.toUpperCase()}</Badge> : null}
-                    {authMe?.isImpersonating ? <Badge tone="medium">{locale === 'en' ? 'Impersonating' : 'Suplantando'}</Badge> : null}
-                    {membership?.overrideReason === 'admin_full_access' ? <Badge tone="medium">{locale === 'en' ? 'Admin full access' : 'Admin full access'}</Badge> : null}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  {currentPlanPriceLabel ? <Badge tone="default">{currentPlanPriceLabel}</Badge> : null}
-                  {membership ? <Badge tone="low">{locale === 'en' ? `${membership.linkedProfiles.length}/${membership.plan.entitlements.maxStoredProfiles} profiles` : `${membership.linkedProfiles.length}/${membership.plan.entitlements.maxStoredProfiles} perfiles`}</Badge> : null}
-                  {membership ? <Badge tone="low">{locale === 'en' ? `${membership.usage.openaiGenerations}/${membership.plan.entitlements.maxAICoachRunsPerMonth} AI runs` : `${membership.usage.openaiGenerations}/${membership.plan.entitlements.maxAICoachRunsPerMonth} corridas IA`}</Badge> : null}
-                  {membership ? <Badge tone="default">{membership.account.status}</Badge> : null}
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {canOpenBillingPortal ? (
-                    <button type="button" style={secondaryButtonStyle} disabled={membershipActionLoading} onClick={() => void handleBillingPortal()}>
-                      {membershipActionLoading ? (locale === 'en' ? 'Opening...' : 'Abriendo...') : (locale === 'en' ? 'Manage billing' : 'Gestionar billing')}
-                    </button>
-                  ) : null}
-                  {authMe?.isImpersonating ? (
-                    <button
-                      type="button"
-                      style={secondaryButtonStyle}
-                      disabled={authActionLoading}
-                      onClick={async () => {
-                        setAuthActionLoading(true);
-                        setAuthError(null);
-                        try {
-                          await stopAdminImpersonation();
-                          await refreshIdentity();
-                        } catch (err) {
-                          setAuthError(err instanceof Error ? err.message : 'Unknown error');
-                        } finally {
-                          setAuthActionLoading(false);
-                        }
-                      }}
-                    >
-                      {locale === 'en' ? 'Stop impersonation' : 'Salir de la suplantación'}
-                    </button>
-                  ) : null}
-                  <button type="button" style={secondaryButtonStyle} disabled={authActionLoading} onClick={() => void handleLogout()}>
-                    {authActionLoading ? (locale === 'en' ? 'Closing...' : 'Cerrando...') : (locale === 'en' ? 'Log out' : 'Cerrar sesión')}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', width: '100%' }}>
+              {authMe?.isImpersonating ? <Badge tone="medium">{locale === 'en' ? 'Impersonating' : 'Suplantando'}</Badge> : null}
+              {authUser && currentPlan ? <Badge tone="default">{currentPlan.name}</Badge> : null}
+              {authUser ? (
+                <button type="button" style={accountTriggerStyle} onClick={() => openAccountPanel()}>
+                  <span style={accountAvatarStyle}>{(authUser.displayName || authUser.email || 'D').slice(0, 1).toUpperCase()}</span>
+                  <span style={{ display: 'grid', gap: 2, textAlign: 'left' }}>
+                    <span style={{ color: '#eef4ff', fontWeight: 800, fontSize: 14 }}>{authUser.displayName}</span>
+                    <span style={{ color: '#8692a7', fontSize: 11 }}>
+                      {locale === 'en' ? 'Profile, billing and settings' : 'Perfil, facturación y ajustes'}
+                    </span>
+                  </span>
+                </button>
+              ) : (
+                <>
+                  <button type="button" style={secondaryButtonStyle} onClick={() => { setAuthMode('login'); openAccountPanel('auth'); }}>
+                    {locale === 'en' ? 'Login' : 'Ingresar'}
                   </button>
-                </div>
-              </div>
-            ) : (
-              <div style={{ display: 'grid', gap: 12, width: '100%' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'grid', gap: 3 }}>
-                    <div style={{ color: '#dfe8f6', fontSize: 13, fontWeight: 700 }}>
-                      {locale === 'en' ? 'Account and membership' : 'Cuenta y membresía'}
-                    </div>
-                    <div style={{ color: '#8190a6', fontSize: 12, maxWidth: 280 }}>
-                      {locale === 'en'
-                        ? 'Create your account to persist coaching, plans and future billing.'
-                        : 'Creá tu cuenta para persistir coaching, planes y billing futuro.'}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {(['login', 'signup', 'reset'] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => setAuthMode(mode)}
-                        style={{
-                          ...smallActionButtonStyle,
-                          ...(authMode === mode ? activeSmallActionButtonStyle : {})
-                        }}
-                      >
-                        {mode === 'login'
-                          ? (locale === 'en' ? 'Login' : 'Ingresar')
-                          : mode === 'signup'
-                            ? (locale === 'en' ? 'Create account' : 'Crear cuenta')
-                            : (locale === 'en' ? 'Reset password' : 'Recuperar')}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <form onSubmit={handleAuthSubmit} style={{ display: 'grid', gap: 10 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: authMode === 'signup' ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-                    {authMode === 'signup' ? (
-                      <label style={{ ...fieldBlockStyle, minWidth: 0 }}>
-                        <span style={fieldLabelStyle}>{locale === 'en' ? 'Display name' : 'Nombre visible'}</span>
-                        <input value={authDisplayName} onChange={(e) => setAuthDisplayName(e.target.value)} style={inputStyle} placeholder={locale === 'en' ? 'For example, Don Sosa' : 'Por ejemplo, Don Sosa'} />
-                      </label>
-                    ) : null}
-                    <label style={{ ...fieldBlockStyle, minWidth: 0 }}>
-                      <span style={fieldLabelStyle}>Email</span>
-                      <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} style={inputStyle} placeholder="vos@email.com" />
-                    </label>
-                    {authMode !== 'reset' ? (
-                      <label style={{ ...fieldBlockStyle, minWidth: 0 }}>
-                        <span style={fieldLabelStyle}>{locale === 'en' ? 'Password' : 'Contraseña'}</span>
-                        <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} style={inputStyle} placeholder="••••••••" />
-                      </label>
-                    ) : null}
-                  </div>
-                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <button type="submit" style={buttonStyle} disabled={authActionLoading}>
-                      {authActionLoading
-                        ? (locale === 'en' ? 'Processing...' : 'Procesando...')
-                        : authMode === 'login'
-                          ? (locale === 'en' ? 'Log in' : 'Iniciar sesión')
-                          : authMode === 'signup'
-                            ? (locale === 'en' ? 'Create account' : 'Crear cuenta')
-                            : (locale === 'en' ? 'Send recovery' : 'Enviar recuperación')}
-                    </button>
-                    {currentPlan ? <Badge tone="default">{currentPlan.name}</Badge> : null}
-                    {membership ? <Badge tone="low">{locale === 'en' ? `${membership.linkedProfiles.length} temporary profiles` : `${membership.linkedProfiles.length} perfiles temporales`}</Badge> : null}
-                  </div>
-                </form>
-                {authMode === 'reset' ? (
-                  <form onSubmit={handleResetPasswordConfirm} style={{ display: 'grid', gap: 10, paddingTop: 2 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-                      <label style={{ ...fieldBlockStyle, minWidth: 0 }}>
-                        <span style={fieldLabelStyle}>{locale === 'en' ? 'Reset token' : 'Token de recuperación'}</span>
-                        <input value={resetToken} onChange={(e) => setResetToken(e.target.value)} style={inputStyle} placeholder={locale === 'en' ? 'Paste the token here' : 'Pegá el token acá'} />
-                      </label>
-                      <label style={{ ...fieldBlockStyle, minWidth: 0 }}>
-                        <span style={fieldLabelStyle}>{locale === 'en' ? 'New password' : 'Nueva contraseña'}</span>
-                        <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={inputStyle} placeholder="••••••••" />
-                      </label>
-                    </div>
-                    <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <button type="submit" style={secondaryButtonStyle} disabled={authActionLoading}>
-                        {authActionLoading ? (locale === 'en' ? 'Saving...' : 'Guardando...') : (locale === 'en' ? 'Apply new password' : 'Aplicar nueva contraseña')}
-                      </button>
-                      {resetTokenPreview ? <Badge tone="medium">{locale === 'en' ? `Dev token: ${resetTokenPreview}` : `Token dev: ${resetTokenPreview}`}</Badge> : null}
-                    </div>
-                  </form>
-                ) : null}
-              </div>
-            )}
+                  <button type="button" style={buttonStyle} onClick={() => { setAuthMode('signup'); openAccountPanel('auth'); }}>
+                    {locale === 'en' ? 'Create account' : 'Crear cuenta'}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </section>
 
-        {membershipCatalog?.plans?.length ? (
-          <section style={planSectionStyle}>
-            <div style={{ display: 'grid', gap: 4 }}>
-              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                {locale === 'en' ? 'Memberships' : 'Membresías'}
-              </div>
-              <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>
-                {locale === 'en' ? 'Limits, upgrades and entitlement model' : 'Límites, upgrades y modelo de entitlements'}
-              </div>
-              {membership ? (
-                <div style={{ color: '#8793a8', fontSize: 13, lineHeight: 1.6 }}>
-                  {locale === 'en'
-                    ? `Current status: ${membership.account.status}. Effective plan: ${membership.plan.name}${membership.actualPlan && membership.actualPlan.id !== membership.plan.id ? ` · actual subscription: ${membership.actualPlan.name}` : ''}.`
-                    : `Estado actual: ${membership.account.status}. Plan efectivo: ${membership.plan.name}${membership.actualPlan && membership.actualPlan.id !== membership.plan.id ? ` · suscripción real: ${membership.actualPlan.name}` : ''}.`}
-                </div>
-              ) : null}
-            </div>
-            <div style={planCardsGridStyle}>
-              {membershipCatalog.plans.map((plan) => {
-                const isCurrent = membership?.plan.id === plan.id;
-                const isActualSubscription = membership?.actualPlan?.id === plan.id;
-                return (
-                  <div key={plan.id} style={{ ...planCardStyle, ...(isCurrent ? activePlanCardStyle : {}) }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
-                      <div style={{ display: 'grid', gap: 5 }}>
-                        <div style={{ color: '#eef4ff', fontWeight: 800, fontSize: 16 }}>{plan.name}</div>
-                        <div style={{ color: '#8a97ab', fontSize: 13, lineHeight: 1.5 }}>{plan.description}</div>
-                      </div>
-                      <Badge tone={isCurrent ? 'low' : 'default'}>{isCurrent ? (locale === 'en' ? 'Current' : 'Actual') : plan.badge}</Badge>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <Badge tone="low">{plan.monthlyUsd === 0 ? (locale === 'en' ? 'Free' : 'Gratis') : (locale === 'en' ? `US$${plan.monthlyUsd}/month` : `US$${plan.monthlyUsd}/mes`)}</Badge>
-                      <Badge tone="default">{`${plan.entitlements.maxStoredMatchesPerProfile} ${locale === 'en' ? 'matches/profile' : 'partidas/perfil'}`}</Badge>
-                      <Badge tone="default">{`${plan.entitlements.maxStoredProfiles} ${locale === 'en' ? 'profiles' : 'perfiles'}`}</Badge>
-                    </div>
-                    <div style={{ display: 'grid', gap: 6 }}>
-                      {plan.featureHighlights.slice(0, 4).map((feature: string) => (
-                        <div key={feature} style={{ color: '#d5dfef', fontSize: 13, lineHeight: 1.5 }}>• {feature}</div>
-                      ))}
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                      {isCurrent ? (
-                        <button type="button" style={topBarPrimaryButtonStyle} disabled>
-                          {locale === 'en' ? 'Current effective plan' : 'Plan efectivo actual'}
-                        </button>
-                      ) : plan.id !== 'free' && authUser && billingReady ? (
-                        <button
-                          type="button"
-                          style={buttonStyle}
-                          disabled={membershipActionLoading}
-                          onClick={() => void handleCheckout(plan.id as 'pro_player' | 'pro_coach')}
-                        >
-                          {membershipActionLoading
-                            ? (locale === 'en' ? 'Opening Stripe...' : 'Abriendo Stripe...')
-                            : locale === 'en'
-                              ? `Upgrade to ${plan.name}`
-                              : `Mejorar a ${plan.name}`}
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          style={secondaryButtonStyle}
-                          disabled={!membership?.devToolsEnabled || membershipActionLoading || isCurrent}
-                          onClick={() => void handleDevPlanChange(plan.id)}
-                        >
-                          {membership?.devToolsEnabled
-                            ? (locale === 'en' ? 'Activate in dev' : 'Activar en dev')
-                            : authUser
-                              ? (billingReady ? (locale === 'en' ? 'Unavailable' : 'No disponible') : (locale === 'en' ? 'Billing pending' : 'Billing pendiente'))
-                              : (locale === 'en' ? 'Login to upgrade' : 'Iniciá sesión para mejorar')}
-                        </button>
-                      )}
-                      {isActualSubscription && membership?.overrideReason === 'admin_full_access' ? (
-                        <Badge tone="medium">{locale === 'en' ? 'Underlying subscription' : 'Suscripción real'}</Badge>
-                      ) : null}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {membershipError ? <div style={softPanelStyle}>{membershipError}</div> : null}
-          </section>
-        ) : null}
+        <AccountCenter
+          open={accountPanelOpen}
+          locale={locale}
+          authUser={authUser}
+          actorUser={actorUser}
+          authMe={authMe}
+          currentPlan={currentPlan}
+          currentPlanPriceLabel={currentPlanPriceLabel}
+          membership={membership}
+          membershipCatalog={membershipCatalog}
+          billingReady={billingReady}
+          canOpenBillingPortal={canOpenBillingPortal}
+          canManageCoachRoster={canManageCoachRoster}
+          isAdmin={isAdmin}
+          accountPanelTab={accountPanelTab}
+          authMode={authMode}
+          authEmail={authEmail}
+          authPassword={authPassword}
+          authDisplayName={authDisplayName}
+          resetToken={resetToken}
+          newPassword={newPassword}
+          resetTokenPreview={resetTokenPreview}
+          resetLinkPreview={resetLinkPreview}
+          authActionLoading={authActionLoading}
+          membershipActionLoading={membershipActionLoading}
+          authError={authError}
+          membershipError={membershipError}
+          adminLoading={adminLoading}
+          safeAdminUsers={safeAdminUsers}
+          coachRosterLoading={coachRosterLoading}
+          safeCoachRoster={safeCoachRoster}
+          coachPlayerEmail={coachPlayerEmail}
+          coachPlayerNote={coachPlayerNote}
+          onClose={() => setAccountPanelOpen(false)}
+          onTabChange={setAccountPanelTab}
+          onAuthModeChange={setAuthMode}
+          onAuthEmailChange={setAuthEmail}
+          onAuthPasswordChange={setAuthPassword}
+          onAuthDisplayNameChange={setAuthDisplayName}
+          onResetTokenChange={setResetToken}
+          onNewPasswordChange={setNewPassword}
+          onCoachPlayerEmailChange={setCoachPlayerEmail}
+          onCoachPlayerNoteChange={setCoachPlayerNote}
+          onAuthSubmit={handleAuthSubmit}
+          onResetPasswordConfirm={handleResetPasswordConfirm}
+          onLogout={handleLogout}
+          onPasswordChange={handlePasswordChange}
+          onBillingPortal={handleBillingPortal}
+          onCheckout={handleCheckout}
+          onDevPlanChange={handleDevPlanChange}
+          onStopImpersonation={handleStopImpersonation}
+          onAddCoachPlayer={handleAddCoachPlayer}
+          onRemoveCoachPlayer={handleRemoveCoachRosterPlayer}
+          onAdminRoleChange={handleAdminRoleUpdate}
+          onAdminPlanChange={handleAdminPlanUpdate}
+          onAdminImpersonation={handleAdminImpersonation}
+        />
 
-        {authError ? (
-          <section style={planSectionStyle}>
-            <div style={softPanelStyle}>{authError}</div>
-          </section>
-        ) : null}
-
-        {authUser ? (
-          <section style={planSectionStyle}>
-            <div style={{ display: 'grid', gap: 4 }}>
-              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                {locale === 'en' ? 'Account center' : 'Centro de cuenta'}
-              </div>
-              <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>
-                {locale === 'en' ? 'Identity, plan and billing actions' : 'Identidad, plan y acciones de billing'}
-              </div>
-            </div>
-            <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr repeat(2, minmax(0, 1fr))', gap: 12 }}>
-              <div style={softPanelStyle}>
-                <div style={{ color: '#eef4ff', fontWeight: 700 }}>{authUser.displayName}</div>
-                <div style={{ color: '#8f9bad', fontSize: 13 }}>{authUser.email}</div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <Badge tone="default">{actorUser?.role.toUpperCase() ?? 'USER'}</Badge>
-                  <Badge tone="low">{currentPlan?.name ?? 'Free'}</Badge>
-                  {membership?.overrideReason === 'admin_full_access' ? <Badge tone="medium">{locale === 'en' ? 'Full admin access' : 'Acceso admin completo'}</Badge> : null}
-                </div>
-              </div>
-              <div style={softPanelStyle}>
-                <div style={{ color: '#eef4ff', fontWeight: 700 }}>{locale === 'en' ? 'Billing status' : 'Estado de billing'}</div>
-                <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
-                  {membership
-                    ? (locale === 'en'
-                      ? `${membership.account.status} · ${membership.plan.entitlements.maxStoredProfiles} profiles · ${membership.plan.entitlements.maxStoredMatchesPerProfile} matches per profile`
-                      : `${membership.account.status} · ${membership.plan.entitlements.maxStoredProfiles} perfiles · ${membership.plan.entitlements.maxStoredMatchesPerProfile} partidas por perfil`)
-                    : (locale === 'en' ? 'Loading membership...' : 'Cargando membresía...')}
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {canOpenBillingPortal ? (
-                    <button type="button" style={secondaryButtonStyle} disabled={membershipActionLoading} onClick={() => void handleBillingPortal()}>
-                      {locale === 'en' ? 'Open billing portal' : 'Abrir portal de billing'}
-                    </button>
-                  ) : (
-                    <Badge tone="default">{billingReady ? (locale === 'en' ? 'Stripe ready' : 'Stripe listo') : (locale === 'en' ? 'Stripe pending' : 'Stripe pendiente')}</Badge>
-                  )}
-                </div>
-              </div>
-              <form onSubmit={handlePasswordChange} style={softPanelStyle}>
-                <div style={{ color: '#eef4ff', fontWeight: 700 }}>{locale === 'en' ? 'Password' : 'Contraseña'}</div>
-                <div style={{ display: 'grid', gap: 8 }}>
-                  <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} style={inputStyle} placeholder={locale === 'en' ? 'Current password' : 'Contraseña actual'} />
-                  <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} style={inputStyle} placeholder={locale === 'en' ? 'New password' : 'Nueva contraseña'} />
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button type="submit" style={secondaryButtonStyle} disabled={authActionLoading}>
-                    {authActionLoading ? (locale === 'en' ? 'Saving...' : 'Guardando...') : (locale === 'en' ? 'Change password' : 'Cambiar contraseña')}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </section>
-        ) : null}
-
-        {canManageCoachRoster ? (
-          <section style={planSectionStyle}>
-            <div style={{ display: 'grid', gap: 4 }}>
-              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                {locale === 'en' ? 'Coach workspace' : 'Workspace de coach'}
-              </div>
-              <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>
-                {locale === 'en' ? 'Roster, player linking and future staff workflows' : 'Roster, vínculo de jugadores y futuros workflows de staff'}
-              </div>
-            </div>
-            <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '0.95fr 1.05fr', gap: 12 }}>
-              <form
-                onSubmit={async (event) => {
-                  event.preventDefault();
-                  if (!coachPlayerEmail.trim()) return;
-                  setCoachRosterLoading(true);
-                  setAuthError(null);
-                  try {
-                    await addCoachPlayer({ playerEmail: coachPlayerEmail.trim(), note: coachPlayerNote.trim() || undefined });
-                    setCoachPlayerEmail('');
-                    setCoachPlayerNote('');
-                    await refreshCoachRoster();
-                  } catch (err) {
-                    setAuthError(err instanceof Error ? err.message : 'Unknown error');
-                  } finally {
-                    setCoachRosterLoading(false);
-                  }
-                }}
-                style={softPanelStyle}
-              >
-                <div style={{ color: '#eef4ff', fontWeight: 700 }}>{locale === 'en' ? 'Add player by account email' : 'Agregar jugador por email de cuenta'}</div>
-                <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
-                  {locale === 'en'
-                    ? 'The coach-player relation is stored independently from Riot profiles so you can manage people, not only accounts.'
-                    : 'La relación coach-jugador se guarda separada de los perfiles de Riot para que puedas gestionar personas, no solo cuentas.'}
-                </div>
-                <input type="email" value={coachPlayerEmail} onChange={(e) => setCoachPlayerEmail(e.target.value)} style={inputStyle} placeholder="player@email.com" />
-                <textarea value={coachPlayerNote} onChange={(e) => setCoachPlayerNote(e.target.value)} style={{ ...inputStyle, minHeight: 94, resize: 'vertical' }} placeholder={locale === 'en' ? 'Optional note about this player' : 'Nota opcional sobre este jugador'} />
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <button type="submit" style={buttonStyle} disabled={coachRosterLoading}>
-                    {coachRosterLoading ? (locale === 'en' ? 'Saving...' : 'Guardando...') : (locale === 'en' ? 'Link player' : 'Vincular jugador')}
-                  </button>
-                  {membership ? <Badge tone="low">{`${safeCoachRoster.length}/${membership.plan.entitlements.maxManagedPlayers}`}</Badge> : null}
-                </div>
-              </form>
-              <div style={{ ...softPanelStyle, alignContent: 'start' }}>
-                <div style={{ color: '#eef4ff', fontWeight: 700 }}>{locale === 'en' ? 'Current roster' : 'Roster actual'}</div>
-                {coachRosterLoading ? <div style={{ color: '#8f9bad', fontSize: 13 }}>{locale === 'en' ? 'Loading roster...' : 'Cargando roster...'}</div> : null}
-                {!coachRosterLoading && !safeCoachRoster.length ? (
-                  <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
-                    {locale === 'en' ? 'No linked players yet. This base is ready for the coach desk.' : 'Todavía no hay jugadores vinculados. Esta base ya está lista para el coach desk.'}
-                  </div>
-                ) : null}
-                <div style={{ display: 'grid', gap: 10 }}>
-                  {safeCoachRoster.map((entry) => (
-                    <div key={entry.assignmentId} style={adminRowStyle}>
-                      <div style={{ display: 'grid', gap: 4 }}>
-                        <div style={{ color: '#eef4ff', fontWeight: 700 }}>{entry.user.displayName}</div>
-                        <div style={{ color: '#8f9bad', fontSize: 12 }}>{entry.user.email}</div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <Badge tone="default">{entry.user.role.toUpperCase()}</Badge>
-                          <Badge tone="low">{new Date(entry.linkedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}</Badge>
-                        </div>
-                        {entry.note ? <div style={{ color: '#a8b4c8', fontSize: 12, lineHeight: 1.5 }}>{entry.note}</div> : null}
-                      </div>
-                      <button
-                        type="button"
-                        style={secondaryButtonStyle}
-                        onClick={async () => {
-                          setCoachRosterLoading(true);
-                          setAuthError(null);
-                          try {
-                            await removeCoachPlayer(entry.user.id);
-                            await refreshCoachRoster();
-                          } catch (err) {
-                            setAuthError(err instanceof Error ? err.message : 'Unknown error');
-                          } finally {
-                            setCoachRosterLoading(false);
-                          }
-                        }}
-                      >
-                        {locale === 'en' ? 'Remove' : 'Quitar'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-        {isAdmin ? (
-          <section style={planSectionStyle}>
-            <div style={{ display: 'grid', gap: 4 }}>
-              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                {locale === 'en' ? 'Admin area' : 'Área admin'}
-              </div>
-              <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>
-                {locale === 'en' ? 'Users, plans, usage and impersonation' : 'Usuarios, planes, uso y suplantación'}
-              </div>
-            </div>
-            <div style={{ display: 'grid', gap: 10 }}>
-              {adminLoading ? <div style={softPanelStyle}>{locale === 'en' ? 'Loading users...' : 'Cargando usuarios...'}</div> : null}
-              {!adminLoading && !safeAdminUsers.length ? <div style={softPanelStyle}>{locale === 'en' ? 'No users available yet.' : 'Todavía no hay usuarios disponibles.'}</div> : null}
-              {safeAdminUsers.map((entry) => (
-                <div key={entry.user.id} style={adminUserCardStyle}>
-                  <div style={{ display: 'grid', gap: 4 }}>
-                    <div style={{ color: '#eef4ff', fontWeight: 800 }}>{entry.user.displayName}</div>
-                    <div style={{ color: '#8f9bad', fontSize: 12 }}>{entry.user.email}</div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <Badge tone="default">{entry.user.role.toUpperCase()}</Badge>
-                      <Badge tone="low">{entry.membership.plan.name}</Badge>
-                      <Badge tone="low">{locale === 'en' ? `${entry.usage.openaiGenerations} AI` : `${entry.usage.openaiGenerations} IA`}</Badge>
-                      <Badge tone="default">{entry.membership.account.status}</Badge>
-                    </div>
-                  </div>
-                  <div style={{ display: 'grid', gap: 8, justifyItems: 'end' }}>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                      <select
-                        defaultValue={entry.user.role}
-                        style={selectStyle}
-                        onChange={async (event) => {
-                          setAuthActionLoading(true);
-                          setAuthError(null);
-                          try {
-                            await updateAdminUserRole(entry.user.id, event.target.value as 'user' | 'coach' | 'admin');
-                            await refreshAdminUsers();
-                            await refreshIdentity();
-                          } catch (err) {
-                            setAuthError(err instanceof Error ? err.message : 'Unknown error');
-                          } finally {
-                            setAuthActionLoading(false);
-                          }
-                        }}
-                      >
-                        <option value="user">user</option>
-                        <option value="coach">coach</option>
-                        <option value="admin">admin</option>
-                      </select>
-                      <select
-                        defaultValue={entry.membership.actualPlan?.id ?? entry.membership.plan.id}
-                        style={selectStyle}
-                        onChange={async (event) => {
-                          setMembershipActionLoading(true);
-                          setAuthError(null);
-                          try {
-                            await updateAdminUserPlan(entry.user.id, event.target.value as 'free' | 'pro_player' | 'pro_coach');
-                            await refreshAdminUsers();
-                            await refreshIdentity();
-                          } catch (err) {
-                            setAuthError(err instanceof Error ? err.message : 'Unknown error');
-                          } finally {
-                            setMembershipActionLoading(false);
-                          }
-                        }}
-                      >
-                        {membershipCatalog?.order.map((planId) => {
-                          const plan = membershipCatalog.plans.find((item) => item.id === planId);
-                          return <option key={planId} value={planId}>{plan?.name ?? planId}</option>;
-                        })}
-                      </select>
-                    </div>
-                    {authMe?.isImpersonating && authMe.actorUser?.id === entry.user.id ? null : (
-                      <button
-                        type="button"
-                        style={secondaryButtonStyle}
-                        onClick={async () => {
-                          setAuthActionLoading(true);
-                          setAuthError(null);
-                          try {
-                            await startAdminImpersonation(entry.user.id);
-                            await refreshIdentity();
-                          } catch (err) {
-                            setAuthError(err instanceof Error ? err.message : 'Unknown error');
-                          } finally {
-                            setAuthActionLoading(false);
-                          }
-                        }}
-                      >
-                        {locale === 'en' ? 'Impersonate' : 'Suplantar'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-        ) : null}
 
         <section style={heroGridStyle}>
           {!dataset ? (
@@ -1551,6 +1310,35 @@ function AppShell() {
                     <div style={{ height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
                       <div style={{ width: `${Math.max(8, (progress.current / Math.max(progress.total, 1)) * 100)}%`, height: '100%', background: '#67d6a4' }} />
                     </div>
+                  </div>
+                ) : null}
+                {!loading ? (
+                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+                    {[
+                      {
+                        title: locale === 'en' ? 'Coaching by role and live patch' : 'Coaching por rol y parche live',
+                        body: locale === 'en'
+                          ? 'The product reads your account through role scope, champion context and the current Riot patch instead of recycling generic league advice.'
+                          : 'El producto lee tu cuenta a través del alcance por rol, el contexto del campeón y el parche actual de Riot en vez de reciclar consejos genéricos.'
+                      },
+                      {
+                        title: locale === 'en' ? 'One saved account, evolving reads' : 'Una cuenta guardada, lecturas que evolucionan',
+                        body: locale === 'en'
+                          ? 'Snapshots, continuity and cached coaching keep the analysis stable while new matches update the story without wasting tokens.'
+                          : 'Snapshots, continuidad y coaching cacheado mantienen el análisis estable mientras las partidas nuevas actualizan la historia sin gastar tokens de más.'
+                      },
+                      {
+                        title: locale === 'en' ? 'Built for players and coaches' : 'Hecho para jugadores y coaches',
+                        body: locale === 'en'
+                          ? 'A serious player gets a cleaner improvement loop, and a coach gets the base to manage players, review progress and scale feedback.'
+                          : 'Un jugador serio consigue un loop de mejora más claro, y un coach tiene la base para gestionar jugadores, revisar progreso y escalar feedback.'
+                      }
+                    ].map((item) => (
+                      <div key={item.title} style={softPanelStyle}>
+                        <div style={{ color: '#eef4ff', fontWeight: 800 }}>{item.title}</div>
+                        <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.65 }}>{item.body}</div>
+                      </div>
+                    ))}
                   </div>
                 ) : null}
               </div>
@@ -2150,43 +1938,47 @@ const accountAccessStyle: CSSProperties = {
   display: 'flex',
   gap: 14,
   alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '12px 14px',
+  justifyContent: 'flex-end',
+  padding: '10px 12px',
   borderRadius: 18,
   background: 'linear-gradient(180deg, rgba(14,18,28,0.94), rgba(8,11,18,0.98))',
   border: '1px solid rgba(255,255,255,0.07)',
-  width: 'min(100%, 560px)',
+  width: 'min(100%, 430px)',
   boxShadow: '0 16px 40px rgba(0,0,0,0.14)'
 };
 
-const planSectionStyle: CSSProperties = {
-  display: 'grid',
-  gap: 12,
-  padding: '16px 18px',
-  borderRadius: 18,
-  background: 'linear-gradient(180deg, rgba(10,14,22,0.95), rgba(5,8,14,0.98))',
-  border: '1px solid rgba(255,255,255,0.06)'
+const accountTriggerStyle: CSSProperties = {
+  display: 'flex',
+  gap: 10,
+  alignItems: 'center',
+  padding: '8px 10px',
+  borderRadius: 14,
+  border: '1px solid rgba(255,255,255,0.07)',
+  background: 'rgba(255,255,255,0.02)',
+  color: '#eef4ff'
 };
 
-const planCardsGridStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-  gap: 12
+const accountAvatarStyle: CSSProperties = {
+  width: 34,
+  height: 34,
+  borderRadius: 999,
+  display: 'inline-grid',
+  placeItems: 'center',
+  background: 'linear-gradient(180deg, rgba(216,253,241,0.16), rgba(90,182,157,0.18))',
+  color: '#eefcf3',
+  fontWeight: 800
 };
 
-const planCardStyle: CSSProperties = {
+const accountPanelStyle: CSSProperties = {
   display: 'grid',
-  gap: 12,
-  padding: '16px 16px 18px',
-  borderRadius: 18,
-  background: '#090e16',
-  border: '1px solid rgba(255,255,255,0.06)'
+  gap: 14,
+  padding: '20px 22px',
+  borderRadius: 22,
+  background: 'linear-gradient(180deg, rgba(11,15,24,0.98), rgba(5,8,14,0.99))',
+  border: '1px solid rgba(255,255,255,0.07)',
+  boxShadow: '0 28px 70px rgba(0,0,0,0.2)'
 };
 
-const activePlanCardStyle: CSSProperties = {
-  background: 'linear-gradient(180deg, rgba(216,253,241,0.08), rgba(12,18,27,0.98))',
-  borderColor: 'rgba(216,253,241,0.18)'
-};
 
 const topBarGhostButtonStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.08)',
@@ -2307,22 +2099,6 @@ const secondaryButtonStyle: CSSProperties = {
   cursor: 'pointer'
 };
 
-const smallActionButtonStyle: CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.08)',
-  padding: '9px 12px',
-  borderRadius: 12,
-  background: 'rgba(255,255,255,0.02)',
-  color: '#9fb0c7',
-  fontWeight: 700,
-  fontSize: 12,
-  cursor: 'pointer'
-};
-
-const activeSmallActionButtonStyle: CSSProperties = {
-  background: 'rgba(216,253,241,0.08)',
-  color: '#e9fff7',
-  borderColor: 'rgba(216,253,241,0.2)'
-};
 
 const tabStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.08)',
@@ -2485,134 +2261,6 @@ const adminRowStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.05)'
 };
 
-function TopStat({ label, value, hint }: { label: string; value: string; hint: string }) {
-  return (
-    <div style={topStatStyle}>
-      <div style={{ color: '#768091', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
-      <div style={{ fontSize: 21, fontWeight: 800, lineHeight: 1.05 }}>{value}</div>
-      <div style={{ color: '#8692a7', fontSize: 12 }}>{hint}</div>
-    </div>
-  );
-}
-
-function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonNullable<Dataset['rank']>; compact?: boolean; locale?: Locale }) {
-  const palette = getRankPalette(rank.highest.tier);
-  const lpProgress = Math.max(0, Math.min(rank.highest.leaguePoints, 100));
-  const showFlex = rank.flexQueue.tier !== 'UNRANKED';
-  const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR${showFlex ? `\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR` : ''}`;
-
-  return (
-    <div title={title} style={{
-      display: 'grid',
-      gap: compact ? 8 : 10,
-      minWidth: 0,
-      padding: compact ? '12px 14px' : '16px 18px',
-      borderRadius: 16,
-      background: compact ? 'rgba(9, 14, 22, 0.86)' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
-      border: `1px solid ${palette.primary}33`
-    }}>
-      <div style={{ display: 'grid', gridTemplateColumns: `${compact ? 94 : 104}px minmax(0, 1fr)`, alignItems: 'center', gap: compact ? 4 : 10 }}>
-        <RankEmblem tier={rank.highest.tier} label={rank.highest.label} size={compact ? 94 : 104} />
-        <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
-          <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{rank.highest.queueLabel ?? (locale === 'en' ? 'Ranked' : 'Ranked')}</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: compact ? 17 : 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.highest.label}</span>
-            <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.highest.leaguePoints} LP`}</span>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-            <span style={rankQueuePillStyle}>
-              <strong>{locale === 'en' ? 'Solo' : 'Solo'}</strong> {rank.soloQueue.label} · {rank.soloQueue.leaguePoints} LP
-            </span>
-            {showFlex ? (
-              <span style={rankQueuePillStyle}>
-                <strong>Flex</strong> {rank.flexQueue.label} · {rank.flexQueue.leaguePoints} LP
-              </span>
-            ) : null}
-          </div>
-        </div>
-      </div>
-      <div style={{ display: 'grid', gap: 5 }}>
-        <div style={{ height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-          <div style={{ width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` }} />
-        </div>
-        {!compact ? (
-          <div style={{ color: '#7e889b', fontSize: 11 }}>
-            {locale === 'en' ? 'Hover to view Solo/Duo and Flex' : 'Hover para ver Solo/Duo y Flex'}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function RankEmblem({ tier, label, size }: { tier?: string; label: string; size: number }) {
-  const emblem = getRankEmblemDataUrl(tier);
-  const palette = getRankPalette(tier);
-  const assetSize = Math.round(size * 3);
-
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        width: size,
-        height: size,
-        overflow: 'hidden',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        filter: `drop-shadow(0 16px 32px ${palette.primary}24)`
-      }}
-    >
-      <img
-        src={emblem}
-        alt={label}
-        width={assetSize}
-        height={assetSize}
-        style={{
-          display: 'block',
-          width: assetSize,
-          height: assetSize,
-          objectFit: 'contain',
-          marginTop: Math.round(size * 0.04)
-        }}
-      />
-    </div>
-  );
-}
-
-function TrendSparkline({ matches, locale = 'es' }: { matches: Dataset['matches']; locale?: Locale }) {
-  const sorted = [...matches].sort((a, b) => a.gameCreation - b.gameCreation).slice(-12);
-  const values = sorted.map((match) => match.score.total);
-  const min = Math.min(...values, 0);
-  const max = Math.max(...values, 100);
-  const points = values.map((value, index) => {
-    const x = values.length === 1 ? 0 : (index / Math.max(values.length - 1, 1)) * 100;
-    const y = 100 - (((value - min) / Math.max(max - min, 1)) * 100);
-    return `${x},${y}`;
-  }).join(' ');
-
-  return (
-    <div style={sparklineCardStyle}>
-      <div style={{ color: '#7d889c', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Latest matches' : 'Últimas partidas'}</div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 12 }}>
-        <div style={{ display: 'grid', gap: 4 }}>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{locale === 'en' ? 'Recent performance' : 'Performance reciente'}</div>
-          <div style={{ color: '#8895aa', fontSize: 12 }}>{locale === 'en' ? 'Sparkline from the last 12 valid matches' : 'Sparkline de las últimas 12 partidas válidas'}</div>
-        </div>
-        <div style={{ color: '#dff7eb', fontSize: 12, fontWeight: 700 }}>{values.length ? (locale === 'en' ? `${Math.round(values.at(-1) ?? 0)} latest score` : `${Math.round(values.at(-1) ?? 0)} último score`) : (locale === 'en' ? 'No data' : 'Sin datos')}</div>
-      </div>
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ width: '100%', height: 84, display: 'block' }}>
-        <defs>
-          <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(216,253,241,0.34)" />
-            <stop offset="100%" stopColor="rgba(216,253,241,0)" />
-          </linearGradient>
-        </defs>
-        <polyline fill="none" stroke="rgba(216,253,241,0.95)" strokeWidth="3" points={points} />
-      </svg>
-    </div>
-  );
-}
 
 const topStatStyle: CSSProperties = {
   minWidth: 126,

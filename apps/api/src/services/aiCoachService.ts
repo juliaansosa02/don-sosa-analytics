@@ -176,6 +176,68 @@ function buildRoleScopeLabel(roles: string[], locale: 'es' | 'en') {
   return labels.join(locale === 'en' ? ' + ' : ' + ');
 }
 
+function buildRoleFundamentals(role: string, locale: 'es' | 'en') {
+  const en: Record<string, string[]> = {
+    TOP: [
+      'wave control, trade windows and crash/reset discipline',
+      'matchup spacing and surviving weakside without donating tempo',
+      'side-lane assignment, tower pressure and teleport value'
+    ],
+    JUNGLE: [
+      'pathing efficiency, first clear tempo and camp-to-play connection',
+      'lane reading before committing to ganks, covers or invades',
+      'objective setup, numbers advantage and converting first tempo into map control'
+    ],
+    MIDDLE: [
+      'lane priority, crash timing and first move quality',
+      'trading without losing reset tempo or mid control',
+      'moving to the live side of the map before objectives and skirmishes'
+    ],
+    BOTTOM: [
+      'lane economy, trade spacing and wave control with support timing',
+      'clean recalls, item windows and entering mid game with stable DPS setup',
+      'fight entry discipline, front-to-back positioning and damage uptime'
+    ],
+    UTILITY: [
+      'lane control through spacing, cooldown tracking and vision discipline',
+      'roam timing that does not grief bot wave or objective setup',
+      'protecting carries, starting fights on advantage and controlling map information'
+    ]
+  };
+
+  const es: Record<string, string[]> = {
+    TOP: [
+      'control de ola, ventanas de trade y disciplina de crash/reset',
+      'spacing del matchup y sobrevivir weakside sin regalar tempo',
+      'asignación de side lane, presión de torre y valor real del teleport'
+    ],
+    JUNGLE: [
+      'eficiencia de pathing, tempo del primer clear y conexión entre camps y jugada',
+      'lectura de líneas antes de comprometer ganks, covers o invades',
+      'setup de objetivos, ventaja numérica y convertir el primer tempo en control de mapa'
+    ],
+    MIDDLE: [
+      'prioridad de línea, timing de crash y calidad del first move',
+      'tradear sin perder tempo de reset ni control de mid',
+      'moverse al lado vivo del mapa antes de objetivos y escaramuzas'
+    ],
+    BOTTOM: [
+      'economía de línea, spacing de trades y control de ola con el timing del support',
+      'recalls limpios, ventanas de item y entrar al mid game con DPS estable',
+      'disciplina de entrada a peleas, posicionamiento front-to-back y uptime de daño'
+    ],
+    UTILITY: [
+      'control de línea mediante spacing, tracking de cooldowns y visión disciplinada',
+      'timing de roam sin griefear la bot wave ni el setup del objetivo',
+      'proteger carries, iniciar con ventaja y controlar la información del mapa'
+    ]
+  };
+
+  return (locale === 'en' ? en : es)[role] ?? (locale === 'en'
+    ? ['tempo, economy and map decisions']
+    : ['tempo, economía y decisiones de mapa']);
+}
+
 function filterMatches(dataset: StoredDataset, input: AICoachRequest) {
   let matches = [...dataset.matches];
   const coachRoles = normalizeCoachRoles(input);
@@ -232,8 +294,18 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
   const coachRoles = normalizeCoachRoles(input);
   const roleScopeLabel = buildRoleScopeLabel(coachRoles, input.locale);
   const summary = buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, matches, input.locale);
+  const primaryRole = summary.primaryRole ?? coachRoles[0] ?? undefined;
   const anchorChampion = summary.championPool[0]?.championName ?? null;
   const matchupAlert = buildMatchupAlert(matches);
+  const avgGoldDiffAt15 = matches.length
+    ? Number((matches.reduce((total, match) => total + (match.timeline.goldDiffAt15 ?? 0), 0) / matches.length).toFixed(0))
+    : 0;
+  const avgLevelDiffAt15 = matches.length
+    ? Number((matches.reduce((total, match) => total + (match.timeline.levelDiffAt15 ?? 0), 0) / matches.length).toFixed(1))
+    : 0;
+  const avgKillParticipation = matches.length
+    ? Number((matches.reduce((total, match) => total + match.killParticipation, 0) / matches.length).toFixed(1))
+    : 0;
 
   const visibleMatchIds = matches.map((match) => match.matchId).slice(0, 20);
   const sampleSignature = createHash('sha1')
@@ -261,6 +333,7 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       visibleMatches: summary.matches,
       rankLabel: dataset.rank?.highest.label,
       highestTier: dataset.rank?.highest.tier,
+      primaryRole,
       anchorChampion
     },
     performance: {
@@ -268,6 +341,9 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       avgPerformance: summary.avgPerformanceScore,
       avgCsAt15: summary.avgCsAt15,
       avgGoldAt15: summary.avgGoldAt15,
+      avgGoldDiffAt15,
+      avgLevelDiffAt15,
+      avgKillParticipation,
       avgDeathsPre14: summary.avgDeathsPre14,
       consistencyIndex: summary.consistencyIndex
     },
@@ -311,6 +387,12 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       levelDiffAt15: match.timeline.levelDiffAt15,
       score: match.score.total
     })),
+    roleLenses: (coachRoles.length ? coachRoles : (primaryRole ? [primaryRole] : []))
+      .slice(0, 2)
+      .map((role) => ({
+        role,
+        fundamentals: buildRoleFundamentals(role, input.locale)
+      })),
     sample: {
       visibleMatchIds,
       sampleSignature,
@@ -426,6 +508,22 @@ function buildPersonalizedMainLeak(context: AICoachContext, coach: AICoachOutput
       return locale === 'en'
         ? `You are not mainly losing one random fight. You are arriving badly to objective windows and giving away control before the real play starts.`
         : `No estás perdiendo por una teamfight aislada. Estás llegando mal a las ventanas de objetivo y regalando el control antes de que empiece la jugada real.`;
+    case 'gold_diff_at_15':
+      return locale === 'en'
+        ? `Your current block is leaking too much state before minute 15: you are often entering the real game already behind in gold or levels on ${roleText}.`
+        : `Tu bloque actual está cediendo demasiado estado antes del minuto 15: estás entrando demasiadas veces a la partida real ya abajo en oro o niveles en ${roleText}.`;
+    case 'kill_participation':
+      return locale === 'en'
+        ? `The issue is not just execution. You are connecting too late or too poorly to the plays that really move the map for ${roleText}.`
+        : `El problema no es solo de ejecución. Te estás conectando tarde o mal a las jugadas que realmente mueven el mapa para ${roleText}.`;
+    case 'champion_pool_stability':
+      return locale === 'en'
+        ? `Your current pool is too open for the kind of improvement block you want. The sample is spreading your mistakes across too many picks to lock habits fast.`
+        : `Tu pool actual está demasiado abierto para el tipo de bloque de mejora que querés. La muestra está repartiendo tus errores entre demasiados picks como para fijar hábitos rápido.`;
+    case 'lead_conversion':
+      return locale === 'en'
+        ? `You are creating enough early edge to matter, but you are not converting that advantage into stable control of the game often enough.`
+        : `Estás generando una ventaja temprana suficiente como para pesar, pero no la estás convirtiendo lo bastante seguido en control estable de la partida.`;
     case 'matchup_review':
       return locale === 'en'
         ? `${coach.mainLeak}. This is already specific enough to justify targeted matchup prep before you queue again.`
@@ -461,6 +559,30 @@ function buildPersonalizedSummary(context: AICoachContext, coach: AICoachOutput)
       : `Tus partidas están perdiendo valor antes o alrededor del setup, no solo durante la pelea. La mejora más rápida pasa por ordenar mejor resets, visión y tiempo de llegada.`;
   }
 
+  if (topProblem.focusMetric === 'gold_diff_at_15') {
+    return locale === 'en'
+      ? `The problem is not one isolated fight. It is the amount of game state you are handing over before the map even reaches a stable mid game.`
+      : `El problema no es una pelea aislada. Es la cantidad de estado de partida que estás entregando antes de que el mapa siquiera llegue a un mid game estable.`;
+  }
+
+  if (topProblem.focusMetric === 'kill_participation') {
+    return locale === 'en'
+      ? `The sample points to a map-connection issue: your champion is not arriving often enough to the decisive sequences with the right tempo, pathing or priority.`
+      : `La muestra apunta a un problema de conexión con el mapa: tu campeón no está llegando lo bastante seguido a las secuencias decisivas con el tempo, el pathing o la prioridad correctos.`;
+  }
+
+  if (topProblem.focusMetric === 'champion_pool_stability') {
+    return locale === 'en'
+      ? `This is less about raw strength and more about learning speed. The current pool is wide enough that it keeps blurring what you really need to fix first.`
+      : `Esto tiene menos que ver con fuerza bruta y más con velocidad de aprendizaje. El pool actual es lo bastante ancho como para seguir tapando qué necesitás corregir primero.`;
+  }
+
+  if (topProblem.focusMetric === 'lead_conversion') {
+    return locale === 'en'
+      ? `You are already opening some games well. The next jump comes from learning how to protect and convert those openings instead of letting the map reset for free.`
+      : `Ya estás abriendo bien algunas partidas. El próximo salto pasa por aprender a proteger y convertir esas aperturas en vez de dejar que el mapa se reseteé gratis.`;
+  }
+
   return coach.summary;
 }
 
@@ -483,6 +605,9 @@ Rules:
 - Write every field fully in the player's locale. Never mix Spanish and English inside the same answer.
 - Do not claim external elo benchmarks unless explicitly provided.
 - Avoid generic advice like "farm better" or "play safer".
+- Differentiate clearly between lane state, income, deaths, map connection, lead conversion, champion mastery and objective setup.
+- Do not default to objective setup if another leak is better supported by the evidence.
+- Use the provided role fundamentals to decide what matters most for this player before you speak.
 - Always turn the diagnosis into review instructions and next-game habits.
 - Write with the tone of a high-level analyst coaching a serious player.
 - If the evidence is weak, say so and lower confidence.
@@ -513,8 +638,8 @@ function buildUserPrompt(
         }
       : null,
     instruction: context.player.locale === 'en'
-      ? 'Use the diagnosis and the retrieved coaching knowledge to produce the next coaching block. Write only in English, make the main leak concrete and personalized, avoid generic labels, and if previous coaching exists, update the guidance with continuity instead of restarting from zero.'
-      : 'Usá el diagnóstico y el conocimiento recuperado para producir el siguiente bloque de coaching. Escribí solo en español, hacé que el problema principal sea concreto y personalizado, evitá etiquetas genéricas y, si existe coaching previo, actualizá la guía con continuidad en vez de reiniciarla desde cero.'
+      ? 'Use the diagnosis, role fundamentals, patch context and retrieved coaching knowledge to produce the next coaching block. Write only in English, make the main leak concrete and personalized, avoid generic labels, and if previous coaching exists, update the guidance with continuity instead of restarting from zero.'
+      : 'Usá el diagnóstico, los fundamentos del rol, el contexto de parche y el conocimiento recuperado para producir el siguiente bloque de coaching. Escribí solo en español, hacé que el problema principal sea concreto y personalizado, evitá etiquetas genéricas y, si existe coaching previo, actualizá la guía con continuidad en vez de reiniciarla desde cero.'
   });
 }
 

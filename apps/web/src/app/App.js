@@ -4,13 +4,15 @@ import { Component, useEffect, useMemo, useState } from 'react';
 import { addCoachPlayer, changePassword, collectProfile, createBillingPortalSession, createCheckoutSession, fetchAdminUsers, fetchAuthMe, fetchCachedProfile, fetchCoachPlayers, fetchMembershipCatalog, generateAICoach, login, logout, removeCoachPlayer, requestPasswordReset, resetPassword, sendAICoachFeedback, setMembershipPlanDev, signup, startAdminImpersonation, stopAdminImpersonation, updateAdminUserPlan, updateAdminUserRole } from '../lib/api';
 import { Shell, Card, Badge } from '../components/ui';
 import { CoachingHome } from '../features/coach/CoachingHome';
+import { AccountCenter } from '../features/account/AccountCenter';
+import { RankBadge, RankEmblem } from '../features/profile/ProfilePrimitives';
 import { StatsTab } from '../features/stats/StatsTab';
 import { MatchupsTab } from '../features/matchups/MatchupsTab';
 import { RunesTab } from '../features/runes/RunesTab';
 import { ChampionPoolTab } from '../features/champion-pool/ChampionPoolTab';
 import { MatchesTab } from '../features/matches/MatchesTab';
 import { detectLocale, translateRole } from '../lib/i18n';
-import { buildProfileIdentityKey, getProfileIconUrl, getQueueBucket, getQueueLabel, getRankEmblemDataUrl, getRankPalette, getRiotPlatformInfo, getRoleLabel, guessDefaultRiotPlatform, supportedRiotPlatforms } from '../lib/lol';
+import { buildProfileIdentityKey, getProfileIconUrl, getQueueBucket, getQueueLabel, getRiotPlatformInfo, getRoleLabel, guessDefaultRiotPlatform, supportedRiotPlatforms } from '../lib/lol';
 import { buildCs15Benchmark } from '../lib/benchmarks';
 const tabs = [
     { id: 'coach', label: { es: 'Coaching', en: 'Coaching' } },
@@ -193,6 +195,8 @@ function AppShell() {
     const [gameName, setGameName] = useState('');
     const [tagLine, setTagLine] = useState('');
     const [showAccountControls, setShowAccountControls] = useState(true);
+    const [accountPanelOpen, setAccountPanelOpen] = useState(false);
+    const [accountPanelTab, setAccountPanelTab] = useState('auth');
     const [loading, setLoading] = useState(false);
     const [progress, setProgress] = useState(null);
     const [error, setError] = useState(null);
@@ -220,6 +224,7 @@ function AppShell() {
     const [resetToken, setResetToken] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [resetTokenPreview, setResetTokenPreview] = useState(null);
+    const [resetLinkPreview, setResetLinkPreview] = useState(null);
     const [adminUsers, setAdminUsers] = useState([]);
     const [adminLoading, setAdminLoading] = useState(false);
     const [coachRoster, setCoachRoster] = useState([]);
@@ -241,6 +246,10 @@ function AppShell() {
     const canOpenBillingPortal = Boolean(membership?.account.stripeCustomerId && billingReady);
     const canManageCoachRoster = Boolean(actorUser && (actorUser.role === 'coach' || actorUser.role === 'admin'));
     const isAdmin = actorUser?.role === 'admin';
+    function openAccountPanel(nextTab) {
+        setAccountPanelTab(nextTab ?? (authUser ? 'profile' : 'auth'));
+        setAccountPanelOpen(true);
+    }
     async function refreshIdentity() {
         setMembershipLoading(true);
         setAuthLoading(true);
@@ -301,14 +310,23 @@ function AppShell() {
             else {
                 const result = await requestPasswordReset({ email: authEmail });
                 setResetTokenPreview(result.devResetToken);
+                setResetLinkPreview(result.devResetUrl);
+                if (result.devResetToken) {
+                    setResetToken(result.devResetToken);
+                }
                 setSyncMessage(locale === 'en'
-                    ? 'If the account exists, we generated a reset flow. In dev, the reset token appears below.'
-                    : 'Si la cuenta existe, generamos el flujo de recuperación. En dev, el token aparece abajo.');
+                    ? result.devResetUrl
+                        ? 'If the account exists, we generated the recovery flow. In dev, the reset link is ready and the token was autofilled so you can finish the reset now.'
+                        : 'If the account exists, we generated the recovery flow. Check your email for the reset link or token.'
+                    : result.devResetUrl
+                        ? 'Si la cuenta existe, generamos el flujo de recuperación. En dev, el link quedó listo y el token se autocompletó para que puedas terminar el reset ahora.'
+                        : 'Si la cuenta existe, generamos el flujo de recuperación. Revisá tu email para seguir con el reset.');
             }
             if (authMode !== 'reset') {
                 setAuthPassword('');
                 setNewPassword('');
                 setResetToken('');
+                setResetLinkPreview(null);
                 await refreshIdentity();
             }
         }
@@ -333,6 +351,7 @@ function AppShell() {
             setResetToken('');
             setNewPassword('');
             setResetTokenPreview(null);
+            setResetLinkPreview(null);
         }
         catch (err) {
             setAuthError(err instanceof Error ? err.message : 'Unknown error');
@@ -456,6 +475,15 @@ function AppShell() {
         setAdminUsers([]);
         setCoachRoster([]);
     }, [actorUser?.id, actorUser?.role]);
+    useEffect(() => {
+        if (!authUser) {
+            setAccountPanelTab('auth');
+            return;
+        }
+        if (accountPanelTab === 'auth') {
+            setAccountPanelTab('profile');
+        }
+    }, [authUser?.id]);
     async function hydrateFromServer(gameNameValue, tagLineValue, platformValue) {
         try {
             const serverDataset = await fetchCachedProfile(gameNameValue, tagLineValue, platformValue, locale);
@@ -485,6 +513,46 @@ function AppShell() {
     useEffect(() => {
         void refreshIdentity();
     }, []);
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        let touched = false;
+        const billingState = params.get('billing');
+        if (billingState === 'success') {
+            setSyncMessage(locale === 'en'
+                ? 'Billing confirmed. We are refreshing your account state and membership.'
+                : 'Facturación confirmada. Estamos refrescando el estado de tu cuenta y tu membresía.');
+            openAccountPanel('membership');
+            touched = true;
+            params.delete('billing');
+        }
+        else if (billingState === 'cancel') {
+            setSyncMessage(locale === 'en'
+                ? 'Checkout was canceled. Your current plan stays unchanged.'
+                : 'El checkout se canceló. Tu plan actual sigue igual.');
+            openAccountPanel('membership');
+            touched = true;
+            params.delete('billing');
+        }
+        const resetTokenFromUrl = params.get('resetToken');
+        const authModeFromUrl = params.get('authMode');
+        if (resetTokenFromUrl || authModeFromUrl === 'reset') {
+            setAuthMode('reset');
+            if (resetTokenFromUrl) {
+                setResetToken(resetTokenFromUrl);
+            }
+            setAccountPanelTab('auth');
+            setAccountPanelOpen(true);
+            touched = true;
+            params.delete('resetToken');
+            params.delete('authMode');
+            params.delete('account');
+        }
+        if (touched) {
+            const nextQuery = params.toString();
+            const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash}`;
+            window.history.replaceState({}, '', nextUrl);
+        }
+    }, [locale]);
     useEffect(() => {
         const rawProfiles = window.localStorage.getItem(savedProfilesStorageKey);
         if (rawProfiles) {
@@ -919,136 +987,122 @@ function AppShell() {
             setAICoachError(err instanceof Error ? err.message : 'Unknown error');
         }
     }
-    return (_jsx(Shell, { children: _jsxs("div", { style: { display: 'grid', gap: 18, maxWidth: 1440, margin: '0 auto' }, children: [_jsxs("section", { style: topBarStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#eef4ff', fontSize: 18, fontWeight: 800, letterSpacing: '-0.03em' }, children: "Don Sosa Coach" }), _jsx("div", { style: { color: '#8b96aa', fontSize: 13 }, children: locale === 'en' ? 'Premium coaching, review and progression tracking for League of Legends.' : 'Coaching premium, revisión y seguimiento de progreso para League of Legends.' })] }), _jsx("div", { style: accountAccessStyle, children: authUser ? (_jsxs("div", { style: { display: 'grid', gap: 12, width: '100%' }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#dfe8f6', fontSize: 13, fontWeight: 700 }, children: locale === 'en' ? 'Signed in account' : 'Cuenta iniciada' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 18, fontWeight: 800 }, children: authUser.displayName }), _jsx("div", { style: { color: '#8190a6', fontSize: 12 }, children: authUser.email })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }, children: [_jsx(Badge, { tone: "default", children: currentPlan?.name ?? (locale === 'en' ? 'Loading plan' : 'Cargando plan') }), actorUser ? _jsx(Badge, { tone: "low", children: actorUser.role.toUpperCase() }) : null, authMe?.isImpersonating ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? 'Impersonating' : 'Suplantando' }) : null, membership?.overrideReason === 'admin_full_access' ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? 'Admin full access' : 'Admin full access' }) : null] })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }, children: [currentPlanPriceLabel ? _jsx(Badge, { tone: "default", children: currentPlanPriceLabel }) : null, membership ? _jsx(Badge, { tone: "low", children: locale === 'en' ? `${membership.linkedProfiles.length}/${membership.plan.entitlements.maxStoredProfiles} profiles` : `${membership.linkedProfiles.length}/${membership.plan.entitlements.maxStoredProfiles} perfiles` }) : null, membership ? _jsx(Badge, { tone: "low", children: locale === 'en' ? `${membership.usage.openaiGenerations}/${membership.plan.entitlements.maxAICoachRunsPerMonth} AI runs` : `${membership.usage.openaiGenerations}/${membership.plan.entitlements.maxAICoachRunsPerMonth} corridas IA` }) : null, membership ? _jsx(Badge, { tone: "default", children: membership.account.status }) : null] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [canOpenBillingPortal ? (_jsx("button", { type: "button", style: secondaryButtonStyle, disabled: membershipActionLoading, onClick: () => void handleBillingPortal(), children: membershipActionLoading ? (locale === 'en' ? 'Opening...' : 'Abriendo...') : (locale === 'en' ? 'Manage billing' : 'Gestionar billing') })) : null, authMe?.isImpersonating ? (_jsx("button", { type: "button", style: secondaryButtonStyle, disabled: authActionLoading, onClick: async () => {
-                                                    setAuthActionLoading(true);
-                                                    setAuthError(null);
-                                                    try {
-                                                        await stopAdminImpersonation();
-                                                        await refreshIdentity();
-                                                    }
-                                                    catch (err) {
-                                                        setAuthError(err instanceof Error ? err.message : 'Unknown error');
-                                                    }
-                                                    finally {
-                                                        setAuthActionLoading(false);
-                                                    }
-                                                }, children: locale === 'en' ? 'Stop impersonation' : 'Salir de la suplantación' })) : null, _jsx("button", { type: "button", style: secondaryButtonStyle, disabled: authActionLoading, onClick: () => void handleLogout(), children: authActionLoading ? (locale === 'en' ? 'Closing...' : 'Cerrando...') : (locale === 'en' ? 'Log out' : 'Cerrar sesión') })] })] })) : (_jsxs("div", { style: { display: 'grid', gap: 12, width: '100%' }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#dfe8f6', fontSize: 13, fontWeight: 700 }, children: locale === 'en' ? 'Account and membership' : 'Cuenta y membresía' }), _jsx("div", { style: { color: '#8190a6', fontSize: 12, maxWidth: 280 }, children: locale === 'en'
-                                                            ? 'Create your account to persist coaching, plans and future billing.'
-                                                            : 'Creá tu cuenta para persistir coaching, planes y billing futuro.' })] }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: ['login', 'signup', 'reset'].map((mode) => (_jsx("button", { type: "button", onClick: () => setAuthMode(mode), style: {
-                                                        ...smallActionButtonStyle,
-                                                        ...(authMode === mode ? activeSmallActionButtonStyle : {})
-                                                    }, children: mode === 'login'
-                                                        ? (locale === 'en' ? 'Login' : 'Ingresar')
-                                                        : mode === 'signup'
-                                                            ? (locale === 'en' ? 'Create account' : 'Crear cuenta')
-                                                            : (locale === 'en' ? 'Reset password' : 'Recuperar') }, mode))) })] }), _jsxs("form", { onSubmit: handleAuthSubmit, style: { display: 'grid', gap: 10 }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: authMode === 'signup' ? 'repeat(3, minmax(0, 1fr))' : 'repeat(2, minmax(0, 1fr))', gap: 10 }, children: [authMode === 'signup' ? (_jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Display name' : 'Nombre visible' }), _jsx("input", { value: authDisplayName, onChange: (e) => setAuthDisplayName(e.target.value), style: inputStyle, placeholder: locale === 'en' ? 'For example, Don Sosa' : 'Por ejemplo, Don Sosa' })] })) : null, _jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: "Email" }), _jsx("input", { type: "email", value: authEmail, onChange: (e) => setAuthEmail(e.target.value), style: inputStyle, placeholder: "vos@email.com" })] }), authMode !== 'reset' ? (_jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Password' : 'Contraseña' }), _jsx("input", { type: "password", value: authPassword, onChange: (e) => setAuthPassword(e.target.value), style: inputStyle, placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" })] })) : null] }), _jsxs("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }, children: [_jsx("button", { type: "submit", style: buttonStyle, disabled: authActionLoading, children: authActionLoading
-                                                            ? (locale === 'en' ? 'Processing...' : 'Procesando...')
-                                                            : authMode === 'login'
-                                                                ? (locale === 'en' ? 'Log in' : 'Iniciar sesión')
-                                                                : authMode === 'signup'
-                                                                    ? (locale === 'en' ? 'Create account' : 'Crear cuenta')
-                                                                    : (locale === 'en' ? 'Send recovery' : 'Enviar recuperación') }), currentPlan ? _jsx(Badge, { tone: "default", children: currentPlan.name }) : null, membership ? _jsx(Badge, { tone: "low", children: locale === 'en' ? `${membership.linkedProfiles.length} temporary profiles` : `${membership.linkedProfiles.length} perfiles temporales` }) : null] })] }), authMode === 'reset' ? (_jsxs("form", { onSubmit: handleResetPasswordConfirm, style: { display: 'grid', gap: 10, paddingTop: 2 }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }, children: [_jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Reset token' : 'Token de recuperación' }), _jsx("input", { value: resetToken, onChange: (e) => setResetToken(e.target.value), style: inputStyle, placeholder: locale === 'en' ? 'Paste the token here' : 'Pegá el token acá' })] }), _jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'New password' : 'Nueva contraseña' }), _jsx("input", { type: "password", value: newPassword, onChange: (e) => setNewPassword(e.target.value), style: inputStyle, placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" })] })] }), _jsxs("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }, children: [_jsx("button", { type: "submit", style: secondaryButtonStyle, disabled: authActionLoading, children: authActionLoading ? (locale === 'en' ? 'Saving...' : 'Guardando...') : (locale === 'en' ? 'Apply new password' : 'Aplicar nueva contraseña') }), resetTokenPreview ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? `Dev token: ${resetTokenPreview}` : `Token dev: ${resetTokenPreview}` }) : null] })] })) : null] })) })] }), membershipCatalog?.plans?.length ? (_jsxs("section", { style: planSectionStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Memberships' : 'Membresías' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: locale === 'en' ? 'Limits, upgrades and entitlement model' : 'Límites, upgrades y modelo de entitlements' }), membership ? (_jsx("div", { style: { color: '#8793a8', fontSize: 13, lineHeight: 1.6 }, children: locale === 'en'
-                                        ? `Current status: ${membership.account.status}. Effective plan: ${membership.plan.name}${membership.actualPlan && membership.actualPlan.id !== membership.plan.id ? ` · actual subscription: ${membership.actualPlan.name}` : ''}.`
-                                        : `Estado actual: ${membership.account.status}. Plan efectivo: ${membership.plan.name}${membership.actualPlan && membership.actualPlan.id !== membership.plan.id ? ` · suscripción real: ${membership.actualPlan.name}` : ''}.` })) : null] }), _jsx("div", { style: planCardsGridStyle, children: membershipCatalog.plans.map((plan) => {
-                                const isCurrent = membership?.plan.id === plan.id;
-                                const isActualSubscription = membership?.actualPlan?.id === plan.id;
-                                return (_jsxs("div", { style: { ...planCardStyle, ...(isCurrent ? activePlanCardStyle : {}) }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }, children: [_jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 800, fontSize: 16 }, children: plan.name }), _jsx("div", { style: { color: '#8a97ab', fontSize: 13, lineHeight: 1.5 }, children: plan.description })] }), _jsx(Badge, { tone: isCurrent ? 'low' : 'default', children: isCurrent ? (locale === 'en' ? 'Current' : 'Actual') : plan.badge })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "low", children: plan.monthlyUsd === 0 ? (locale === 'en' ? 'Free' : 'Gratis') : (locale === 'en' ? `US$${plan.monthlyUsd}/month` : `US$${plan.monthlyUsd}/mes`) }), _jsx(Badge, { tone: "default", children: `${plan.entitlements.maxStoredMatchesPerProfile} ${locale === 'en' ? 'matches/profile' : 'partidas/perfil'}` }), _jsx(Badge, { tone: "default", children: `${plan.entitlements.maxStoredProfiles} ${locale === 'en' ? 'profiles' : 'perfiles'}` })] }), _jsx("div", { style: { display: 'grid', gap: 6 }, children: plan.featureHighlights.slice(0, 4).map((feature) => (_jsxs("div", { style: { color: '#d5dfef', fontSize: 13, lineHeight: 1.5 }, children: ["\u2022 ", feature] }, feature))) }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }, children: [isCurrent ? (_jsx("button", { type: "button", style: topBarPrimaryButtonStyle, disabled: true, children: locale === 'en' ? 'Current effective plan' : 'Plan efectivo actual' })) : plan.id !== 'free' && authUser && billingReady ? (_jsx("button", { type: "button", style: buttonStyle, disabled: membershipActionLoading, onClick: () => void handleCheckout(plan.id), children: membershipActionLoading
-                                                        ? (locale === 'en' ? 'Opening Stripe...' : 'Abriendo Stripe...')
-                                                        : locale === 'en'
-                                                            ? `Upgrade to ${plan.name}`
-                                                            : `Mejorar a ${plan.name}` })) : (_jsx("button", { type: "button", style: secondaryButtonStyle, disabled: !membership?.devToolsEnabled || membershipActionLoading || isCurrent, onClick: () => void handleDevPlanChange(plan.id), children: membership?.devToolsEnabled
-                                                        ? (locale === 'en' ? 'Activate in dev' : 'Activar en dev')
-                                                        : authUser
-                                                            ? (billingReady ? (locale === 'en' ? 'Unavailable' : 'No disponible') : (locale === 'en' ? 'Billing pending' : 'Billing pendiente'))
-                                                            : (locale === 'en' ? 'Login to upgrade' : 'Iniciá sesión para mejorar') })), isActualSubscription && membership?.overrideReason === 'admin_full_access' ? (_jsx(Badge, { tone: "medium", children: locale === 'en' ? 'Underlying subscription' : 'Suscripción real' })) : null] })] }, plan.id));
-                            }) }), membershipError ? _jsx("div", { style: softPanelStyle, children: membershipError }) : null] })) : null, authError ? (_jsx("section", { style: planSectionStyle, children: _jsx("div", { style: softPanelStyle, children: authError }) })) : null, authUser ? (_jsxs("section", { style: planSectionStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Account center' : 'Centro de cuenta' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: locale === 'en' ? 'Identity, plan and billing actions' : 'Identidad, plan y acciones de billing' })] }), _jsxs("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: '1.1fr repeat(2, minmax(0, 1fr))', gap: 12 }, children: [_jsxs("div", { style: softPanelStyle, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: authUser.displayName }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13 }, children: authUser.email }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: actorUser?.role.toUpperCase() ?? 'USER' }), _jsx(Badge, { tone: "low", children: currentPlan?.name ?? 'Free' }), membership?.overrideReason === 'admin_full_access' ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? 'Full admin access' : 'Acceso admin completo' }) : null] })] }), _jsxs("div", { style: softPanelStyle, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Billing status' : 'Estado de billing' }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }, children: membership
-                                                ? (locale === 'en'
-                                                    ? `${membership.account.status} · ${membership.plan.entitlements.maxStoredProfiles} profiles · ${membership.plan.entitlements.maxStoredMatchesPerProfile} matches per profile`
-                                                    : `${membership.account.status} · ${membership.plan.entitlements.maxStoredProfiles} perfiles · ${membership.plan.entitlements.maxStoredMatchesPerProfile} partidas por perfil`)
-                                                : (locale === 'en' ? 'Loading membership...' : 'Cargando membresía...') }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: canOpenBillingPortal ? (_jsx("button", { type: "button", style: secondaryButtonStyle, disabled: membershipActionLoading, onClick: () => void handleBillingPortal(), children: locale === 'en' ? 'Open billing portal' : 'Abrir portal de billing' })) : (_jsx(Badge, { tone: "default", children: billingReady ? (locale === 'en' ? 'Stripe ready' : 'Stripe listo') : (locale === 'en' ? 'Stripe pending' : 'Stripe pendiente') })) })] }), _jsxs("form", { onSubmit: handlePasswordChange, style: softPanelStyle, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Password' : 'Contraseña' }), _jsxs("div", { style: { display: 'grid', gap: 8 }, children: [_jsx("input", { type: "password", value: authPassword, onChange: (e) => setAuthPassword(e.target.value), style: inputStyle, placeholder: locale === 'en' ? 'Current password' : 'Contraseña actual' }), _jsx("input", { type: "password", value: newPassword, onChange: (e) => setNewPassword(e.target.value), style: inputStyle, placeholder: locale === 'en' ? 'New password' : 'Nueva contraseña' })] }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: _jsx("button", { type: "submit", style: secondaryButtonStyle, disabled: authActionLoading, children: authActionLoading ? (locale === 'en' ? 'Saving...' : 'Guardando...') : (locale === 'en' ? 'Change password' : 'Cambiar contraseña') }) })] })] })] })) : null, canManageCoachRoster ? (_jsxs("section", { style: planSectionStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Coach workspace' : 'Workspace de coach' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: locale === 'en' ? 'Roster, player linking and future staff workflows' : 'Roster, vínculo de jugadores y futuros workflows de staff' })] }), _jsxs("div", { className: "two-col-grid", style: { display: 'grid', gridTemplateColumns: '0.95fr 1.05fr', gap: 12 }, children: [_jsxs("form", { onSubmit: async (event) => {
-                                        event.preventDefault();
-                                        if (!coachPlayerEmail.trim())
-                                            return;
-                                        setCoachRosterLoading(true);
-                                        setAuthError(null);
-                                        try {
-                                            await addCoachPlayer({ playerEmail: coachPlayerEmail.trim(), note: coachPlayerNote.trim() || undefined });
-                                            setCoachPlayerEmail('');
-                                            setCoachPlayerNote('');
-                                            await refreshCoachRoster();
-                                        }
-                                        catch (err) {
-                                            setAuthError(err instanceof Error ? err.message : 'Unknown error');
-                                        }
-                                        finally {
-                                            setCoachRosterLoading(false);
-                                        }
-                                    }, style: softPanelStyle, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Add player by account email' : 'Agregar jugador por email de cuenta' }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }, children: locale === 'en'
-                                                ? 'The coach-player relation is stored independently from Riot profiles so you can manage people, not only accounts.'
-                                                : 'La relación coach-jugador se guarda separada de los perfiles de Riot para que puedas gestionar personas, no solo cuentas.' }), _jsx("input", { type: "email", value: coachPlayerEmail, onChange: (e) => setCoachPlayerEmail(e.target.value), style: inputStyle, placeholder: "player@email.com" }), _jsx("textarea", { value: coachPlayerNote, onChange: (e) => setCoachPlayerNote(e.target.value), style: { ...inputStyle, minHeight: 94, resize: 'vertical' }, placeholder: locale === 'en' ? 'Optional note about this player' : 'Nota opcional sobre este jugador' }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }, children: [_jsx("button", { type: "submit", style: buttonStyle, disabled: coachRosterLoading, children: coachRosterLoading ? (locale === 'en' ? 'Saving...' : 'Guardando...') : (locale === 'en' ? 'Link player' : 'Vincular jugador') }), membership ? _jsx(Badge, { tone: "low", children: `${safeCoachRoster.length}/${membership.plan.entitlements.maxManagedPlayers}` }) : null] })] }), _jsxs("div", { style: { ...softPanelStyle, alignContent: 'start' }, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: locale === 'en' ? 'Current roster' : 'Roster actual' }), coachRosterLoading ? _jsx("div", { style: { color: '#8f9bad', fontSize: 13 }, children: locale === 'en' ? 'Loading roster...' : 'Cargando roster...' }) : null, !coachRosterLoading && !safeCoachRoster.length ? (_jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }, children: locale === 'en' ? 'No linked players yet. This base is ready for the coach desk.' : 'Todavía no hay jugadores vinculados. Esta base ya está lista para el coach desk.' })) : null, _jsx("div", { style: { display: 'grid', gap: 10 }, children: safeCoachRoster.map((entry) => (_jsxs("div", { style: adminRowStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 700 }, children: entry.user.displayName }), _jsx("div", { style: { color: '#8f9bad', fontSize: 12 }, children: entry.user.email }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: entry.user.role.toUpperCase() }), _jsx(Badge, { tone: "low", children: new Date(entry.linkedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR') })] }), entry.note ? _jsx("div", { style: { color: '#a8b4c8', fontSize: 12, lineHeight: 1.5 }, children: entry.note }) : null] }), _jsx("button", { type: "button", style: secondaryButtonStyle, onClick: async () => {
-                                                            setCoachRosterLoading(true);
-                                                            setAuthError(null);
-                                                            try {
-                                                                await removeCoachPlayer(entry.user.id);
-                                                                await refreshCoachRoster();
-                                                            }
-                                                            catch (err) {
-                                                                setAuthError(err instanceof Error ? err.message : 'Unknown error');
-                                                            }
-                                                            finally {
-                                                                setCoachRosterLoading(false);
-                                                            }
-                                                        }, children: locale === 'en' ? 'Remove' : 'Quitar' })] }, entry.assignmentId))) })] })] })] })) : null, isAdmin ? (_jsxs("section", { style: planSectionStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Admin area' : 'Área admin' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: locale === 'en' ? 'Users, plans, usage and impersonation' : 'Usuarios, planes, uso y suplantación' })] }), _jsxs("div", { style: { display: 'grid', gap: 10 }, children: [adminLoading ? _jsx("div", { style: softPanelStyle, children: locale === 'en' ? 'Loading users...' : 'Cargando usuarios...' }) : null, !adminLoading && !safeAdminUsers.length ? _jsx("div", { style: softPanelStyle, children: locale === 'en' ? 'No users available yet.' : 'Todavía no hay usuarios disponibles.' }) : null, safeAdminUsers.map((entry) => (_jsxs("div", { style: adminUserCardStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 800 }, children: entry.user.displayName }), _jsx("div", { style: { color: '#8f9bad', fontSize: 12 }, children: entry.user.email }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: entry.user.role.toUpperCase() }), _jsx(Badge, { tone: "low", children: entry.membership.plan.name }), _jsx(Badge, { tone: "low", children: locale === 'en' ? `${entry.usage.openaiGenerations} AI` : `${entry.usage.openaiGenerations} IA` }), _jsx(Badge, { tone: "default", children: entry.membership.account.status })] })] }), _jsxs("div", { style: { display: 'grid', gap: 8, justifyItems: 'end' }, children: [_jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }, children: [_jsxs("select", { defaultValue: entry.user.role, style: selectStyle, onChange: async (event) => {
-                                                                setAuthActionLoading(true);
-                                                                setAuthError(null);
-                                                                try {
-                                                                    await updateAdminUserRole(entry.user.id, event.target.value);
-                                                                    await refreshAdminUsers();
-                                                                    await refreshIdentity();
-                                                                }
-                                                                catch (err) {
-                                                                    setAuthError(err instanceof Error ? err.message : 'Unknown error');
-                                                                }
-                                                                finally {
-                                                                    setAuthActionLoading(false);
-                                                                }
-                                                            }, children: [_jsx("option", { value: "user", children: "user" }), _jsx("option", { value: "coach", children: "coach" }), _jsx("option", { value: "admin", children: "admin" })] }), _jsx("select", { defaultValue: entry.membership.actualPlan?.id ?? entry.membership.plan.id, style: selectStyle, onChange: async (event) => {
-                                                                setMembershipActionLoading(true);
-                                                                setAuthError(null);
-                                                                try {
-                                                                    await updateAdminUserPlan(entry.user.id, event.target.value);
-                                                                    await refreshAdminUsers();
-                                                                    await refreshIdentity();
-                                                                }
-                                                                catch (err) {
-                                                                    setAuthError(err instanceof Error ? err.message : 'Unknown error');
-                                                                }
-                                                                finally {
-                                                                    setMembershipActionLoading(false);
-                                                                }
-                                                            }, children: membershipCatalog?.order.map((planId) => {
-                                                                const plan = membershipCatalog.plans.find((item) => item.id === planId);
-                                                                return _jsx("option", { value: planId, children: plan?.name ?? planId }, planId);
-                                                            }) })] }), authMe?.isImpersonating && authMe.actorUser?.id === entry.user.id ? null : (_jsx("button", { type: "button", style: secondaryButtonStyle, onClick: async () => {
-                                                        setAuthActionLoading(true);
-                                                        setAuthError(null);
-                                                        try {
-                                                            await startAdminImpersonation(entry.user.id);
-                                                            await refreshIdentity();
-                                                        }
-                                                        catch (err) {
-                                                            setAuthError(err instanceof Error ? err.message : 'Unknown error');
-                                                        }
-                                                        finally {
-                                                            setAuthActionLoading(false);
-                                                        }
-                                                    }, children: locale === 'en' ? 'Impersonate' : 'Suplantar' }))] })] }, entry.user.id)))] })] })) : null, _jsxs("section", { style: heroGridStyle, children: [!dataset ? (_jsx("div", { style: heroIntroPanelStyle, children: _jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsx("div", { style: { color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }, children: "Don Sosa Coach" }), _jsx("h1", { style: { margin: 0, fontSize: 46, letterSpacing: '-0.05em', maxWidth: 760 }, children: locale === 'en'
+    async function handleStopImpersonation() {
+        setAuthActionLoading(true);
+        setAuthError(null);
+        try {
+            await stopAdminImpersonation();
+            await refreshIdentity();
+        }
+        catch (err) {
+            setAuthError(err instanceof Error ? err.message : 'Unknown error');
+        }
+        finally {
+            setAuthActionLoading(false);
+        }
+    }
+    async function handleAddCoachPlayer() {
+        if (!coachPlayerEmail.trim())
+            return;
+        setCoachRosterLoading(true);
+        setAuthError(null);
+        try {
+            await addCoachPlayer({ playerEmail: coachPlayerEmail.trim(), note: coachPlayerNote.trim() || undefined });
+            setCoachPlayerEmail('');
+            setCoachPlayerNote('');
+            await refreshCoachRoster();
+        }
+        catch (err) {
+            setAuthError(err instanceof Error ? err.message : 'Unknown error');
+        }
+        finally {
+            setCoachRosterLoading(false);
+        }
+    }
+    async function handleRemoveCoachRosterPlayer(userId) {
+        setCoachRosterLoading(true);
+        setAuthError(null);
+        try {
+            await removeCoachPlayer(userId);
+            await refreshCoachRoster();
+        }
+        catch (err) {
+            setAuthError(err instanceof Error ? err.message : 'Unknown error');
+        }
+        finally {
+            setCoachRosterLoading(false);
+        }
+    }
+    async function handleAdminRoleUpdate(userId, role) {
+        setAuthActionLoading(true);
+        setAuthError(null);
+        try {
+            await updateAdminUserRole(userId, role);
+            await refreshAdminUsers();
+            await refreshIdentity();
+        }
+        catch (err) {
+            setAuthError(err instanceof Error ? err.message : 'Unknown error');
+        }
+        finally {
+            setAuthActionLoading(false);
+        }
+    }
+    async function handleAdminPlanUpdate(userId, planId) {
+        setMembershipActionLoading(true);
+        setAuthError(null);
+        try {
+            await updateAdminUserPlan(userId, planId);
+            await refreshAdminUsers();
+            await refreshIdentity();
+        }
+        catch (err) {
+            setAuthError(err instanceof Error ? err.message : 'Unknown error');
+        }
+        finally {
+            setMembershipActionLoading(false);
+        }
+    }
+    async function handleAdminImpersonation(userId) {
+        setAuthActionLoading(true);
+        setAuthError(null);
+        try {
+            await startAdminImpersonation(userId);
+            await refreshIdentity();
+        }
+        catch (err) {
+            setAuthError(err instanceof Error ? err.message : 'Unknown error');
+        }
+        finally {
+            setAuthActionLoading(false);
+        }
+    }
+    return (_jsx(Shell, { children: _jsxs("div", { style: { display: 'grid', gap: 18, maxWidth: 1440, margin: '0 auto' }, children: [_jsxs("section", { style: topBarStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#eef4ff', fontSize: 18, fontWeight: 800, letterSpacing: '-0.03em' }, children: "Don Sosa Coach" }), _jsx("div", { style: { color: '#8b96aa', fontSize: 13 }, children: locale === 'en' ? 'Premium coaching, review and progression tracking for League of Legends.' : 'Coaching premium, revisión y seguimiento de progreso para League of Legends.' })] }), _jsx("div", { style: accountAccessStyle, children: _jsxs("div", { style: { display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', width: '100%' }, children: [authMe?.isImpersonating ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? 'Impersonating' : 'Suplantando' }) : null, authUser && currentPlan ? _jsx(Badge, { tone: "default", children: currentPlan.name }) : null, authUser ? (_jsxs("button", { type: "button", style: accountTriggerStyle, onClick: () => openAccountPanel(), children: [_jsx("span", { style: accountAvatarStyle, children: (authUser.displayName || authUser.email || 'D').slice(0, 1).toUpperCase() }), _jsxs("span", { style: { display: 'grid', gap: 2, textAlign: 'left' }, children: [_jsx("span", { style: { color: '#eef4ff', fontWeight: 800, fontSize: 14 }, children: authUser.displayName }), _jsx("span", { style: { color: '#8692a7', fontSize: 11 }, children: locale === 'en' ? 'Profile, billing and settings' : 'Perfil, facturación y ajustes' })] })] })) : (_jsxs(_Fragment, { children: [_jsx("button", { type: "button", style: secondaryButtonStyle, onClick: () => { setAuthMode('login'); openAccountPanel('auth'); }, children: locale === 'en' ? 'Login' : 'Ingresar' }), _jsx("button", { type: "button", style: buttonStyle, onClick: () => { setAuthMode('signup'); openAccountPanel('auth'); }, children: locale === 'en' ? 'Create account' : 'Crear cuenta' })] }))] }) })] }), _jsx(AccountCenter, { open: accountPanelOpen, locale: locale, authUser: authUser, actorUser: actorUser, authMe: authMe, currentPlan: currentPlan, currentPlanPriceLabel: currentPlanPriceLabel, membership: membership, membershipCatalog: membershipCatalog, billingReady: billingReady, canOpenBillingPortal: canOpenBillingPortal, canManageCoachRoster: canManageCoachRoster, isAdmin: isAdmin, accountPanelTab: accountPanelTab, authMode: authMode, authEmail: authEmail, authPassword: authPassword, authDisplayName: authDisplayName, resetToken: resetToken, newPassword: newPassword, resetTokenPreview: resetTokenPreview, resetLinkPreview: resetLinkPreview, authActionLoading: authActionLoading, membershipActionLoading: membershipActionLoading, authError: authError, membershipError: membershipError, adminLoading: adminLoading, safeAdminUsers: safeAdminUsers, coachRosterLoading: coachRosterLoading, safeCoachRoster: safeCoachRoster, coachPlayerEmail: coachPlayerEmail, coachPlayerNote: coachPlayerNote, onClose: () => setAccountPanelOpen(false), onTabChange: setAccountPanelTab, onAuthModeChange: setAuthMode, onAuthEmailChange: setAuthEmail, onAuthPasswordChange: setAuthPassword, onAuthDisplayNameChange: setAuthDisplayName, onResetTokenChange: setResetToken, onNewPasswordChange: setNewPassword, onCoachPlayerEmailChange: setCoachPlayerEmail, onCoachPlayerNoteChange: setCoachPlayerNote, onAuthSubmit: handleAuthSubmit, onResetPasswordConfirm: handleResetPasswordConfirm, onLogout: handleLogout, onPasswordChange: handlePasswordChange, onBillingPortal: handleBillingPortal, onCheckout: handleCheckout, onDevPlanChange: handleDevPlanChange, onStopImpersonation: handleStopImpersonation, onAddCoachPlayer: handleAddCoachPlayer, onRemoveCoachPlayer: handleRemoveCoachRosterPlayer, onAdminRoleChange: handleAdminRoleUpdate, onAdminPlanChange: handleAdminPlanUpdate, onAdminImpersonation: handleAdminImpersonation }), _jsxs("section", { style: heroGridStyle, children: [!dataset ? (_jsx("div", { style: heroIntroPanelStyle, children: _jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsx("div", { style: { color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }, children: "Don Sosa Coach" }), _jsx("h1", { style: { margin: 0, fontSize: 46, letterSpacing: '-0.05em', maxWidth: 760 }, children: locale === 'en'
                                             ? 'A competitive read of your play, not just another stats page'
                                             : 'Tu lectura competitiva para jugar mejor, no solo mirar stats' }), _jsx("p", { style: { margin: 0, color: '#9099aa', maxWidth: 760, lineHeight: 1.7 }, children: locale === 'en'
                                             ? 'Clear diagnosis, actionable decisions and an organized view of matchups, runes, champions and review. First you understand what to fix, then you go deeper.'
                                             : 'Diagnóstico claro, decisiones accionables y una vista ordenada de matchups, runas, campeones y revisión. Primero entendés qué corregir; después entrás al detalle.' }), loading ? (_jsx("div", { style: { color: '#d8fdf1', fontSize: 13, lineHeight: 1.6 }, children: progress?.message ?? (matchCount >= 75
                                             ? (locale === 'en' ? 'Analyzing a large sample. This can take several minutes because of Riot rate limits.' : 'Analizando una muestra grande. Esto puede tardar varios minutos por los límites de Riot.')
-                                            : (locale === 'en' ? 'Analyzing matches. This can take anywhere from a few seconds to about a minute.' : 'Analizando partidas. Esto puede tardar entre unos segundos y alrededor de un minuto.')) })) : null, loading && progress ? (_jsxs("div", { style: { display: 'grid', gap: 8, maxWidth: 460 }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', color: '#9eb0c7', fontSize: 12 }, children: [_jsx("span", { children: progress.stage }), _jsx("span", { children: `${Math.min(progress.current, progress.total)} / ${progress.total}` })] }), _jsx("div", { style: { height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }, children: _jsx("div", { style: { width: `${Math.max(8, (progress.current / Math.max(progress.total, 1)) * 100)}%`, height: '100%', background: '#67d6a4' } }) })] })) : null] }) })) : (_jsxs("div", { style: { display: 'grid', gap: 16 }, children: [_jsx("div", { style: heroIntroPanelStyle, children: _jsxs("div", { style: { display: 'grid', gap: 16 }, children: [_jsxs("div", { style: { display: 'grid', gap: 10 }, children: [_jsx("div", { style: { color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }, children: locale === 'en' ? 'Current profile' : 'Perfil actual' }), _jsxs("div", { style: { display: 'grid', gridTemplateColumns: profileIconUrl ? '88px minmax(0, 1fr)' : '1fr', gap: 16, alignItems: 'center' }, children: [profileIconUrl ? (_jsx("img", { src: profileIconUrl, alt: dataset.player, width: 88, height: 88, style: { ...profileIconStyle, width: 88, height: 88, objectFit: 'cover', boxShadow: '0 16px 32px rgba(0,0,0,0.22)' } })) : null, _jsxs("div", { style: { display: 'grid', gap: 6, minWidth: 0 }, children: [_jsxs("h1", { style: { margin: 0, fontSize: 38, letterSpacing: '-0.05em', lineHeight: 1.05 }, children: [dataset.player, _jsxs("span", { style: { color: '#8894ab' }, children: ["#", dataset.tagLine] })] }), dataset.profile ? (_jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }, children: [_jsx(Badge, { children: locale === 'en' ? `Level ${dataset.profile.summonerLevel}` : `Nivel ${dataset.profile.summonerLevel}` }), currentPlatformInfo ? _jsx(Badge, { tone: "default", children: `${currentPlatformInfo.platform} · ${currentPlatformInfo.shortLabel}` }) : null] })) : null, _jsx("p", { style: { margin: 0, color: '#96a1b4', maxWidth: 760, lineHeight: 1.65 }, children: locale === 'en'
+                                            : (locale === 'en' ? 'Analyzing matches. This can take anywhere from a few seconds to about a minute.' : 'Analizando partidas. Esto puede tardar entre unos segundos y alrededor de un minuto.')) })) : null, loading && progress ? (_jsxs("div", { style: { display: 'grid', gap: 8, maxWidth: 460 }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', color: '#9eb0c7', fontSize: 12 }, children: [_jsx("span", { children: progress.stage }), _jsx("span", { children: `${Math.min(progress.current, progress.total)} / ${progress.total}` })] }), _jsx("div", { style: { height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }, children: _jsx("div", { style: { width: `${Math.max(8, (progress.current / Math.max(progress.total, 1)) * 100)}%`, height: '100%', background: '#67d6a4' } }) })] })) : null, !loading ? (_jsx("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }, children: [
+                                            {
+                                                title: locale === 'en' ? 'Coaching by role and live patch' : 'Coaching por rol y parche live',
+                                                body: locale === 'en'
+                                                    ? 'The product reads your account through role scope, champion context and the current Riot patch instead of recycling generic league advice.'
+                                                    : 'El producto lee tu cuenta a través del alcance por rol, el contexto del campeón y el parche actual de Riot en vez de reciclar consejos genéricos.'
+                                            },
+                                            {
+                                                title: locale === 'en' ? 'One saved account, evolving reads' : 'Una cuenta guardada, lecturas que evolucionan',
+                                                body: locale === 'en'
+                                                    ? 'Snapshots, continuity and cached coaching keep the analysis stable while new matches update the story without wasting tokens.'
+                                                    : 'Snapshots, continuidad y coaching cacheado mantienen el análisis estable mientras las partidas nuevas actualizan la historia sin gastar tokens de más.'
+                                            },
+                                            {
+                                                title: locale === 'en' ? 'Built for players and coaches' : 'Hecho para jugadores y coaches',
+                                                body: locale === 'en'
+                                                    ? 'A serious player gets a cleaner improvement loop, and a coach gets the base to manage players, review progress and scale feedback.'
+                                                    : 'Un jugador serio consigue un loop de mejora más claro, y un coach tiene la base para gestionar jugadores, revisar progreso y escalar feedback.'
+                                            }
+                                        ].map((item) => (_jsxs("div", { style: softPanelStyle, children: [_jsx("div", { style: { color: '#eef4ff', fontWeight: 800 }, children: item.title }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13, lineHeight: 1.65 }, children: item.body })] }, item.title))) })) : null] }) })) : (_jsxs("div", { style: { display: 'grid', gap: 16 }, children: [_jsx("div", { style: heroIntroPanelStyle, children: _jsxs("div", { style: { display: 'grid', gap: 16 }, children: [_jsxs("div", { style: { display: 'grid', gap: 10 }, children: [_jsx("div", { style: { color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }, children: locale === 'en' ? 'Current profile' : 'Perfil actual' }), _jsxs("div", { style: { display: 'grid', gridTemplateColumns: profileIconUrl ? '88px minmax(0, 1fr)' : '1fr', gap: 16, alignItems: 'center' }, children: [profileIconUrl ? (_jsx("img", { src: profileIconUrl, alt: dataset.player, width: 88, height: 88, style: { ...profileIconStyle, width: 88, height: 88, objectFit: 'cover', boxShadow: '0 16px 32px rgba(0,0,0,0.22)' } })) : null, _jsxs("div", { style: { display: 'grid', gap: 6, minWidth: 0 }, children: [_jsxs("h1", { style: { margin: 0, fontSize: 38, letterSpacing: '-0.05em', lineHeight: 1.05 }, children: [dataset.player, _jsxs("span", { style: { color: '#8894ab' }, children: ["#", dataset.tagLine] })] }), dataset.profile ? (_jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }, children: [_jsx(Badge, { children: locale === 'en' ? `Level ${dataset.profile.summonerLevel}` : `Nivel ${dataset.profile.summonerLevel}` }), currentPlatformInfo ? _jsx(Badge, { tone: "default", children: `${currentPlatformInfo.platform} · ${currentPlatformInfo.shortLabel}` }) : null] })) : null, _jsx("p", { style: { margin: 0, color: '#96a1b4', maxWidth: 760, lineHeight: 1.65 }, children: locale === 'en'
                                                                             ? 'The coaching block uses this saved sample as its base. You can explore the rest of the product without spending tokens again on every visual filter change.'
                                                                             : 'El bloque de coaching usa esta muestra guardada como base. Podés explorar el resto del producto sin volver a gastar tokens por cada cambio visual de filtros.' })] })] })] }), _jsxs("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: 'minmax(220px, .92fr) repeat(3, minmax(0, 1fr))', gap: 12 }, children: [dataset.rank ? _jsx(RankBadge, { rank: dataset.rank, compact: true, locale: locale }) : null, _jsxs("div", { style: heroMetaChipStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Scope sample' : 'Muestra del scope' }), _jsx("div", { style: heroMetaValueStyle, children: coachScopeSummary?.matches ?? dataset.summary.matches }), _jsx("div", { style: heroMetaSubtleStyle, children: coachRoles.length ? coachScopeLabel : (locale === 'en' ? 'all saved roles' : 'todos los roles guardados') })] }), _jsxs("div", { style: heroMetaChipStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Win rate' : 'WR' }), _jsxs("div", { style: heroMetaValueStyle, children: [coachScopeSummary?.winRate ?? dataset.summary.winRate, "%"] }), _jsx("div", { style: heroMetaSubtleStyle, children: `${coachScopeSummary?.wins ?? dataset.summary.wins}-${coachScopeSummary?.losses ?? dataset.summary.losses}` })] }), _jsxs("div", { style: heroMetaChipStyle, children: [_jsx("div", { style: heroMetaLabelStyle, children: locale === 'en' ? 'Performance' : 'Rendimiento' }), _jsx("div", { style: heroMetaValueStyle, children: coachScopeSummary?.avgPerformanceScore ?? dataset.summary.avgPerformanceScore }), _jsx("div", { style: heroMetaSubtleStyle, children: locale === 'en'
                                                                     ? `CS@15 ${coachScopeSummary?.avgCsAt15 ?? dataset.summary.avgCsAt15}`
@@ -1165,38 +1219,42 @@ const accountAccessStyle = {
     display: 'flex',
     gap: 14,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '12px 14px',
+    justifyContent: 'flex-end',
+    padding: '10px 12px',
     borderRadius: 18,
     background: 'linear-gradient(180deg, rgba(14,18,28,0.94), rgba(8,11,18,0.98))',
     border: '1px solid rgba(255,255,255,0.07)',
-    width: 'min(100%, 560px)',
+    width: 'min(100%, 430px)',
     boxShadow: '0 16px 40px rgba(0,0,0,0.14)'
 };
-const planSectionStyle = {
-    display: 'grid',
-    gap: 12,
-    padding: '16px 18px',
-    borderRadius: 18,
-    background: 'linear-gradient(180deg, rgba(10,14,22,0.95), rgba(5,8,14,0.98))',
-    border: '1px solid rgba(255,255,255,0.06)'
+const accountTriggerStyle = {
+    display: 'flex',
+    gap: 10,
+    alignItems: 'center',
+    padding: '8px 10px',
+    borderRadius: 14,
+    border: '1px solid rgba(255,255,255,0.07)',
+    background: 'rgba(255,255,255,0.02)',
+    color: '#eef4ff'
 };
-const planCardsGridStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: 12
+const accountAvatarStyle = {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    display: 'inline-grid',
+    placeItems: 'center',
+    background: 'linear-gradient(180deg, rgba(216,253,241,0.16), rgba(90,182,157,0.18))',
+    color: '#eefcf3',
+    fontWeight: 800
 };
-const planCardStyle = {
+const accountPanelStyle = {
     display: 'grid',
-    gap: 12,
-    padding: '16px 16px 18px',
-    borderRadius: 18,
-    background: '#090e16',
-    border: '1px solid rgba(255,255,255,0.06)'
-};
-const activePlanCardStyle = {
-    background: 'linear-gradient(180deg, rgba(216,253,241,0.08), rgba(12,18,27,0.98))',
-    borderColor: 'rgba(216,253,241,0.18)'
+    gap: 14,
+    padding: '20px 22px',
+    borderRadius: 22,
+    background: 'linear-gradient(180deg, rgba(11,15,24,0.98), rgba(5,8,14,0.99))',
+    border: '1px solid rgba(255,255,255,0.07)',
+    boxShadow: '0 28px 70px rgba(0,0,0,0.2)'
 };
 const topBarGhostButtonStyle = {
     border: '1px solid rgba(255,255,255,0.08)',
@@ -1303,21 +1361,6 @@ const secondaryButtonStyle = {
     color: '#e8eef9',
     fontWeight: 700,
     cursor: 'pointer'
-};
-const smallActionButtonStyle = {
-    border: '1px solid rgba(255,255,255,0.08)',
-    padding: '9px 12px',
-    borderRadius: 12,
-    background: 'rgba(255,255,255,0.02)',
-    color: '#9fb0c7',
-    fontWeight: 700,
-    fontSize: 12,
-    cursor: 'pointer'
-};
-const activeSmallActionButtonStyle = {
-    background: 'rgba(216,253,241,0.08)',
-    color: '#e9fff7',
-    borderColor: 'rgba(216,253,241,0.2)'
 };
 const tabStyle = {
     border: '1px solid rgba(255,255,255,0.08)',
@@ -1461,56 +1504,6 @@ const adminRowStyle = {
     background: 'rgba(255,255,255,0.02)',
     border: '1px solid rgba(255,255,255,0.05)'
 };
-function TopStat({ label, value, hint }) {
-    return (_jsxs("div", { style: topStatStyle, children: [_jsx("div", { style: { color: '#768091', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: label }), _jsx("div", { style: { fontSize: 21, fontWeight: 800, lineHeight: 1.05 }, children: value }), _jsx("div", { style: { color: '#8692a7', fontSize: 12 }, children: hint })] }));
-}
-function RankBadge({ rank, compact = false, locale = 'es' }) {
-    const palette = getRankPalette(rank.highest.tier);
-    const lpProgress = Math.max(0, Math.min(rank.highest.leaguePoints, 100));
-    const showFlex = rank.flexQueue.tier !== 'UNRANKED';
-    const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR${showFlex ? `\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR` : ''}`;
-    return (_jsxs("div", { title: title, style: {
-            display: 'grid',
-            gap: compact ? 8 : 10,
-            minWidth: 0,
-            padding: compact ? '12px 14px' : '16px 18px',
-            borderRadius: 16,
-            background: compact ? 'rgba(9, 14, 22, 0.86)' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
-            border: `1px solid ${palette.primary}33`
-        }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: `${compact ? 94 : 104}px minmax(0, 1fr)`, alignItems: 'center', gap: compact ? 4 : 10 }, children: [_jsx(RankEmblem, { tier: rank.highest.tier, label: rank.highest.label, size: compact ? 94 : 104 }), _jsxs("div", { style: { display: 'grid', gap: 3, minWidth: 0 }, children: [_jsx("div", { style: { color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: rank.highest.queueLabel ?? (locale === 'en' ? 'Ranked' : 'Ranked') }), _jsxs("div", { style: { display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }, children: [_jsx("span", { style: { fontSize: compact ? 17 : 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }, children: rank.highest.label }), _jsx("span", { style: { color: palette.glow, fontSize: 13, fontWeight: 800 }, children: `${rank.highest.leaguePoints} LP` })] }), _jsxs("div", { style: { display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }, children: [_jsxs("span", { style: rankQueuePillStyle, children: [_jsx("strong", { children: locale === 'en' ? 'Solo' : 'Solo' }), " ", rank.soloQueue.label, " \u00B7 ", rank.soloQueue.leaguePoints, " LP"] }), showFlex ? (_jsxs("span", { style: rankQueuePillStyle, children: [_jsx("strong", { children: "Flex" }), " ", rank.flexQueue.label, " \u00B7 ", rank.flexQueue.leaguePoints, " LP"] })) : null] })] })] }), _jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: { height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }, children: _jsx("div", { style: { width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` } }) }), !compact ? (_jsx("div", { style: { color: '#7e889b', fontSize: 11 }, children: locale === 'en' ? 'Hover to view Solo/Duo and Flex' : 'Hover para ver Solo/Duo y Flex' })) : null] })] }));
-}
-function RankEmblem({ tier, label, size }) {
-    const emblem = getRankEmblemDataUrl(tier);
-    const palette = getRankPalette(tier);
-    const assetSize = Math.round(size * 3);
-    return (_jsx("div", { "aria-hidden": "true", style: {
-            width: size,
-            height: size,
-            overflow: 'hidden',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            filter: `drop-shadow(0 16px 32px ${palette.primary}24)`
-        }, children: _jsx("img", { src: emblem, alt: label, width: assetSize, height: assetSize, style: {
-                display: 'block',
-                width: assetSize,
-                height: assetSize,
-                objectFit: 'contain',
-                marginTop: Math.round(size * 0.04)
-            } }) }));
-}
-function TrendSparkline({ matches, locale = 'es' }) {
-    const sorted = [...matches].sort((a, b) => a.gameCreation - b.gameCreation).slice(-12);
-    const values = sorted.map((match) => match.score.total);
-    const min = Math.min(...values, 0);
-    const max = Math.max(...values, 100);
-    const points = values.map((value, index) => {
-        const x = values.length === 1 ? 0 : (index / Math.max(values.length - 1, 1)) * 100;
-        const y = 100 - (((value - min) / Math.max(max - min, 1)) * 100);
-        return `${x},${y}`;
-    }).join(' ');
-    return (_jsxs("div", { style: sparklineCardStyle, children: [_jsx("div", { style: { color: '#7d889c', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Latest matches' : 'Últimas partidas' }), _jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: 12 }, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { fontSize: 18, fontWeight: 800 }, children: locale === 'en' ? 'Recent performance' : 'Performance reciente' }), _jsx("div", { style: { color: '#8895aa', fontSize: 12 }, children: locale === 'en' ? 'Sparkline from the last 12 valid matches' : 'Sparkline de las últimas 12 partidas válidas' })] }), _jsx("div", { style: { color: '#dff7eb', fontSize: 12, fontWeight: 700 }, children: values.length ? (locale === 'en' ? `${Math.round(values.at(-1) ?? 0)} latest score` : `${Math.round(values.at(-1) ?? 0)} último score`) : (locale === 'en' ? 'No data' : 'Sin datos') })] }), _jsxs("svg", { viewBox: "0 0 100 100", preserveAspectRatio: "none", style: { width: '100%', height: 84, display: 'block' }, children: [_jsx("defs", { children: _jsxs("linearGradient", { id: "spark-fill", x1: "0", y1: "0", x2: "0", y2: "1", children: [_jsx("stop", { offset: "0%", stopColor: "rgba(216,253,241,0.34)" }), _jsx("stop", { offset: "100%", stopColor: "rgba(216,253,241,0)" })] }) }), _jsx("polyline", { fill: "none", stroke: "rgba(216,253,241,0.95)", strokeWidth: "3", points: points })] })] }));
-}
 const topStatStyle = {
     minWidth: 126,
     padding: '14px 15px',

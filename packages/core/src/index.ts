@@ -145,6 +145,7 @@ export interface AggregateSummary {
   tagLine: string;
   region: string;
   platform: string;
+  primaryRole: string;
   matches: number;
   wins: number;
   losses: number;
@@ -156,6 +157,8 @@ export interface AggregateSummary {
   avgKillParticipation: number;
   avgCsAt15: number;
   avgGoldAt15: number;
+  avgGoldDiffAt15: number;
+  avgLevelDiffAt15: number;
   avgDeathsPre14: number;
   avgPerformanceScore: number;
   consistencyIndex: number;
@@ -521,6 +524,44 @@ function sampleDifferenceLabel(leftWins: number, leftTotal: number, rightWins: n
   return `${recordLabel(leftWins, leftTotal, locale)} vs ${recordLabel(rightWins, rightTotal, locale)}`;
 }
 
+function getKillParticipationTarget(role: string) {
+  switch (role) {
+    case 'JUNGLE':
+      return 58;
+    case 'UTILITY':
+      return 60;
+    case 'MIDDLE':
+      return 52;
+    case 'BOTTOM':
+      return 50;
+    case 'TOP':
+      return 44;
+    default:
+      return 50;
+  }
+}
+
+function getLeadMetricTarget(role: string) {
+  switch (role) {
+    case 'JUNGLE':
+      return { goldDiffAt15: 150, levelDiffAt15: 0.2 };
+    case 'TOP':
+      return { goldDiffAt15: 50, levelDiffAt15: 0.1 };
+    case 'MIDDLE':
+      return { goldDiffAt15: 100, levelDiffAt15: 0.15 };
+    case 'BOTTOM':
+      return { goldDiffAt15: 120, levelDiffAt15: 0.1 };
+    case 'UTILITY':
+      return { goldDiffAt15: 0, levelDiffAt15: 0 };
+    default:
+      return { goldDiffAt15: 0, levelDiffAt15: 0 };
+  }
+}
+
+function getChampionPoolShare(games: number, total: number) {
+  return games / Math.max(total, 1);
+}
+
 export function calculateScore(participant: Omit<ParticipantSnapshot, 'score'>): ParticipantSnapshot['score'] {
   const lane = clamp(40 + participant.timeline.csAt10 * 0.5 + (participant.timeline.goldAt10 / 100) - participant.timeline.laneDeathsPre10 * 12);
   const economy = clamp(30 + participant.csPerMinute * 8 + participant.goldPerMinute * 0.08 + (participant.timeline.goldAt15 / 150));
@@ -586,18 +627,29 @@ export function buildInsights(matches: ParticipantSnapshot[], championPool: Cham
   const roleProfile = getRoleProfile(primaryRole, locale);
   const stableLimit = roleProfile.stableDeathsPre14;
   const targetCsAt15 = roleProfile.csAt15Target;
+  const kpTarget = getKillParticipationTarget(primaryRole);
+  const leadTargets = getLeadMetricTarget(primaryRole);
 
   const belowFarmTarget = matches.filter((match) => match.timeline.csAt15 < targetCsAt15);
   const onFarmTarget = matches.filter((match) => match.timeline.csAt15 >= targetCsAt15);
   const disciplinedGames = matches.filter((match) => match.timeline.deathsPre14 <= stableLimit);
   const volatileGames = matches.filter((match) => match.timeline.deathsPre14 >= stableLimit + 2);
-  const earlyDeathGames = matches.filter((match) => match.timeline.laneDeathsPre10 > 0);
   const objectiveDeaths = avg(matches.map((match) => match.timeline.objectiveFightDeaths));
   const avgPre14Deaths = avg(matches.map((match) => match.timeline.deathsPre14));
   const avgCsAt15 = avg(matches.map((match) => match.timeline.csAt15));
+  const avgGoldDiffAt15 = avg(matches.map((match) => match.timeline.goldDiffAt15 ?? 0));
+  const avgLevelDiffAt15 = avg(matches.map((match) => match.timeline.levelDiffAt15 ?? 0));
+  const avgKillParticipation = avg(matches.map((match) => match.killParticipation));
+  const disconnectedGames = matches.filter((match) => match.killParticipation < kpTarget);
+  const connectedGames = matches.filter((match) => match.killParticipation >= kpTarget);
+  const losingLaneGames = matches.filter((match) => (match.timeline.goldDiffAt15 ?? 0) <= -400 || (match.timeline.levelDiffAt15 ?? 0) <= -0.8);
+  const stableLaneGames = matches.filter((match) => (match.timeline.goldDiffAt15 ?? 0) >= leadTargets.goldDiffAt15 && (match.timeline.levelDiffAt15 ?? 0) >= leadTargets.levelDiffAt15);
   const topChampion = championPool[0];
   const topChampionMatches = topChampion ? matches.filter((match) => match.championName === topChampion.championName) : [];
   const otherChampionMatches = topChampion ? matches.filter((match) => match.championName !== topChampion.championName) : [];
+  const topChampionShare = topChampion ? getChampionPoolShare(topChampion.games, matches.length) : 0;
+  const unstablePool = championPool.filter((entry) => entry.games >= 3).length >= 4 && topChampionShare < 0.36;
+  const positiveLeadLosses = matches.filter((match) => (match.timeline.goldDiffAt15 ?? 0) >= 350 && !match.win);
 
   if (matches.length >= 8 && belowFarmTarget.length >= Math.max(4, Math.floor(matches.length * 0.35))) {
     insights.push({
@@ -628,6 +680,33 @@ export function buildInsights(matches: ParticipantSnapshot[], championPool: Cham
     });
   }
 
+  if (matches.length >= 8 && (avgGoldDiffAt15 <= -250 || losingLaneGames.length >= Math.max(3, Math.floor(matches.length * 0.22)))) {
+    insights.push({
+      id: 'lane-state-deficit',
+      title: text(locale, 'Tus primeros 15 minutos están entrando demasiadas veces desde desventaja real de oro y nivel.', 'Too many of your first 15 minutes are starting from a real gold and level deficit.'),
+      problem: text(locale, 'La línea o el primer tempo del mapa te está dejando atrás demasiado pronto', 'Your lane state or first map tempo is putting you behind too early'),
+      category: 'early',
+      severity: avgGoldDiffAt15 <= -550 || avgLevelDiffAt15 <= -1 ? 'high' : 'medium',
+      priority: 'high',
+      evidence: [
+        text(locale, `Promediás ${round(avgGoldDiffAt15, 0)} de diferencia de oro al 15 y ${round(avgLevelDiffAt15, 1)} niveles de diferencia.`, `You average ${round(avgGoldDiffAt15, 0)} gold diff at 15 and ${round(avgLevelDiffAt15, 1)} levels of difference.`),
+        text(locale, `${round(percent(losingLaneGames.length, matches.length), 1)}% de la muestra llega al 15 con una desventaja ya visible de lane o tempo.`, `${round(percent(losingLaneGames.length, matches.length), 1)}% of the sample reaches minute 15 with a visible lane or tempo deficit.`),
+        stableLaneGames.length
+          ? text(locale, `Cuando tu early llega estable o arriba, cerrás ${recordLabel(stableLaneGames.filter((match) => match.win).length, stableLaneGames.length, locale)}.`, `When your early reaches minute 15 stable or ahead, you finish at ${recordLabel(stableLaneGames.filter((match) => match.win).length, stableLaneGames.length, locale)}.`)
+          : text(locale, 'Todavía no hay demasiadas partidas limpias de early para usar como referencia fuerte.', 'There are not many clean early games yet to use as a strong baseline.')
+      ],
+      impact: text(locale, 'No estás empezando las peleas importantes desde igualdad: muchas veces ya llegás con menos recursos, menos libertad y menos margen de error.', 'You are not starting important fights from parity. Many times you arrive with fewer resources, less freedom and less margin for error.'),
+      cause: text(locale, `La fuga no parece solo mecánica: el patrón sugiere trades, pathing o resets que están entregando prioridad antes de que tu rol pueda estabilizarse.`, `The leak does not look purely mechanical. The pattern suggests trades, pathing or resets that are giving away priority before your role can stabilize.`),
+      actions: [
+        text(locale, 'Revisá los primeros 8 minutos y marcá la primera decisión que te deja sin prioridad real de wave, campamentos o reset.', 'Review the first 8 minutes and mark the first decision that leaves you without real wave, camp or reset priority.'),
+        text(locale, 'No abras una segunda jugada dudosa si la primera ya te dejó abajo de tempo.', 'Do not open a second questionable play if the first one already put you behind on tempo.'),
+        text(locale, 'Tomá oro y nivel al 15 como KPI duro del próximo bloque, no solo KDA o sensación de partida.', 'Use gold and level at 15 as a hard KPI for the next block, not just KDA or game feel.')
+      ],
+      metricValue: round(avgGoldDiffAt15, 0),
+      focusMetric: 'gold_diff_at_15'
+    });
+  }
+
   if (matches.length >= 8 && (avgPre14Deaths > stableLimit + 0.4 || volatileGames.length >= Math.max(3, Math.floor(matches.length * 0.2)))) {
     insights.push({
       id: 'consistency-floor',
@@ -650,14 +729,41 @@ export function buildInsights(matches: ParticipantSnapshot[], championPool: Cham
     });
   }
 
-  if (matches.length >= 8 && objectiveDeaths >= 1) {
+  if (matches.length >= 8 && avgKillParticipation < kpTarget - 5 && disconnectedGames.length >= Math.max(3, Math.floor(matches.length * 0.22))) {
+    insights.push({
+      id: 'map-connection',
+      title: text(locale, 'Tu impacto no siempre está entrando donde la partida realmente se define.', 'Your impact is not always entering where the game is actually decided.'),
+      problem: text(locale, 'Te estás conectando tarde o mal a las jugadas que mueven el mapa', 'You are joining the map too late or too poorly in the plays that move the game'),
+      category: 'macro',
+      severity: avgKillParticipation < kpTarget - 10 ? 'high' : 'medium',
+      priority: 'medium',
+      evidence: [
+        text(locale, `Promediás ${round(avgKillParticipation, 1)}% de KP; para ${roleProfile.label} estamos usando ${kpTarget}% como referencia de presencia útil.`, `You average ${round(avgKillParticipation, 1)}% KP; for ${roleProfile.label} we are using ${kpTarget}% as the useful-presence benchmark.`),
+        text(locale, `${round(percent(disconnectedGames.length, matches.length), 1)}% de la muestra queda por debajo de ese umbral.`, `${round(percent(disconnectedGames.length, matches.length), 1)}% of the sample lands below that threshold.`),
+        connectedGames.length
+          ? text(locale, `Cuando sí entrás más conectado al mapa, cerrás ${recordLabel(connectedGames.filter((match) => match.win).length, connectedGames.length, locale)}.`, `When you join the map more consistently, you finish at ${recordLabel(connectedGames.filter((match) => match.win).length, connectedGames.length, locale)}.`)
+          : text(locale, 'Todavía no hay suficiente muestra de partidas realmente conectadas al mapa para usar como espejo limpio.', 'There is not enough sample of truly map-connected games yet to use as a clean mirror.')
+      ],
+      impact: text(locale, 'No se trata solo de “estar en la pelea”: se trata de llegar con el timing, la prioridad y la ruta correctos para que tu rol sí agregue valor.', 'This is not only about being present in a fight. It is about arriving with the right timing, priority and route so your role actually adds value.'),
+      cause: text(locale, 'El patrón sugiere rotaciones tardías, pathings desconectados o exceso de foco en la línea propia cuando la jugada ya se mudó de lugar.', 'The pattern suggests late rotations, disconnected pathing or too much fixation on your own lane while the play has already moved elsewhere.'),
+      actions: [
+        text(locale, 'Revisá tus últimos 90 segundos antes de cada pelea grande: dónde estabas, qué estabas empujando y por qué llegaste tarde o sin prioridad.', 'Review your last 90 seconds before each major fight: where you were, what you were pushing and why you arrived late or without priority.'),
+        text(locale, 'Marcá como error distinto no solo morir, sino llegar sin haber podido aportar daño, control o follow-up real.', 'Mark as a distinct error not only dying, but arriving without being able to add real damage, control or follow-up.'),
+        text(locale, 'Buscá que tu próximo bloque suba presencia útil en mapa antes de abrir más variables mecánicas.', 'Push your next block toward more useful map presence before adding more mechanical variables.')
+      ],
+      metricValue: round(avgKillParticipation, 1),
+      focusMetric: 'kill_participation'
+    });
+  }
+
+  if (matches.length >= 8 && objectiveDeaths >= 1.2) {
     insights.push({
       id: 'objective-discipline',
       title: text(locale, 'Tus resultados caen cuando llegás tarde o mal preparado a las ventanas de objetivo.', 'Your results dip when you arrive late or unprepared to objective windows.'),
       problem: text(locale, 'El setup de objetivos está cediendo demasiado valor', 'Your objective setup is giving away too much value'),
       category: 'macro',
       severity: objectiveDeaths >= 1.5 ? 'high' : 'medium',
-      priority: 'medium',
+      priority: objectiveDeaths >= 1.7 ? 'high' : 'medium',
       evidence: [
         text(locale, `Promediás ${round(objectiveDeaths, 1)} muertes en peleas cercanas a dragón, heraldo o barón.`, `You average ${round(objectiveDeaths, 1)} deaths in fights around dragon, Herald or Baron.`),
         text(locale, `${round(percent(matches.filter((match) => match.timeline.objectiveFightDeaths > 0).length, matches.length), 1)}% de tu muestra pierde al menos una vida en estas ventanas.`, `${round(percent(matches.filter((match) => match.timeline.objectiveFightDeaths > 0).length, matches.length), 1)}% of the sample loses at least one life in these windows.`)
@@ -667,6 +773,53 @@ export function buildInsights(matches: ParticipantSnapshot[], championPool: Cham
       actions: roleProfile.macroActions,
       metricValue: round(objectiveDeaths, 1),
       focusMetric: 'objective_fight_deaths'
+    });
+  }
+
+  if (matches.length >= 10 && unstablePool && championPool.length >= 4) {
+    insights.push({
+      id: 'pool-drift',
+      title: text(locale, 'Tu muestra está demasiado repartida como para fijar hábitos competitivos con velocidad.', 'Your sample is spread too thin to lock competitive habits quickly.'),
+      problem: text(locale, 'Tu pool todavía está demasiado abierto para el bloque actual', 'Your champion pool is still too open for the current block'),
+      category: 'champion-pool',
+      severity: 'medium',
+      priority: 'medium',
+      evidence: [
+        text(locale, `${championPool.filter((entry) => entry.games >= 3).length} campeones ya tienen 3 o más partidas en la muestra.`, `${championPool.filter((entry) => entry.games >= 3).length} champions already have 3 or more games in the sample.`),
+        text(locale, `${topChampion?.championName ?? 'Tu pick principal'} concentra solo ${round(topChampionShare * 100, 1)}% del bloque.`, `${topChampion?.championName ?? 'Your main pick'} only carries ${round(topChampionShare * 100, 1)}% of the block.`),
+        text(locale, 'Cuando el bloque se reparte demasiado, cuesta más separar si el problema es del jugador, del campeón o del matchup.', 'When the block is spread too wide, it becomes harder to separate whether the issue belongs to the player, the champion or the matchup.')
+      ],
+      impact: text(locale, 'No necesariamente estás eligiendo mal picks, pero sí estás haciendo más lento el aprendizaje porque cada campeón te pide tiempos y riesgos distintos.', 'You are not necessarily choosing bad picks, but you are slowing the learning loop because each champion asks for different timings and risk profiles.'),
+      cause: text(locale, 'Todavía no hay suficiente concentración de volumen en una referencia fuerte como para convertir hábitos en mejoras medibles rápido.', 'There is not enough volume concentrated in a strong reference yet to turn habits into measurable improvements quickly.'),
+      actions: [
+        text(locale, 'Definí un pick ancla y un segundo pick funcional para este bloque, y evitá abrir más variables hasta estabilizar el problema principal.', 'Set one anchor pick and one functional secondary pick for this block, and avoid opening more variables until the main issue is stabilized.'),
+        text(locale, 'Usá el resto del pool solo si el draft realmente te lo exige, no como default de práctica.', 'Use the rest of the pool only if draft truly forces it, not as your default practice pattern.'),
+        text(locale, 'Medí si la claridad del coaching mejora cuando el volumen deja de dispersarse tanto.', 'Measure whether coaching clarity improves once the volume stops being so dispersed.')
+      ],
+      focusMetric: 'champion_pool_stability'
+    });
+  }
+
+  if (matches.length >= 8 && positiveLeadLosses.length >= Math.max(3, Math.floor(matches.length * 0.18))) {
+    insights.push({
+      id: 'lead-conversion',
+      title: text(locale, 'Hay partidas donde entrás al mid game con ventaja y aun así no terminás convirtiéndola.', 'There are games where you enter mid game ahead and still fail to convert that lead.'),
+      problem: text(locale, 'Tu ventaja temprana no siempre se está transformando en control real de partida', 'Your early lead is not always turning into real game control'),
+      category: 'macro',
+      severity: 'medium',
+      priority: 'medium',
+      evidence: [
+        text(locale, `${positiveLeadLosses.length} partidas de la muestra terminan en derrota incluso después de llegar arriba en oro al 15.`, `${positiveLeadLosses.length} games in the sample still end in losses even after reaching minute 15 ahead in gold.`),
+        text(locale, `Eso señala una fuga de conversión, no solo un problema de lane o mecánicas.`, `That points to a conversion leak, not only a lane or mechanics issue.`)
+      ],
+      impact: text(locale, 'No alcanza con “ganar la primera parte” si después el mapa se juega sin reset, sin tempo o sin target selection clara.', 'It is not enough to win the first part if the map is then played without reset, tempo or clear target selection.'),
+      cause: text(locale, 'La ventaja temprana parece perderse entre resets malos, side plays extra o peleas donde no entrás con la posición correcta.', 'The early lead seems to get lost in bad resets, extra side plays or fights where you do not enter from the correct position.'),
+      actions: [
+        text(locale, 'Revisá específicamente derrotas con oro positivo al 15 y marcá la primera decisión donde dejaste de jugar desde ventaja.', 'Review losses with positive gold at 15 and mark the first decision where you stopped playing from advantage.'),
+        text(locale, 'En tus próximas rankeds, si entrás arriba al mid game, priorizá convertir esa ventaja en visión, tempo y setup antes que en highlights.', 'In your next ranked games, if you enter mid game ahead, prioritize converting that edge into vision, tempo and setup before chasing highlights.'),
+        text(locale, 'Medí conversión de ventaja como hábito aparte del farmeo o de la fase de línea.', 'Track lead conversion as a separate habit from farming or lane phase.')
+      ],
+      focusMetric: 'lead_conversion'
     });
   }
 
@@ -766,7 +919,11 @@ export function buildInsights(matches: ParticipantSnapshot[], championPool: Cham
   return insights
     .sort((a, b) => {
       const priorityWeight = { high: 3, medium: 2, low: 1 };
-      return priorityWeight[b.priority] - priorityWeight[a.priority];
+      const severityWeight = { high: 3, medium: 2, low: 1 };
+      return (
+        priorityWeight[b.priority] - priorityWeight[a.priority]
+        || severityWeight[b.severity] - severityWeight[a.severity]
+      );
     })
     .slice(0, 6);
 }
@@ -789,16 +946,21 @@ export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: C
   let activePlan: ImprovementCycle | null = null;
   if (measurableProblem) {
     const focusMatches = [...sortedByDate].reverse().slice(0, 5);
+    const activeRoleProfile = getRoleProfile(findPrimaryRole(matches), locale);
     const completedGames = focusMatches.filter((match) => {
       switch (measurableProblem.focusMetric) {
         case 'deaths_pre_10':
           return match.timeline.laneDeathsPre10 === 0;
         case 'cs_at_15':
-          return match.timeline.csAt15 >= getRoleProfile(findPrimaryRole(matches), locale).csAt15Target;
+          return match.timeline.csAt15 >= activeRoleProfile.csAt15Target;
         case 'deaths_pre_14':
-          return match.timeline.deathsPre14 <= getRoleProfile(findPrimaryRole(matches), locale).stableDeathsPre14;
+          return match.timeline.deathsPre14 <= activeRoleProfile.stableDeathsPre14;
         case 'objective_fight_deaths':
           return match.timeline.objectiveFightDeaths === 0;
+        case 'gold_diff_at_15':
+          return (match.timeline.goldDiffAt15 ?? 0) >= getLeadMetricTarget(findPrimaryRole(matches)).goldDiffAt15;
+        case 'kill_participation':
+          return match.killParticipation >= getKillParticipationTarget(findPrimaryRole(matches));
         default:
           return false;
       }
@@ -806,9 +968,11 @@ export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: C
 
     const objectiveByMetric: Record<string, string> = {
       deaths_pre_10: text(locale, 'No morir antes del minuto 10', 'Do not die before minute 10'),
-      cs_at_15: text(locale, `Sostener ${getRoleProfile(findPrimaryRole(matches), locale).csAt15Target}+ CS al minuto 15`, `Hold ${getRoleProfile(findPrimaryRole(matches), locale).csAt15Target}+ CS by minute 15`),
-      deaths_pre_14: text(locale, `Mantener ${getRoleProfile(findPrimaryRole(matches), locale).stableDeathsPre14} o menos muertes antes del 14`, `Hold ${getRoleProfile(findPrimaryRole(matches), locale).stableDeathsPre14} or fewer deaths before minute 14`),
-      objective_fight_deaths: text(locale, 'Llegar vivo a las ventanas de objetivo', 'Arrive alive to objective windows')
+      cs_at_15: text(locale, `Sostener ${activeRoleProfile.csAt15Target}+ CS al minuto 15`, `Hold ${activeRoleProfile.csAt15Target}+ CS by minute 15`),
+      deaths_pre_14: text(locale, `Mantener ${activeRoleProfile.stableDeathsPre14} o menos muertes antes del 14`, `Hold ${activeRoleProfile.stableDeathsPre14} or fewer deaths before minute 14`),
+      objective_fight_deaths: text(locale, 'Llegar vivo a las ventanas de objetivo', 'Arrive alive to objective windows'),
+      gold_diff_at_15: text(locale, 'Llegar al 15 sin ceder la primera ventaja de oro y nivel', 'Reach minute 15 without giving away the first gold and level edge'),
+      kill_participation: text(locale, 'Entrar mejor conectado a las jugadas que mueven el mapa', 'Join the plays that move the map more consistently')
     };
 
     activePlan = {
@@ -857,6 +1021,7 @@ export function buildAggregateSummary(player: string, tagLine: string, region: s
     tagLine,
     region,
     platform,
+    primaryRole: findPrimaryRole(eligibleMatches),
     matches: eligibleMatches.length,
     wins,
     losses,
@@ -868,6 +1033,8 @@ export function buildAggregateSummary(player: string, tagLine: string, region: s
     avgKillParticipation: round(avg(eligibleMatches.map((match) => match.killParticipation))),
     avgCsAt15: round(avg(eligibleMatches.map((match) => match.timeline.csAt15))),
     avgGoldAt15: round(avg(eligibleMatches.map((match) => match.timeline.goldAt15))),
+    avgGoldDiffAt15: round(avg(eligibleMatches.map((match) => match.timeline.goldDiffAt15 ?? 0))),
+    avgLevelDiffAt15: round(avg(eligibleMatches.map((match) => match.timeline.levelDiffAt15 ?? 0))),
     avgDeathsPre14: round(avg(eligibleMatches.map((match) => match.timeline.deathsPre14))),
     avgPerformanceScore: round(avg(eligibleMatches.map((match) => match.score.total))),
     consistencyIndex: round(100 - avg(eligibleMatches.map((match) => Math.abs(match.score.total - avg(eligibleMatches.map((innerMatch) => innerMatch.score.total))))), 1),

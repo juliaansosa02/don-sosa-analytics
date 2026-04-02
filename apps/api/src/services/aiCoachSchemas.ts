@@ -103,6 +103,7 @@ export interface AICoachContext {
     visibleMatches: number;
     rankLabel?: string;
     highestTier?: string;
+    primaryRole?: string;
     anchorChampion?: string | null;
   };
   performance: {
@@ -110,6 +111,9 @@ export interface AICoachContext {
     avgPerformance: number;
     avgCsAt15: number;
     avgGoldAt15: number;
+    avgGoldDiffAt15: number;
+    avgLevelDiffAt15: number;
+    avgKillParticipation: number;
     avgDeathsPre14: number;
     consistencyIndex: number;
   };
@@ -165,6 +169,10 @@ export interface AICoachContext {
     goldDiffAt15: number;
     levelDiffAt15: number;
     score: number;
+  }>;
+  roleLenses: Array<{
+    role: string;
+    fundamentals: string[];
   }>;
   sample: {
     visibleMatchIds: string[];

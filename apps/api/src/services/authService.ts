@@ -352,7 +352,11 @@ export async function requestPasswordReset(email: string) {
   const normalizedEmail = email.trim().toLowerCase();
   const user = await loadUserByEmail(normalizedEmail);
   if (!user) {
-    return { ok: true as const, devResetToken: null as string | null };
+    return {
+      ok: true as const,
+      devResetToken: null as string | null,
+      devResetUrl: null as string | null
+    };
   }
 
   const rawToken = `${randomUUID()}-${generateOpaqueToken()}`;
@@ -365,7 +369,10 @@ export async function requestPasswordReset(email: string) {
 
   return {
     ok: true as const,
-    devResetToken: env.DEV_EXPOSE_RESET_TOKEN ? rawToken : null
+    devResetToken: env.DEV_EXPOSE_RESET_TOKEN ? rawToken : null,
+    devResetUrl: env.DEV_EXPOSE_RESET_TOKEN
+      ? `${env.APP_BASE_URL.replace(/\/$/, '')}/?account=auth&authMode=reset&resetToken=${encodeURIComponent(rawToken)}`
+      : null
   };
 }
 
