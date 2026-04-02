@@ -5,38 +5,37 @@ import { getRankEmblemDataUrl, getRankPalette } from '../../lib/lol';
 
 export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonNullable<Dataset['rank']>; compact?: boolean; locale?: Locale }) {
   const palette = getRankPalette(rank.highest.tier);
-  const lpProgress = Math.max(0, Math.min(rank.highest.leaguePoints, 100));
+  const anchorQueue = rank.soloQueue.tier !== 'UNRANKED' ? rank.soloQueue : rank.highest;
+  const lpProgress = Math.max(0, Math.min(anchorQueue.leaguePoints, 100));
   const showFlex = rank.flexQueue.tier !== 'UNRANKED';
-  const primaryQueueSummary = `${rank.highest.queueLabel ?? (locale === 'en' ? 'Ranked' : 'Ranked')} · ${rank.highest.winRate}% WR`;
-  const secondaryQueueSummary = rank.highest.queueLabel === 'Flex'
-    ? (rank.soloQueue.tier !== 'UNRANKED' ? `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'} · ${rank.soloQueue.winRate}% WR` : null)
-    : (showFlex ? `${locale === 'en' ? 'Flex' : 'Flex'} · ${rank.flexQueue.winRate}% WR` : null);
+  const primaryQueueSummary = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'} · ${rank.soloQueue.tier === 'UNRANKED' ? (locale === 'en' ? 'Unranked' : 'Sin rango') : `${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP`}`;
+  const secondaryQueueSummary = showFlex ? `${locale === 'en' ? 'Flex' : 'Flex'} · ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP` : null;
   const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR${showFlex ? `\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR` : ''}`;
 
   if (compact) {
     return (
       <div title={title} style={{
         display: 'grid',
-        gap: 10,
+        gap: 8,
         minWidth: 0,
-        padding: '12px 14px',
+        padding: '12px 14px 13px',
         borderRadius: 16,
         background: 'rgba(9, 14, 22, 0.86)',
         border: `1px solid ${palette.primary}33`
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '80px minmax(0, 1fr)', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '92px minmax(0, 1fr)', alignItems: 'center', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <RankEmblem tier={rank.highest.tier} label={rank.highest.label} size={80} />
+            <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={92} />
           </div>
-          <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
-            <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Current rank' : 'Rango actual'}</div>
+          <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
+            <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 17, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.highest.label}</span>
-              <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.highest.leaguePoints} LP`}</span>
+              <span style={{ fontSize: 17, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.soloQueue.tier === 'UNRANKED' ? (locale === 'en' ? 'Unranked' : 'Sin rango') : rank.soloQueue.label}</span>
+              {rank.soloQueue.tier !== 'UNRANKED' ? <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.soloQueue.leaguePoints} LP`}</span> : null}
             </div>
             <div style={{ display: 'grid', gap: 5 }}>
-              <span style={rankQueuePillStyle}>{primaryQueueSummary}</span>
-              {secondaryQueueSummary ? <span style={rankQueuePillStyle}>{secondaryQueueSummary}</span> : null}
+              <span style={rankQueueSummaryStyle}>{primaryQueueSummary}</span>
+              {secondaryQueueSummary ? <span style={rankQueueSummaryStyle}>{secondaryQueueSummary}</span> : null}
             </div>
           </div>
         </div>
@@ -57,17 +56,17 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
       background: compact ? 'rgba(9, 14, 22, 0.86)' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
       border: `1px solid ${palette.primary}33`
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '104px minmax(0, 1fr)', alignItems: 'center', gap: 10 }}>
-        <RankEmblem tier={rank.highest.tier} label={rank.highest.label} size={104} />
+      <div style={{ display: 'grid', gridTemplateColumns: '116px minmax(0, 1fr)', alignItems: 'center', gap: 10 }}>
+        <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={116} />
         <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
-          <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Current rank' : 'Rango actual'}</div>
+          <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.highest.label}</span>
-            <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.highest.leaguePoints} LP`}</span>
+            <span style={{ fontSize: 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.soloQueue.tier === 'UNRANKED' ? (locale === 'en' ? 'Unranked' : 'Sin rango') : rank.soloQueue.label}</span>
+            {rank.soloQueue.tier !== 'UNRANKED' ? <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.soloQueue.leaguePoints} LP`}</span> : null}
           </div>
           <div style={{ display: 'grid', gap: 5 }}>
-            <span style={rankQueuePillStyle}>{primaryQueueSummary}</span>
-            {secondaryQueueSummary ? <span style={rankQueuePillStyle}>{secondaryQueueSummary}</span> : null}
+            <span style={rankQueueSummaryStyle}>{primaryQueueSummary}</span>
+            {secondaryQueueSummary ? <span style={rankQueueSummaryStyle}>{secondaryQueueSummary}</span> : null}
           </div>
         </div>
       </div>
@@ -86,7 +85,7 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
 export function RankEmblem({ tier, label, size }: { tier?: string; label: string; size: number }) {
   const emblem = getRankEmblemDataUrl(tier);
   const palette = getRankPalette(tier);
-  const assetSize = Math.round(size * 1.06);
+  const assetSize = Math.round(size * 1.9);
 
   return (
     <div
@@ -94,12 +93,11 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
       style={{
         width: size,
         height: size,
-        overflow: 'visible',
+        overflow: 'hidden',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingTop: Math.round(size * 0.02),
-        paddingBottom: Math.round(size * 0.02),
+        borderRadius: Math.round(size * 0.24),
         filter: `drop-shadow(0 16px 32px ${palette.primary}24)`
       }}
     >
@@ -112,7 +110,8 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
           display: 'block',
           width: assetSize,
           height: assetSize,
-          objectFit: 'contain'
+          objectFit: 'contain',
+          transform: `translateY(${Math.round(size * 0.14)}px)`
         }}
       />
     </div>
@@ -163,15 +162,12 @@ const sparklineCardStyle: CSSProperties = {
   border: '1px solid rgba(255,255,255,0.06)'
 };
 
-const rankQueuePillStyle: CSSProperties = {
+const rankQueueSummaryStyle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   gap: 4,
-  padding: '5px 8px',
-  borderRadius: 999,
-  background: 'rgba(255,255,255,0.04)',
   color: '#aeb8ca',
-  fontSize: 11,
-  lineHeight: 1.2,
-  border: '1px solid rgba(255,255,255,0.05)'
+  fontSize: 12,
+  lineHeight: 1.35,
+  minWidth: 0
 };

@@ -195,7 +195,7 @@ export function TrendIndicator({
         };
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color, fontWeight: 700 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color, fontWeight: 700, fontSize: 12, lineHeight: 1.1, textAlign: 'left' }}>
       <span aria-hidden="true" style={markerStyle} />
       {label ? <span>{label}</span> : null}
     </span>

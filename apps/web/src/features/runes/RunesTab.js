@@ -52,7 +52,28 @@ export function RunesTab({ dataset, locale = 'es' }) {
     const runes = aggregateRunes(dataset);
     return (_jsxs("div", { style: { display: 'grid', gap: 16 }, children: [_jsx(Card, { title: locale === 'en' ? 'Runes' : 'Runas', subtitle: locale === 'en' ? 'Each keystone is read together with the champions you are actually using it on' : 'Cada keystone se lee junto a los campeones con los que realmente la estás usando', children: _jsx("div", { style: { display: 'grid', gap: 14 }, children: runes.map((rune) => {
                         const iconUrl = getRuneIconUrl(rune.icon);
-                        return (_jsxs("div", { style: runeCardStyle, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 14 }, children: [iconUrl ? _jsx("img", { src: iconUrl, alt: rune.name, width: 46, height: 46, style: runeIconStyle }) : null, _jsxs("div", { children: [_jsx("div", { style: { fontSize: 18, fontWeight: 700 }, children: rune.name }), _jsx("div", { style: { color: '#788291', fontSize: 13 }, children: locale === 'en' ? `${rune.games} analyzed matches` : `${rune.games} partidas analizadas` })] })] }), _jsx(Badge, { tone: rune.winRate >= 55 ? 'low' : rune.winRate < 45 ? 'high' : 'medium', children: rune.winRate >= 55 ? (locale === 'en' ? 'Performing well' : 'Rindiendo bien') : rune.winRate < 45 ? (locale === 'en' ? 'Needs review' : 'Por revisar') : (locale === 'en' ? 'Even sample' : 'Muestra pareja') })] }), _jsxs("div", { style: runeMetricsGridStyle, children: [_jsx(MetricBlock, { label: "Win rate", value: formatPercent(rune.winRate) }), _jsx(MetricBlock, { label: locale === 'en' ? 'Average performance' : 'Performance media', value: formatDecimal(rune.avgPerformance) }), _jsx(MetricBlock, { label: locale === 'en' ? 'Average damage' : 'Daño medio', value: formatInteger(rune.avgDamage) }), _jsx(MetricBlock, { label: locale === 'en' ? 'Average healing' : 'Curación media', value: formatInteger(rune.avgHealing) }), _jsx(MetricBlock, { label: locale === 'en' ? 'Average shielding' : 'Escudo medio', value: formatInteger(rune.avgShielding) })] }), _jsxs("div", { style: { display: 'grid', gap: 10 }, children: [_jsx("div", { style: sectionLabelStyle, children: locale === 'en' ? 'Champions you use it on the most' : 'Campeones con los que más la usás' }), _jsx("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' }, children: rune.champions.map((champion) => {
+                        const anchorChampion = rune.champions[0];
+                        const performanceDiff = rune.avgPerformance - dataset.summary.avgPerformanceScore;
+                        const winRateDiff = rune.winRate - dataset.summary.winRate;
+                        return (_jsxs("div", { style: runeCardStyle, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 14 }, children: [iconUrl ? _jsx("img", { src: iconUrl, alt: rune.name, width: 46, height: 46, style: runeIconStyle }) : null, _jsxs("div", { children: [_jsx("div", { style: { fontSize: 18, fontWeight: 700 }, children: rune.name }), _jsx("div", { style: { color: '#788291', fontSize: 13 }, children: locale === 'en' ? `${rune.games} analyzed matches` : `${rune.games} partidas analizadas` })] })] }), _jsx(Badge, { tone: rune.winRate >= 55 ? 'low' : rune.winRate < 45 ? 'high' : 'medium', children: rune.winRate >= 55 ? (locale === 'en' ? 'Performing well' : 'Rindiendo bien') : rune.winRate < 45 ? (locale === 'en' ? 'Needs review' : 'Por revisar') : (locale === 'en' ? 'Even sample' : 'Muestra pareja') })] }), _jsxs("div", { style: runeMetricsGridStyle, children: [_jsx(MetricBlock, { label: "Win rate", value: formatPercent(rune.winRate) }), _jsx(MetricBlock, { label: locale === 'en' ? 'Average performance' : 'Performance media', value: formatDecimal(rune.avgPerformance) }), _jsx(MetricBlock, { label: locale === 'en' ? 'Average damage' : 'Daño medio', value: formatInteger(rune.avgDamage) }), _jsx(MetricBlock, { label: locale === 'en' ? 'Average healing' : 'Curación media', value: formatInteger(rune.avgHealing) }), _jsx(MetricBlock, { label: locale === 'en' ? 'Average shielding' : 'Escudo medio', value: formatInteger(rune.avgShielding) })] }), _jsxs("div", { style: runeInsightRowStyle, children: [_jsxs("div", { style: runeInsightCardStyle, children: [_jsx("div", { style: sectionLabelStyle, children: locale === 'en' ? 'Best fit right now' : 'Dónde hoy encaja mejor' }), _jsx("div", { style: { color: '#f4f7fb', fontWeight: 700, lineHeight: 1.4 }, children: anchorChampion
+                                                        ? (locale === 'en'
+                                                            ? `${rune.name} is looking cleanest on ${formatChampionName(anchorChampion.championName)}.`
+                                                            : `${rune.name} hoy se ve más limpia en ${formatChampionName(anchorChampion.championName)}.`)
+                                                        : (locale === 'en' ? 'We still need more champion sample.' : 'Todavía falta más muestra por campeón.') }), anchorChampion ? (_jsx("div", { style: { color: '#7a8494', fontSize: 12, lineHeight: 1.55 }, children: locale === 'en'
+                                                        ? `${anchorChampion.games} matches · ${formatPercent(anchorChampion.winRate)} on that champion`
+                                                        : `${anchorChampion.games} partidas · ${formatPercent(anchorChampion.winRate)} con ese campeón` })) : null] }), _jsxs("div", { style: runeInsightCardStyle, children: [_jsx("div", { style: sectionLabelStyle, children: locale === 'en' ? 'Against your block' : 'Contra tu bloque' }), _jsx("div", { style: { color: '#f4f7fb', fontWeight: 700, lineHeight: 1.4 }, children: performanceDiff >= 0
+                                                        ? (locale === 'en'
+                                                            ? `Execution is ${formatDecimal(performanceDiff)} above your average block score.`
+                                                            : `La ejecución está ${formatDecimal(performanceDiff)} por encima del score medio de tu bloque.`)
+                                                        : (locale === 'en'
+                                                            ? `Execution is ${formatDecimal(Math.abs(performanceDiff))} below your average block score.`
+                                                            : `La ejecución está ${formatDecimal(Math.abs(performanceDiff))} por debajo del score medio de tu bloque.`) }), _jsx("div", { style: { color: '#7a8494', fontSize: 12, lineHeight: 1.55 }, children: winRateDiff >= 0
+                                                        ? (locale === 'en'
+                                                            ? `${formatPercent(rune.winRate)} WR, ${formatDecimal(winRateDiff)} pts above your visible average.`
+                                                            : `${formatPercent(rune.winRate)} WR, ${formatDecimal(winRateDiff)} pts por encima de tu media visible.`)
+                                                        : (locale === 'en'
+                                                            ? `${formatPercent(rune.winRate)} WR, ${formatDecimal(Math.abs(winRateDiff))} pts below your visible average.`
+                                                            : `${formatPercent(rune.winRate)} WR, ${formatDecimal(Math.abs(winRateDiff))} pts por debajo de tu media visible.`) })] })] }), _jsxs("div", { style: { display: 'grid', gap: 10 }, children: [_jsx("div", { style: sectionLabelStyle, children: locale === 'en' ? 'Champions you use it on the most' : 'Campeones con los que más la usás' }), _jsx("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' }, children: rune.champions.map((champion) => {
                                                 const championIcon = getChampionIconUrl(champion.championName, dataset.ddragonVersion);
                                                 return (_jsxs("div", { style: championPillStyle, children: [championIcon ? _jsx("img", { src: championIcon, alt: formatChampionName(champion.championName), width: 28, height: 28, style: championIconStyle }) : null, _jsxs("div", { children: [_jsx("div", { style: { fontSize: 13, fontWeight: 700 }, children: formatChampionName(champion.championName) }), _jsx("div", { style: { color: '#7a8494', fontSize: 12 }, children: locale === 'en' ? `${champion.games} matches · ${formatPercent(champion.winRate)}` : `${champion.games} partidas · ${formatPercent(champion.winRate)}` })] })] }, champion.championName));
                                             }) })] })] }, rune.name));
@@ -75,6 +96,19 @@ const runeMetricsGridStyle = {
     display: 'grid',
     gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
     gap: 12
+};
+const runeInsightRowStyle = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+    gap: 12
+};
+const runeInsightCardStyle = {
+    display: 'grid',
+    gap: 8,
+    padding: '12px 13px',
+    borderRadius: 14,
+    background: '#090e16',
+    border: '1px solid rgba(255,255,255,0.05)'
 };
 const metricBlockStyle = {
     padding: '12px 10px',

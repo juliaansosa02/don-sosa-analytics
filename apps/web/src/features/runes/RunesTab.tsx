@@ -75,6 +75,9 @@ export function RunesTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
         <div style={{ display: 'grid', gap: 14 }}>
           {runes.map((rune) => {
             const iconUrl = getRuneIconUrl(rune.icon);
+            const anchorChampion = rune.champions[0];
+            const performanceDiff = rune.avgPerformance - dataset.summary.avgPerformanceScore;
+            const winRateDiff = rune.winRate - dataset.summary.winRate;
 
             return (
               <div key={rune.name} style={runeCardStyle}>
@@ -98,6 +101,47 @@ export function RunesTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
                   <MetricBlock label={locale === 'en' ? 'Average damage' : 'Daño medio'} value={formatInteger(rune.avgDamage)} />
                   <MetricBlock label={locale === 'en' ? 'Average healing' : 'Curación media'} value={formatInteger(rune.avgHealing)} />
                   <MetricBlock label={locale === 'en' ? 'Average shielding' : 'Escudo medio'} value={formatInteger(rune.avgShielding)} />
+                </div>
+
+                <div style={runeInsightRowStyle}>
+                  <div style={runeInsightCardStyle}>
+                    <div style={sectionLabelStyle}>{locale === 'en' ? 'Best fit right now' : 'Dónde hoy encaja mejor'}</div>
+                    <div style={{ color: '#f4f7fb', fontWeight: 700, lineHeight: 1.4 }}>
+                      {anchorChampion
+                        ? (locale === 'en'
+                          ? `${rune.name} is looking cleanest on ${formatChampionName(anchorChampion.championName)}.`
+                          : `${rune.name} hoy se ve más limpia en ${formatChampionName(anchorChampion.championName)}.`)
+                        : (locale === 'en' ? 'We still need more champion sample.' : 'Todavía falta más muestra por campeón.')}
+                    </div>
+                    {anchorChampion ? (
+                      <div style={{ color: '#7a8494', fontSize: 12, lineHeight: 1.55 }}>
+                        {locale === 'en'
+                          ? `${anchorChampion.games} matches · ${formatPercent(anchorChampion.winRate)} on that champion`
+                          : `${anchorChampion.games} partidas · ${formatPercent(anchorChampion.winRate)} con ese campeón`}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div style={runeInsightCardStyle}>
+                    <div style={sectionLabelStyle}>{locale === 'en' ? 'Against your block' : 'Contra tu bloque'}</div>
+                    <div style={{ color: '#f4f7fb', fontWeight: 700, lineHeight: 1.4 }}>
+                      {performanceDiff >= 0
+                        ? (locale === 'en'
+                          ? `Execution is ${formatDecimal(performanceDiff)} above your average block score.`
+                          : `La ejecución está ${formatDecimal(performanceDiff)} por encima del score medio de tu bloque.`)
+                        : (locale === 'en'
+                          ? `Execution is ${formatDecimal(Math.abs(performanceDiff))} below your average block score.`
+                          : `La ejecución está ${formatDecimal(Math.abs(performanceDiff))} por debajo del score medio de tu bloque.`)}
+                    </div>
+                    <div style={{ color: '#7a8494', fontSize: 12, lineHeight: 1.55 }}>
+                      {winRateDiff >= 0
+                        ? (locale === 'en'
+                          ? `${formatPercent(rune.winRate)} WR, ${formatDecimal(winRateDiff)} pts above your visible average.`
+                          : `${formatPercent(rune.winRate)} WR, ${formatDecimal(winRateDiff)} pts por encima de tu media visible.`)
+                        : (locale === 'en'
+                          ? `${formatPercent(rune.winRate)} WR, ${formatDecimal(Math.abs(winRateDiff))} pts below your visible average.`
+                          : `${formatPercent(rune.winRate)} WR, ${formatDecimal(Math.abs(winRateDiff))} pts por debajo de tu media visible.`)}
+                    </div>
+                  </div>
                 </div>
 
                 <div style={{ display: 'grid', gap: 10 }}>
@@ -156,6 +200,21 @@ const runeMetricsGridStyle = {
   display: 'grid',
   gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
   gap: 12
+} as const;
+
+const runeInsightRowStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+  gap: 12
+} as const;
+
+const runeInsightCardStyle = {
+  display: 'grid',
+  gap: 8,
+  padding: '12px 13px',
+  borderRadius: 14,
+  background: '#090e16',
+  border: '1px solid rgba(255,255,255,0.05)'
 } as const;
 
 const metricBlockStyle = {

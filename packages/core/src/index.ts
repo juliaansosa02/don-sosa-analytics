@@ -248,6 +248,29 @@ const clamp = (value: number, min = 0, max = 100) => Math.max(min, Math.min(max,
 const formatSigned = (value: number, digits = 1) => `${value >= 0 ? '+' : ''}${round(value, digits)}`;
 const percent = (wins: number, total: number) => (total ? (wins / total) * 100 : 0);
 const text = (locale: SummaryLocale, es: string, en: string) => (locale === 'en' ? en : es);
+const championDisplayNameMap: Record<string, string> = {
+  AurelionSol: 'Aurelion Sol',
+  Belveth: "Bel'Veth",
+  ChoGath: "Cho'Gath",
+  DrMundo: 'Dr. Mundo',
+  JarvanIV: 'Jarvan IV',
+  KhaZix: "Kha'Zix",
+  KogMaw: "Kog'Maw",
+  LeeSin: 'Lee Sin',
+  MasterYi: 'Master Yi',
+  MissFortune: 'Miss Fortune',
+  MonkeyKing: 'Wukong',
+  RekSai: "Rek'Sai",
+  TahmKench: 'Tahm Kench',
+  TwistedFate: 'Twisted Fate',
+  VelKoz: "Vel'Koz",
+  XinZhao: 'Xin Zhao'
+};
+
+function formatChampionName(championName: string) {
+  if (!championName) return championName;
+  return championDisplayNameMap[championName] ?? championName;
+}
 
 interface RoleCoachingProfile {
   role: string;
@@ -296,7 +319,7 @@ const roleProfiles: Record<string, RoleCoachingProfile> = {
     farmActions: [
       'Protegé tu primera y segunda rotación: no cortes campamentos por una jugada sin prioridad real de líneas.',
       'Si una ventana de gank no te da kill, flash o wave rota, volvé rápido a tu ruta.',
-      'Revisá cada partida por debajo del objetivo y encontrá el primer desvío que te rompe el tempo.'
+      'Revisá cada partida por debajo del objetivo y encontrá el primer quiebre de ruta que te rompe el tempo.'
     ],
     disciplineCause: 'Tus primeras decisiones de mapa están regalando tempo, oro y control de objetivos antes del minuto 14.',
     disciplineActions: [
@@ -422,7 +445,7 @@ function getRoleProfile(role: string, locale: SummaryLocale = 'es'): RoleCoachin
         farmActions: [
           'Protect your first and second clears: do not cut camps for a play with no real lane priority behind it.',
           'If a gank window does not give you a kill, flash or wave state, snap back into your route quickly.',
-          'Review every low-farm game and find the first detour that breaks your tempo.'
+          'Review every low-farm game and find the first route break that breaks your tempo.'
         ],
         disciplineCause: 'Your early map decisions are leaking tempo, gold and objective control before minute 14.',
         disciplineActions: [
@@ -638,6 +661,76 @@ function pickMostPlayedRecentChampion(matches: ParticipantSnapshot[]) {
     .sort((a, b) => b[1].games - a[1].games || b[1].latestGameCreation - a[1].latestGameCreation)[0]?.[0] ?? null;
 }
 
+function buildRoleReviewContext(role: string, issue: 'objective' | 'economy', locale: SummaryLocale = 'es') {
+  if (issue === 'objective') {
+    switch (role) {
+      case 'JUNGLE':
+        return {
+          question: text(locale, '¿Qué campamento, reset o invade te dejó llegando tarde a la ventana?', 'Which camp, reset or invade made you arrive late to the window?'),
+          focus: text(locale, 'Ruta, tempo de recall, prioridad de líneas y quién podía entrar primero al setup.', 'Route, recall tempo, lane priority and who could enter the setup first.')
+        };
+      case 'TOP':
+        return {
+          question: text(locale, '¿Qué wave, placa o trade te hizo llegar tarde o sin TP útil al objetivo?', 'Which wave, plate or trade made you arrive late or without useful TP to the objective?'),
+          focus: text(locale, 'Estado de side, timing de TP o rotación, y cuánto costó quedarte una wave extra.', 'Side-lane state, TP or rotation timing, and the real cost of staying for one more wave.')
+        };
+      case 'MIDDLE':
+        return {
+          question: text(locale, '¿Qué wave o reset de medio te sacó la prioridad que necesitabas para mover primero?', 'Which mid wave or reset timing removed the priority you needed to move first?'),
+          focus: text(locale, 'Prioridad de medio, ruta al río y si llegaste a condicionar o solo a reaccionar.', 'Mid priority, route into river and whether you arrived to dictate or only to react.')
+        };
+      case 'BOTTOM':
+        return {
+          question: text(locale, '¿Qué wave, compra o swap te hizo llegar tarde a la pelea frontal?', 'Which wave, purchase or swap timing made you arrive late to the front-to-back fight?'),
+          focus: text(locale, 'Reset de bot, estado de la wave y si entraste con item/posición correctos.', 'Bot reset, wave state and whether you entered with the right item timing and position.')
+        };
+      case 'UTILITY':
+        return {
+          question: text(locale, '¿Qué ward, roam o reset te dejó fuera del setup importante?', 'Which ward, roam or reset timing pulled you out of the important setup?'),
+          focus: text(locale, 'Visión previa, acompañamiento y quién estaba habilitado para entrar con vos.', 'Pre-objective vision, support pathing and who was enabled to walk in with you.')
+        };
+      default:
+        return {
+          question: text(locale, '¿Qué te faltó hacer 45-60 segundos antes para no llegar corriendo a la ventana?', 'What did you fail to do 45-60 seconds earlier so you would not arrive rushing the window?'),
+          focus: text(locale, 'Reset, visión, orden de llegada y quién tenía prioridad real.', 'Reset, vision, arrival order and who had real priority.')
+        };
+    }
+  }
+
+  switch (role) {
+    case 'JUNGLE':
+      return {
+        question: text(locale, '¿Qué gank, invade o pelea te rompió la secuencia normal de campamentos?', 'Which gank, invade or fight broke your normal camp sequence?'),
+        focus: text(locale, 'CS@15, campamentos omitidos y qué jugada de poco retorno te sacó del tempo.', 'CS@15, skipped camps and which low-return play pulled you off tempo.')
+      };
+    case 'TOP':
+      return {
+        question: text(locale, '¿Qué trade, crash o back te dejó sin la siguiente wave importante?', 'Which trade, crash or base timing cost you the next important wave?'),
+        focus: text(locale, 'CS@15, estado de wave y si cambiaste economía real por presión que no convertiste.', 'CS@15, wave state and whether you traded real economy for pressure you never converted.')
+      };
+    case 'MIDDLE':
+      return {
+        question: text(locale, '¿Qué roam, trade o reset te sacó de tu piso económico normal de medio?', 'Which roam, trade or reset timing pulled you off your normal mid-lane economy floor?'),
+        focus: text(locale, 'CS@15, placas/olas perdidas y costo real de moverte sin prioridad.', 'CS@15, missed waves or plates and the real cost of moving without priority.')
+      };
+    case 'BOTTOM':
+      return {
+        question: text(locale, '¿Qué trade, recall o chase te hizo entregar waves completas o llegar tarde a la compra?', 'Which trade, recall or chase made you give away full waves or delay your buy timing?'),
+        focus: text(locale, 'CS@15, oro al 15 y qué ventana de lane te dejó sin curva de item.', 'CS@15, gold@15 and which lane window knocked you off your item curve.')
+      };
+    case 'UTILITY':
+      return {
+        question: text(locale, '¿Qué roam, reset o limpieza de visión te sacó del mapa sin devolver valor real?', 'Which roam, reset or vision clear pulled you off the map without returning real value?'),
+        focus: text(locale, 'Tempo del support, presencia útil y costo real de la rotación que elegiste.', 'Support tempo, useful map presence and the real cost of the rotation you chose.')
+      };
+    default:
+      return {
+        question: text(locale, '¿Qué reset, ruta o pelea te sacó del piso económico normal del rol?', 'What reset, route or fight pulled you off the normal economy floor for the role?'),
+        focus: text(locale, 'CS@15, diff. de oro y qué jugada de poco retorno te cortó el ingreso.', 'CS@15, gold diff and which low-return play cut your income.')
+      };
+  }
+}
+
 function calculateConsistencyIndex(matches: ParticipantSnapshot[]) {
   if (!matches.length) return 0;
   const averageScore = avg(matches.map((match) => match.score.total));
@@ -768,12 +861,12 @@ function buildProblematicMatchupSummary(matches: ParticipantSnapshot[], locale: 
   let summary: string;
   if (locale === 'en') {
     summary = directMatches.length >= 2
-      ? `${worstOpponent.opponentChampionName} is the recurring matchup doing the most damage in this scope. Across the full scoped sample it sits at ${recordLabel(worstOpponent.overallWins, worstOpponent.overallGames, locale)}, and the direct sample with ${championName} lands at ${recordLabel(directWins, directMatches.length, locale)}.`
-      : `${worstOpponent.opponentChampionName} is the opponent that most consistently hurts this scope: ${recordLabel(worstOpponent.overallWins, worstOpponent.overallGames, locale)} overall. ${championName} is still your recent reference pick, but direct sample in this exact cross is still short, so treat this as a scoped pattern first and a champion-specific read second.`;
+      ? `${formatChampionName(worstOpponent.opponentChampionName)} is the recurring matchup doing the most damage in this scope. Across the full scoped sample it sits at ${recordLabel(worstOpponent.overallWins, worstOpponent.overallGames, locale)}, and the direct sample with ${formatChampionName(championName)} lands at ${recordLabel(directWins, directMatches.length, locale)}.`
+      : `${formatChampionName(worstOpponent.opponentChampionName)} is the opponent that most consistently hurts this scope: ${recordLabel(worstOpponent.overallWins, worstOpponent.overallGames, locale)} overall. ${formatChampionName(championName)} is still your recent reference pick, but direct sample in this exact cross is still short, so treat this as a scoped pattern first and a champion-specific read second.`;
   } else {
     summary = directMatches.length >= 2
-      ? `${worstOpponent.opponentChampionName} es el cruce recurrente que más te está lastimando en este scope. En la muestra completa del scope queda en ${recordLabel(worstOpponent.overallWins, worstOpponent.overallGames, locale)}, y la muestra directa con ${championName} hoy da ${recordLabel(directWins, directMatches.length, locale)}.`
-      : `${worstOpponent.opponentChampionName} es el rival que más consistentemente te está castigando en este scope: ${recordLabel(worstOpponent.overallWins, worstOpponent.overallGames, locale)} en total. ${championName} sigue siendo tu pick reciente de referencia, pero la muestra directa de este cruce exacto todavía es corta, así que primero leelo como patrón del scope y recién después como lectura específica del campeón.`;
+      ? `${formatChampionName(worstOpponent.opponentChampionName)} es el cruce recurrente que más te está lastimando en este scope. En la muestra completa del scope queda en ${recordLabel(worstOpponent.overallWins, worstOpponent.overallGames, locale)}, y la muestra directa con ${formatChampionName(championName)} hoy da ${recordLabel(directWins, directMatches.length, locale)}.`
+      : `${formatChampionName(worstOpponent.opponentChampionName)} es el rival que más consistentemente te está castigando en este scope: ${recordLabel(worstOpponent.overallWins, worstOpponent.overallGames, locale)} en total. ${formatChampionName(championName)} sigue siendo tu pick reciente de referencia, pero la muestra directa de este cruce exacto todavía es corta, así que primero leelo como patrón del scope y recién después como lectura específica del campeón.`;
   }
 
   let adjustments: string[];
@@ -781,7 +874,7 @@ function buildProblematicMatchupSummary(matches: ParticipantSnapshot[], locale: 
     adjustments = [
       locale === 'en'
         ? `With ${championName} into ${worstOpponent.opponentChampionName}, your first rule is to protect the early game: do not force the first contested window unless your setup is clearly winning.`
-        : `Con ${championName} contra ${worstOpponent.opponentChampionName}, la primera regla es proteger el early: no fuerces la primera ventana peleada si tu setup no está claramente ganado.`,
+        : `Con ${formatChampionName(championName)} contra ${formatChampionName(worstOpponent.opponentChampionName)}, la primera regla es proteger el early: no fuerces la primera ventana peleada si tu setup no está claramente ganado.`,
       roleProfile.disciplineActions[0],
       locale === 'en'
         ? `Review the first death or failed contest in this matchup and ask what information or resource state was missing before you committed.`
@@ -794,24 +887,24 @@ function buildProblematicMatchupSummary(matches: ParticipantSnapshot[], locale: 
         : `El cruce te está dejando atrás antes del 15, así que jugalo primero para preservar tempo y abrí peleas solo cuando la wave, los camps o el reset ya estén a tu favor.`,
       roleProfile.farmActions[0],
       locale === 'en'
-        ? `Use ${championName} as the review lens: compare one playable game and one bad one into ${worstOpponent.opponentChampionName}, then isolate the first tempo break.`
-        : `Usá a ${championName} como lente de review: compará una partida jugable y una mala contra ${worstOpponent.opponentChampionName}, y aislá el primer quiebre de tempo.`
+        ? `Use ${formatChampionName(championName)} as the review lens: compare one playable game and one bad one into ${formatChampionName(worstOpponent.opponentChampionName)}, then isolate the first tempo break.`
+        : `Usá a ${formatChampionName(championName)} como lente de review: compará una partida jugable y una mala contra ${formatChampionName(worstOpponent.opponentChampionName)}, y aislá el primer quiebre de tempo.`
     ];
   } else if (avgCsAt15 < roleProfile.csAt15Target - 8) {
     adjustments = [
       locale === 'en'
-        ? `This cross is cutting your income too early. Prioritize the line that lets ${championName} reach minute 15 with gold instead of trading away full waves or camps for low-return pressure.`
-        : `Este cruce te está cortando el ingreso demasiado temprano. Priorizá la línea que deja a ${championName} llegar al 15 con oro en vez de cambiar waves o camps completos por presión de poco retorno.`,
+        ? `This cross is cutting your income too early. Prioritize the line that lets ${formatChampionName(championName)} reach minute 15 with gold instead of trading away full waves or camps for low-return pressure.`
+        : `Este cruce te está cortando el ingreso demasiado temprano. Priorizá la línea que deja a ${formatChampionName(championName)} llegar al 15 con oro en vez de cambiar waves o campamentos completos por presión de poco retorno.`,
       roleProfile.farmActions[1],
       locale === 'en'
-        ? `Review the first reset, detour or skirmish that drops your economy below the normal floor for this role.`
-        : `Revisá el primer reset, desvío o escaramuza que te baja la economía por debajo del piso normal de este rol.`
+        ? `Review the first reset, route break or skirmish that drops your economy below the normal floor for this role.`
+        : `Revisá el primer reset, quiebre de ruta o escaramuza que te baja la economía por debajo del piso normal de este rol.`
     ];
   } else {
     adjustments = [
       locale === 'en'
-        ? `Do not treat ${worstOpponent.opponentChampionName} as a random bad game. Queue this matchup with a simpler plan on ${championName}: cleaner entry, clearer reset timing and fewer low-certainty fights.`
-        : `No trates a ${worstOpponent.opponentChampionName} como una mala partida random. Entrá a este cruce con un plan más simple sobre ${championName}: entrada más limpia, mejor timing de reset y menos peleas de baja certeza.`,
+        ? `Do not treat ${formatChampionName(worstOpponent.opponentChampionName)} as a random bad game. Queue this matchup with a simpler plan on ${formatChampionName(championName)}: cleaner entry, clearer reset timing and fewer low-certainty fights.`
+        : `No trates a ${formatChampionName(worstOpponent.opponentChampionName)} como una mala partida random. Entrá a este cruce con un plan más simple sobre ${formatChampionName(championName)}: entrada más limpia, mejor timing de reset y menos peleas de baja certeza.`,
       roleProfile.macroActions[0],
       locale === 'en'
         ? `After each game into this pick, save one note about the first moment the matchup stopped feeling playable.`
@@ -971,10 +1064,11 @@ function buildReviewAgenda(matches: ParticipantSnapshot[], locale: SummaryLocale
       let priorityScore = 0;
 
       if (match.timeline.objectiveFightDeaths > 0) {
+        const objectiveReview = buildRoleReviewContext(primaryRole, 'objective', locale);
         title = text(locale, 'Revisá el minuto previo al objetivo', 'Review the minute before the objective');
         reason = text(locale, 'La partida se rompe alrededor del setup, no solo durante la pelea.', 'The game breaks around the setup, not only during the fight.');
-        question = text(locale, '¿Qué te faltó hacer 45-60 segundos antes para no llegar corriendo a la ventana?', 'What did you fail to do 45-60 seconds earlier so you would not arrive rushing the window?');
-        focus = text(locale, 'Reset, visión, orden de llegada y quién tenía prioridad real.', 'Reset, vision, arrival order and who had real priority.');
+        question = objectiveReview.question;
+        focus = objectiveReview.focus;
         tags.push(text(locale, 'Objetivo', 'Objective setup'));
         priorityScore += 8 + match.timeline.objectiveFightDeaths * 3;
       }
@@ -989,10 +1083,11 @@ function buildReviewAgenda(matches: ParticipantSnapshot[], locale: SummaryLocale
       }
 
       if (csGap >= 10 || goldDiff <= -250 || levelDiff <= -0.5) {
+        const economyReview = buildRoleReviewContext(primaryRole, 'economy', locale);
         title = text(locale, 'Aislá dónde se cortó tu economía', 'Isolate where your economy got cut');
         reason = text(locale, 'La partida ya llega más débil al 15 de lo que tu rol necesita.', 'The game is already reaching minute 15 weaker than your role needs.');
-        question = text(locale, '¿Qué reset, desvío o pelea te sacó del piso económico normal del rol?', 'What reset, detour or fight pulled you off the normal economy floor for the role?');
-        focus = text(locale, 'CS@15, diff. de oro, camps o waves que dejaste por una jugada de poco retorno.', 'CS@15, gold diff, camps or waves you dropped for a low-return play.');
+        question = economyReview.question;
+        focus = economyReview.focus;
         tags.push(text(locale, 'Economía', 'Economy'));
         priorityScore += 6 + Math.max(0, Math.ceil(csGap / 6));
       }
@@ -1144,6 +1239,7 @@ export function buildInsights(matches: ParticipantSnapshot[], championPool: Cham
   const disciplinedGames = matches.filter((match) => match.timeline.deathsPre14 <= stableLimit);
   const volatileGames = matches.filter((match) => match.timeline.deathsPre14 >= stableLimit + 2);
   const objectiveDeaths = avg(matches.map((match) => match.timeline.objectiveFightDeaths));
+  const objectiveWindowBreaks = matches.filter((match) => match.timeline.objectiveFightDeaths > 0);
   const avgPre14Deaths = avg(matches.map((match) => match.timeline.deathsPre14));
   const avgCsAt15 = avg(matches.map((match) => match.timeline.csAt15));
   const avgGoldDiffAt15 = avg(matches.map((match) => match.timeline.goldDiffAt15 ?? 0));
@@ -1265,7 +1361,11 @@ export function buildInsights(matches: ParticipantSnapshot[], championPool: Cham
     });
   }
 
-  if (matches.length >= 8 && objectiveDeaths >= 1.2) {
+  if (
+    matches.length >= 8 &&
+    objectiveDeaths >= 1.45 &&
+    objectiveWindowBreaks.length >= Math.max(3, Math.floor(matches.length * 0.3))
+  ) {
     insights.push({
       id: 'objective-discipline',
       title: text(locale, 'Tus resultados caen cuando llegás tarde o mal preparado a las ventanas de objetivo.', 'Your results dip when you arrive late or unprepared to objective windows.'),
@@ -1275,7 +1375,7 @@ export function buildInsights(matches: ParticipantSnapshot[], championPool: Cham
       priority: objectiveDeaths >= 1.7 ? 'high' : 'medium',
       evidence: [
         text(locale, `Promediás ${round(objectiveDeaths, 1)} muertes en peleas cercanas a dragón, heraldo o barón.`, `You average ${round(objectiveDeaths, 1)} deaths in fights around dragon, Herald or Baron.`),
-        text(locale, `${round(percent(matches.filter((match) => match.timeline.objectiveFightDeaths > 0).length, matches.length), 1)}% de tu muestra pierde al menos una vida en estas ventanas.`, `${round(percent(matches.filter((match) => match.timeline.objectiveFightDeaths > 0).length, matches.length), 1)}% of the sample loses at least one life in these windows.`)
+        text(locale, `${round(percent(objectiveWindowBreaks.length, matches.length), 1)}% de tu muestra pierde al menos una vida en estas ventanas.`, `${round(percent(objectiveWindowBreaks.length, matches.length), 1)}% of the sample loses at least one life in these windows.`)
       ],
       impact: text(locale, 'Cuando regalás una muerte antes o durante el setup, la partida deja de jugarse desde prioridad y empieza a jugarse desde desventaja de tempo.', 'When you give away a death before or during setup, the game stops being played from priority and starts being played from a tempo deficit.'),
       cause: roleProfile.macroCause,
@@ -1343,41 +1443,41 @@ export function buildInsights(matches: ParticipantSnapshot[], championPool: Cham
     if (!otherChampionMatches.length || topChampionWinRate >= otherWinRate + 8 || topChampion.avgScore >= avg(championPool.map((entry) => entry.avgScore)) + 3) {
       insights.push({
         id: 'primary-champion-anchor',
-        title: text(locale, `${topChampion.championName} ya te está marcando una forma de jugar más sólida que el resto de tu pool.`, `${topChampion.championName} is already showing you a more stable way to play than the rest of your pool.`),
-        problem: text(locale, `${topChampion.championName} es tu referencia de juego más confiable`, `${topChampion.championName} is your most reliable game reference`),
+        title: text(locale, `${formatChampionName(topChampion.championName)} ya te está marcando una forma de jugar más sólida que el resto de tu pool.`, `${formatChampionName(topChampion.championName)} is already showing you a more stable way to play than the rest of your pool.`),
+        problem: text(locale, `${formatChampionName(topChampion.championName)} es tu referencia de juego más confiable`, `${formatChampionName(topChampion.championName)} is your most reliable game reference`),
         category: 'positive',
         severity: 'low',
         priority: 'low',
         evidence: [
           text(locale, `Lo usaste en ${formatChampionShare(topChampionMatches.length, matches.length, locale)} de la muestra.`, `You used it in ${formatChampionShare(topChampionMatches.length, matches.length, locale)} of the sample.`),
-          text(locale, `Con ${topChampion.championName} cerrás ${recordLabel(topChampionWins, topChampionMatches.length, locale)}.`, `With ${topChampion.championName} you finish at ${recordLabel(topChampionWins, topChampionMatches.length, locale)}.`),
+          text(locale, `Con ${formatChampionName(topChampion.championName)} cerrás ${recordLabel(topChampionWins, topChampionMatches.length, locale)}.`, `With ${formatChampionName(topChampion.championName)} you finish at ${recordLabel(topChampionWins, topChampionMatches.length, locale)}.`),
           text(locale, `Su línea media está en ${round(topChampionCsAt15, 1)} CS al 15 y ${round(topChampionPre14Deaths, 1)} muertes antes del 14.`, `Its average line is ${round(topChampionCsAt15, 1)} CS at 15 and ${round(topChampionPre14Deaths, 1)} deaths before 14.`)
         ],
         impact: text(locale, 'No hace falta inventar un plan nuevo desde cero: ya existe una versión tuya que está resolviendo mejor los primeros 15 minutos.', 'You do not need to invent a new plan from scratch: there is already a version of your play that is handling the first 15 minutes better.'),
         cause: text(locale, 'Con ese campeón tus ventanas de tempo, daño y toma de riesgo parecen estar más alineadas con cómo querés jugar.', 'With that champion, your tempo windows, damage profile and risk-taking seem better aligned with how you want to play.'),
         actions: [
-          text(locale, `Usá tus mejores partidas de ${topChampion.championName} como referencia de review para recalls, primeras rotaciones y setup de objetivos.`, `Use your best ${topChampion.championName} games as review material for recalls, first rotations and objective setup.`),
+          text(locale, `Usá tus mejores partidas de ${formatChampionName(topChampion.championName)} como referencia de review para recalls, primeras rotaciones y setup de objetivos.`, `Use your best ${formatChampionName(topChampion.championName)} games as review material for recalls, first rotations and objective setup.`),
           text(locale, 'Compará esas decisiones contra tus picks más flojos antes de abrir nuevas variables.', 'Compare those decisions against your weaker picks before adding new variables.')
         ]
       });
     } else if (topChampionWinRate <= otherWinRate - 6 || topChampion.avgScore < avg(championPool.map((entry) => entry.avgScore)) - 4) {
       insights.push({
         id: 'primary-champion-review',
-        title: text(locale, `${topChampion.championName} concentra mucho volumen, pero hoy no está devolviendo suficiente valor competitivo.`, `${topChampion.championName} carries a lot of volume, but right now it is not giving enough competitive return.`),
-        problem: text(locale, `${topChampion.championName} necesita un plan más preciso, no solo más partidas`, `${topChampion.championName} needs a sharper plan, not just more games`),
+        title: text(locale, `${formatChampionName(topChampion.championName)} concentra mucho volumen, pero hoy no está devolviendo suficiente valor competitivo.`, `${formatChampionName(topChampion.championName)} carries a lot of volume, but right now it is not giving enough competitive return.`),
+        problem: text(locale, `${formatChampionName(topChampion.championName)} necesita un plan más preciso, no solo más partidas`, `${formatChampionName(topChampion.championName)} needs a sharper plan, not just more games`),
         category: 'champion-pool',
         severity: 'medium',
         priority: 'medium',
         evidence: [
           text(locale, `Lo usaste en ${formatChampionShare(topChampionMatches.length, matches.length, locale)} de la muestra.`, `You used it in ${formatChampionShare(topChampionMatches.length, matches.length, locale)} of the sample.`),
-          text(locale, `Con ${topChampion.championName} estás en ${recordLabel(topChampionWins, topChampionMatches.length, locale)}.`, `With ${topChampion.championName} you are at ${recordLabel(topChampionWins, topChampionMatches.length, locale)}.`),
+          text(locale, `Con ${formatChampionName(topChampion.championName)} estás en ${recordLabel(topChampionWins, topChampionMatches.length, locale)}.`, `With ${formatChampionName(topChampion.championName)} you are at ${recordLabel(topChampionWins, topChampionMatches.length, locale)}.`),
           otherChampionMatches.length ? text(locale, `El resto del pool queda en ${recordLabel(otherWins, otherChampionMatches.length, locale)}.`, `The rest of the pool lands at ${recordLabel(otherWins, otherChampionMatches.length, locale)}.`) : text(locale, 'No hay suficiente volumen en otros picks para compararlo con justicia.', 'There is not enough volume on other picks to compare it fairly.')
         ],
         impact: text(locale, 'Si tu pick principal concentra la mayor parte de la muestra, cualquier fuga estructural ahí se transforma rápido en techo de elo.', 'If your main pick carries most of the sample, any structural leak there quickly becomes an elo ceiling.'),
         cause: text(locale, 'La comodidad con el campeón no siempre está traduciéndose en mejores tiempos de mapa, economía o disciplina temprana.', 'Comfort on the champion is not necessarily translating into better map timings, economy or early discipline.'),
         actions: [
-          text(locale, `Separá tres partidas de ${topChampion.championName}: una buena, una media y una mala, y compará el primer error que cambia el tempo.`, `Pull three ${topChampion.championName} games: one good, one average and one bad, then compare the first mistake that changes the tempo.`),
-          text(locale, `Hasta corregir eso, evitá usar ${topChampion.championName} en matchups o drafts donde ya sabés que te cuesta entrar cómodo.`, `Until that is fixed, avoid using ${topChampion.championName} in matchups or drafts where you already know you struggle to get comfortable.`)
+          text(locale, `Separá tres partidas de ${formatChampionName(topChampion.championName)}: una buena, una media y una mala, y compará el primer error que cambia el tempo.`, `Pull three ${formatChampionName(topChampion.championName)} games: one good, one average and one bad, then compare the first mistake that changes the tempo.`),
+          text(locale, `Hasta corregir eso, evitá usar ${formatChampionName(topChampion.championName)} en matchups o drafts donde ya sabés que te cuesta entrar cómodo.`, `Until that is fixed, avoid using ${formatChampionName(topChampion.championName)} in matchups or drafts where you already know you struggle to get comfortable.`)
         ],
         focusMetric: 'primary_pick'
       });
@@ -1405,19 +1505,19 @@ export function buildInsights(matches: ParticipantSnapshot[], championPool: Cham
     if (riskyMatchup && percent(riskyMatchup.wins, riskyMatchup.games) <= 35) {
       insights.push({
         id: 'matchup-alert',
-        title: text(locale, `Hay un matchup recurrente que merece preparación explícita con ${topChampion.championName}.`, `There is a recurring matchup that deserves explicit preparation with ${topChampion.championName}.`),
-        problem: text(locale, `${riskyMatchup.opponentChampionName} está castigando demasiado tu pick principal`, `${riskyMatchup.opponentChampionName} is punishing your main pick too hard`),
+        title: text(locale, `Hay un matchup recurrente que merece preparación explícita con ${formatChampionName(topChampion.championName)}.`, `There is a recurring matchup that deserves explicit preparation with ${formatChampionName(topChampion.championName)}.`),
+        problem: text(locale, `${formatChampionName(riskyMatchup.opponentChampionName)} está castigando demasiado tu pick principal`, `${formatChampionName(riskyMatchup.opponentChampionName)} is punishing your main pick too hard`),
         category: 'champion-pool',
         severity: 'medium',
         priority: 'medium',
         evidence: [
-          text(locale, `Con ${topChampion.championName} contra ${riskyMatchup.opponentChampionName} estás en ${recordLabel(riskyMatchup.wins, riskyMatchup.games, locale)}.`, `With ${topChampion.championName} into ${riskyMatchup.opponentChampionName}, you are at ${recordLabel(riskyMatchup.wins, riskyMatchup.games, locale)}.`),
+          text(locale, `Con ${formatChampionName(topChampion.championName)} contra ${formatChampionName(riskyMatchup.opponentChampionName)} estás en ${recordLabel(riskyMatchup.wins, riskyMatchup.games, locale)}.`, `With ${formatChampionName(topChampion.championName)} into ${formatChampionName(riskyMatchup.opponentChampionName)}, you are at ${recordLabel(riskyMatchup.wins, riskyMatchup.games, locale)}.`),
           text(locale, `En ese cruce promediás ${round(riskyMatchup.avgCsAt15, 1)} CS al 15 y ${round(riskyMatchup.avgDeathsPre14, 1)} muertes antes del 14.`, `In that matchup you average ${round(riskyMatchup.avgCsAt15, 1)} CS at 15 and ${round(riskyMatchup.avgDeathsPre14, 1)} deaths before 14.`)
         ],
         impact: text(locale, 'No parece un problema aislado: el patrón se repite lo suficiente como para justificar un plan de matchup en vez de seguir improvisándolo.', 'This does not look isolated. The pattern repeats enough to justify a matchup plan instead of continuing to improvise it.'),
         cause: text(locale, `Ese cruce probablemente te está forzando decisiones incómodas de tempo, pathing o ventanas de trade antes de llegar a tu zona fuerte.`, `That matchup is probably forcing awkward tempo, pathing or trade-window decisions before you reach your strong zone.`),
         actions: [
-          text(locale, `Armá una review específica de ${topChampion.championName} vs ${riskyMatchup.opponentChampionName}: primer clear o primeros 8 minutos, primer reset y primera pelea por objetivo.`, `Build a specific review for ${topChampion.championName} vs ${riskyMatchup.opponentChampionName}: first clear or first 8 minutes, first reset and first objective fight.`),
+          text(locale, `Armá una review específica de ${formatChampionName(topChampion.championName)} vs ${formatChampionName(riskyMatchup.opponentChampionName)}: primer clear o primeros 8 minutos, primer reset y primera pelea por objetivo.`, `Build a specific review for ${formatChampionName(topChampion.championName)} vs ${formatChampionName(riskyMatchup.opponentChampionName)}: first clear or first 8 minutes, first reset and first objective fight.`),
           text(locale, 'Hasta entender el patrón, jugá ese cruce con un plan más conservador y una ruta de recursos más estable.', 'Until you understand the pattern, play that matchup with a more conservative plan and a steadier resource route.')
         ],
         focusMetric: 'matchup_review'
@@ -1446,7 +1546,7 @@ export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: C
   if (!baselineWindow.length) baselineWindow = sortedByDate.slice(0, Math.max(1, sortedByDate.length - 1));
   if (!baselineWindow.length) baselineWindow = recentWindow;
   const topProblem = insights[0] ?? null;
-  const measurableProblem = insights.find((insight) => ['deaths_pre_10', 'cs_at_15', 'deaths_pre_14', 'objective_fight_deaths'].includes(insight.focusMetric ?? '')) ?? null;
+  const measurableProblem = insights.find((insight) => ['deaths_pre_10', 'cs_at_15', 'deaths_pre_14', 'gold_diff_at_15', 'kill_participation', 'objective_fight_deaths', 'lead_conversion'].includes(insight.focusMetric ?? '')) ?? null;
   const baselineScore = round(avg(baselineWindow.map((match) => match.score.total)));
   const recentScore = round(avg(recentWindow.map((match) => match.score.total)));
   const baselineWinRate = round((baselineWindow.filter((match) => match.win).length / Math.max(baselineWindow.length, 1)) * 100);
@@ -1487,6 +1587,8 @@ export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: C
           return (match.timeline.goldDiffAt15 ?? 0) >= getLeadMetricTarget(findPrimaryRole(matches)).goldDiffAt15;
         case 'kill_participation':
           return match.killParticipation >= getKillParticipationTarget(findPrimaryRole(matches));
+        case 'lead_conversion':
+          return (match.timeline.goldDiffAt15 ?? 0) >= getLeadMetricTarget(findPrimaryRole(matches)).goldDiffAt15 && match.win;
         default:
           return false;
       }
@@ -1498,7 +1600,8 @@ export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: C
       deaths_pre_14: text(locale, `Mantener ${activeRoleProfile.stableDeathsPre14} o menos muertes antes del 14`, `Hold ${activeRoleProfile.stableDeathsPre14} or fewer deaths before minute 14`),
       objective_fight_deaths: text(locale, 'Llegar vivo a las ventanas de objetivo', 'Arrive alive to objective windows'),
       gold_diff_at_15: text(locale, 'Llegar al 15 sin ceder la primera ventaja de oro y nivel', 'Reach minute 15 without giving away the first gold and level edge'),
-      kill_participation: text(locale, 'Entrar mejor conectado a las jugadas que mueven el mapa', 'Join the plays that move the map more consistently')
+      kill_participation: text(locale, 'Entrar mejor conectado a las jugadas que mueven el mapa', 'Join the plays that move the map more consistently'),
+      lead_conversion: text(locale, 'Convertir la ventaja temprana en control real de mapa', 'Turn your early lead into real map control')
     };
 
     activePlan = {

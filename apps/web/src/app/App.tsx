@@ -1288,6 +1288,67 @@ function AppShell() {
       ? (locale === 'en' ? 'Your current profile stays active until you load another one. You can also jump back into a saved account from this same hub.' : 'Tu perfil actual sigue activo hasta que cargues otro. También podés volver a una cuenta guardada desde este mismo hub.')
       : (locale === 'en' ? 'Your account is ready. Refresh only what is missing or switch profiles whenever you want.' : 'Tu cuenta ya está lista. Refrescá solo lo que falta o cambiá de perfil cuando quieras.');
 
+  const savedProfilesPanel = savedProfiles.length ? (
+    <div style={savedProfilesSectionStyle}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gap: 3 }}>
+          <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Saved profiles' : 'Perfiles guardados'}</div>
+          <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>{locale === 'en' ? 'Jump between accounts without rebuilding the flow' : 'Saltá entre cuentas sin reconstruir el flujo'}</div>
+        </div>
+        <div style={{ color: '#8f9bad', fontSize: 13 }}>
+          {locale === 'en' ? `${savedProfiles.length} profile${savedProfiles.length === 1 ? '' : 's'} ready on this device` : `${savedProfiles.length} perfil${savedProfiles.length === 1 ? '' : 'es'} listos en este dispositivo`}
+        </div>
+      </div>
+      <div style={savedProfilesGridStyle}>
+        {savedProfiles.map((profile) => {
+          const isActive = buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform) === buildProfileIdentityKey(gameName, tagLine, platform);
+          const rankTier = extractRankTierFromLabel(profile.rankLabel);
+          const profileIcon = getProfileIconUrl(profile.profileIconId, profile.ddragonVersion ?? dataset?.ddragonVersion);
+          const savedPlatformInfo = getRiotPlatformInfo(profile.platform);
+          return (
+            <button
+              key={buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform)}
+              type="button"
+              onClick={() => loadSavedProfile(profile)}
+              style={{
+                ...savedProfileCardStyle,
+                ...(isActive ? activeSavedProfileCardStyle : {})
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: profileIcon ? '56px minmax(0, 1fr)' : '1fr', gap: 12, alignItems: 'center', textAlign: 'left', minWidth: 0 }}>
+                  {profileIcon ? (
+                    <img
+                      src={profileIcon}
+                      alt={profile.gameName}
+                      width={56}
+                      height={56}
+                      style={{ ...profileIconStyle, width: 56, height: 56, objectFit: 'cover', borderRadius: 14 }}
+                    />
+                  ) : null}
+                  <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+                    <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+                      {rankTier ? <RankEmblem tier={rankTier} label={profile.rankLabel ?? ''} size={46} /> : null}
+                      <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible')}</div>
+                    </div>
+                    {savedPlatformInfo ? (
+                      <div style={{ color: '#6f7c93', fontSize: 11 }}>{`${savedPlatformInfo.platform} · ${savedPlatformInfo.shortLabel}`}</div>
+                    ) : null}
+                  </div>
+                </div>
+                <Badge tone={isActive ? 'low' : 'default'}>{locale === 'en' ? `${profile.matches} matches` : `${profile.matches} partidas`}</Badge>
+              </div>
+              <div style={{ color: '#748198', fontSize: 12, textAlign: 'left' }}>
+                {locale === 'en' ? 'Last update' : 'Última actualización'} {new Date(profile.lastSyncedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  ) : null;
+
   return (
     <Shell>
       <div style={{ display: 'grid', gap: 18, maxWidth: 1440, margin: '0 auto' }}>
@@ -1636,6 +1697,7 @@ function AppShell() {
                     </button>
                   </div>
                 </div>
+                {savedProfilesPanel}
                 <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 12 }}>
                   <div style={softPanelStyle}>
                     <div style={{ color: '#eef4ff', fontWeight: 700 }}>
@@ -1762,66 +1824,7 @@ function AppShell() {
                 </div>
               </div>
             )}
-            {savedProfiles.length ? (
-              <div style={savedProfilesSectionStyle}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'grid', gap: 3 }}>
-                    <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Saved profiles' : 'Perfiles guardados'}</div>
-                    <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>{locale === 'en' ? 'Jump between accounts without rebuilding the flow' : 'Saltá entre cuentas sin reconstruir el flujo'}</div>
-                  </div>
-                  <div style={{ color: '#8f9bad', fontSize: 13 }}>
-                    {locale === 'en' ? `${savedProfiles.length} profile${savedProfiles.length === 1 ? '' : 's'} ready on this device` : `${savedProfiles.length} perfil${savedProfiles.length === 1 ? '' : 'es'} listos en este dispositivo`}
-                  </div>
-                </div>
-                <div style={savedProfilesGridStyle}>
-                  {savedProfiles.map((profile) => {
-                    const isActive = buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform) === buildProfileIdentityKey(gameName, tagLine, platform);
-                    const rankTier = extractRankTierFromLabel(profile.rankLabel);
-                    const profileIcon = getProfileIconUrl(profile.profileIconId, profile.ddragonVersion ?? dataset?.ddragonVersion);
-                    const savedPlatformInfo = getRiotPlatformInfo(profile.platform);
-                    return (
-                      <button
-                        key={buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform)}
-                        type="button"
-                        onClick={() => loadSavedProfile(profile)}
-                        style={{
-                          ...savedProfileCardStyle,
-                          ...(isActive ? activeSavedProfileCardStyle : {})
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: profileIcon ? '56px minmax(0, 1fr)' : '1fr', gap: 12, alignItems: 'center', textAlign: 'left', minWidth: 0 }}>
-                            {profileIcon ? (
-                              <img
-                                src={profileIcon}
-                                alt={profile.gameName}
-                                width={56}
-                                height={56}
-                                style={{ ...profileIconStyle, width: 56, height: 56, objectFit: 'cover', borderRadius: 14 }}
-                              />
-                            ) : null}
-                            <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
-                              <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                                {rankTier ? <RankEmblem tier={rankTier} label={profile.rankLabel ?? ''} size={40} /> : null}
-                                <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible')}</div>
-                              </div>
-                              {savedPlatformInfo ? (
-                                <div style={{ color: '#6f7c93', fontSize: 11 }}>{`${savedPlatformInfo.platform} · ${savedPlatformInfo.shortLabel}`}</div>
-                              ) : null}
-                            </div>
-                          </div>
-                          <Badge tone={isActive ? 'low' : 'default'}>{locale === 'en' ? `${profile.matches} matches` : `${profile.matches} partidas`}</Badge>
-                        </div>
-                        <div style={{ color: '#748198', fontSize: 12, textAlign: 'left' }}>
-                          {locale === 'en' ? 'Last update' : 'Última actualización'} {new Date(profile.lastSyncedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
+            {!showAccountControls && dataset ? savedProfilesPanel : null}
           </Card>
         </section>
 

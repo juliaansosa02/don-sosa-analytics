@@ -114,7 +114,7 @@ function buildFallbackReviewAgenda(matches: MatchEntry[], locale: Locale): Revie
         performanceScore: match.score.total,
         title: t(locale, 'Aislá dónde se cortó tu economía', 'Isolate where your economy got cut'),
         reason: t(locale, 'La partida llega al 15 más débil de lo que tu rol necesita.', 'The game is reaching minute 15 weaker than your role needs.'),
-        question: t(locale, '¿Qué reset, desvío o pelea te sacó del piso económico normal del rol?', 'What reset, detour or fight pulled you off the role’s normal economy floor?'),
+        question: t(locale, '¿Qué reset, quiebre de ruta o pelea te sacó del piso económico normal del rol?', 'What reset, route break or fight pulled you off the role’s normal economy floor?'),
         focus: t(locale, 'CS@15, diff. de oro y el costo real de la jugada que aceptaste.', 'CS@15, gold diff and the real cost of the play you accepted.'),
         tags: [t(locale, 'Economía', 'Economy')]
       };
@@ -145,6 +145,37 @@ function buildFallbackReviewAgenda(matches: MatchEntry[], locale: Locale): Revie
   }
 
   return stressed.slice(0, 3);
+}
+
+function buildScopedChampionReference(dataset: Dataset) {
+  const roleScope = dataset.summary.primaryRole;
+  const scopedMatches = roleScope && roleScope !== 'ALL'
+    ? dataset.matches.filter((match) => match.role === roleScope)
+    : dataset.matches;
+
+  const grouped = new Map<string, MatchEntry[]>();
+  for (const match of scopedMatches) {
+    const list = grouped.get(match.championName) ?? [];
+    list.push(match);
+    grouped.set(match.championName, list);
+  }
+
+  const [championName, championMatches] = Array.from(grouped.entries())
+    .sort((a, b) => b[1].length - a[1].length || b[1].filter((match) => match.win).length - a[1].filter((match) => match.win).length)[0]
+    ?? [];
+
+  if (!championName || !championMatches?.length) return dataset.summary.championPool[0] ?? null;
+
+  return {
+    championName,
+    games: championMatches.length,
+    winRate: avg(championMatches.map((match) => match.win ? 100 : 0)),
+    avgScore: avg(championMatches.map((match) => match.score.total)),
+    avgCsAt15: avg(championMatches.map((match) => match.timeline.csAt15)),
+    avgGoldAt15: avg(championMatches.map((match) => match.timeline.goldAt15)),
+    avgDeathsPre14: avg(championMatches.map((match) => match.timeline.deathsPre14)),
+    classification: 'CORE_PICK' as const
+  };
 }
 
 function infoTone(priority: string) {
@@ -209,7 +240,7 @@ export function CoachingHome({
     recentDeathsPre14: rawTrend.recentDeathsPre14 ?? avg(fallbackRecent.map((match) => match.timeline.deathsPre14)),
     deathsPre14Delta: rawTrend.deathsPre14Delta ?? (avg(fallbackRecent.map((match) => match.timeline.deathsPre14)) - avg(fallbackBaseline.map((match) => match.timeline.deathsPre14)))
   };
-  const championReference = summary.championPool[0];
+  const championReference = buildScopedChampionReference(dataset);
   const problematicMatchup = summary.problematicMatchup;
   const topProblems = summary.coaching.topProblems;
   const activePlan = summary.coaching.activePlan;
@@ -237,7 +268,8 @@ export function CoachingHome({
   const mainSummary = aiCoach?.coach.summary ?? mainProblem?.title ?? summary.coaching.subheadline;
   const mainCause = aiCoach?.coach.whyItHappens ?? mainProblem?.cause ?? null;
   const todayActions = (aiCoach?.coach.whatToDoNext3Games?.length ? aiCoach.coach.whatToDoNext3Games : mainProblem?.actions ?? []).slice(0, 3);
-  const steadyLabel = t(locale, 'sin cambio fuerte', 'no sharp change');
+  const steadyLabel = t(locale, 'estable', 'stable');
+  const visibleProblems = aiCoach ? topProblems.slice(0, 1) : topProblems.slice(0, 2);
   const performanceTrend = signal(trend.scoreDelta, 'up', 0.25);
   const changeSummary = performanceTrend.tone === 'positive'
     ? t(locale, 'El tramo reciente realmente está mejorando contra el bloque anterior.', 'The recent stretch is genuinely improving against the previous block.')
@@ -293,7 +325,7 @@ export function CoachingHome({
   return (
     <div style={{ display: 'grid', gap: 16 }}>
       <Card title={t(locale, 'Lectura principal', 'Core coaching read')} subtitle={t(locale, 'Una lectura más clara del bloque actual: qué cambió de verdad, qué se sostiene y qué conviene corregir hoy.', 'A clearer read of the current block: what truly changed, what is holding and what you should correct today.')}>
-        <div className="coaching-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.45fr) minmax(320px, 0.95fr)', gap: 16 }}>
+        <div className="coaching-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.45fr) minmax(320px, 0.95fr)', gap: 16, alignItems: 'start' }}>
           <div style={{ display: 'grid', gap: 14 }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {mainProblem ? <Badge tone={infoTone(mainProblem.priority)}>{t(locale, `Prioridad ${mainProblem.priority}`, `${mainProblem.priority} priority`)}</Badge> : null}
@@ -332,7 +364,7 @@ export function CoachingHome({
               ) : <div style={{ color: '#d7dfec', lineHeight: 1.7 }}>{t(locale, 'Todavía no hay un ciclo suficientemente claro. Conviene sumar muestra limpia o cerrar más el scope.', 'There is not a clear enough cycle yet. Add cleaner sample or narrow the scope further.')}</div>}
               <button type="button" style={buttonStyle} onClick={onGenerateAICoach} disabled={!onGenerateAICoach || generatingAICoach}>{generatingAICoach ? t(locale, 'Actualizando coaching...', 'Refreshing coaching...') : t(locale, 'Actualizar coaching', 'Refresh coaching')}</button>
             </div>
-            <div className="coaching-meta-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+            <div className="coaching-meta-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, alignItems: 'start' }}>
               <MetaStat label={t(locale, 'Muestra', 'Sample')} value={`${summary.matches}`} caption={t(locale, 'partidas del scope', 'games in scope')} />
               <MetaStat label={t(locale, 'Campeón de referencia', 'Reference champion')} value={championReference ? formatChampionName(championReference.championName) : t(locale, 'Sin señal', 'No signal')} caption={championReference ? t(locale, `${championReference.games} partidas · ${formatDecimal(championReference.winRate)}% WR`, `${championReference.games} games · ${formatDecimal(championReference.winRate)}% WR`) : t(locale, 'todavía falta muestra', 'needs more sample')} />
               <MetaStat label={t(locale, 'Patrón estable', 'Stable pattern')} value={stableWinRate !== null ? `${formatDecimal(stableWinRate)}% WR` : t(locale, 'Sin señal', 'No signal')} caption={stableMatches.length ? t(locale, `${stableMatches.length} partidas limpias`, `${stableMatches.length} clean games`) : t(locale, 'todavía sin bloque limpio', 'no clean block yet')} />
@@ -350,15 +382,41 @@ export function CoachingHome({
 
         <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
           <SectionEyebrow title={t(locale, 'Señales rápidas', 'Quick signals')} />
-          <div className="coaching-signal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 12 }}>
+          <div className="coaching-signal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 12, alignItems: 'start' }}>
             {metricCards.map((metric) => <SignalTile key={metric.label} {...metric} />)}
           </div>
         </div>
       </Card>
 
-      <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(320px, 1fr)', gap: 16 }}>
-        <Card title={t(locale, 'Lo que ya te sostiene hoy', 'What is already holding you up')} subtitle={t(locale, 'No todo es leak. Esto ya está funcionando y conviene repetirlo con intención.', 'Not everything is a leak. This is already working and should be repeated on purpose.')}>
+      <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(320px, 1fr)', gap: 16, alignItems: 'start' }}>
+        <Card title={t(locale, 'Lo que ya te sostiene hoy', 'What is already holding you up')} subtitle={t(locale, 'Uní tu pick más limpio con las señales que conviene repetir. Menos bloques, más lectura útil.', 'Combine your cleanest pick with the signals worth repeating. Less blocks, more useful read.')}>
           <div style={{ display: 'grid', gap: 12 }}>
+            {championReference ? (
+              <div style={panelStyle}>
+                <ChampionIdentity
+                  championName={championReference.championName}
+                  version={dataset.ddragonVersion}
+                  subtitle={t(
+                    locale,
+                    `${championReference.games} partidas del scope · ${formatDecimal(championReference.winRate)}% WR`,
+                    `${championReference.games} scoped games · ${formatDecimal(championReference.winRate)}% WR`
+                  )}
+                  meta={
+                    <>
+                      <span style={chipStyle}><span>{`CS@15 ${formatDecimal(championReference.avgCsAt15)}`}</span></span>
+                      <span style={chipStyle}><span>{`Gold@15 ${formatInteger(championReference.avgGoldAt15)}`}</span></span>
+                      <span style={chipStyle}><span>{`${t(locale, 'Muertes pre14', 'Deaths pre14')} ${formatDecimal(championReference.avgDeathsPre14)}`}</span></span>
+                    </>
+                  }
+                  size={58}
+                />
+                <div style={{ color: '#9aa5b7', lineHeight: 1.65 }}>
+                  {problematicMatchup
+                    ? t(locale, `Usalo como pick de referencia para revisar cómo cambia tu plan cuando aparece ${formatChampionName(problematicMatchup.opponentChampionName)} y qué parte del early sí estás resolviendo bien.`, `Use it as your reference pick to review how your plan changes when ${formatChampionName(problematicMatchup.opponentChampionName)} shows up and which part of the early game you are actually solving well.`)
+                    : t(locale, 'Tomalo como la versión más limpia de tu plan actual: el pick donde hoy se nota mejor qué hábitos ya valen la pena repetir.', 'Treat it as the cleanest version of your current plan: the pick where it is easiest to see which habits are already worth repeating.')}
+                </div>
+              </div>
+            ) : null}
             {positives.length ? positives.map((insight) => (
               <div key={insight.id} style={panelStyle}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', flexWrap: 'wrap' }}>
@@ -408,37 +466,7 @@ export function CoachingHome({
         </Card>
       </section>
 
-      <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(320px, 1fr)', gap: 16 }}>
-        <Card title={t(locale, 'Campeón de referencia', 'Reference champion')} subtitle={t(locale, 'El pick que hoy mejor expresa tu versión más limpia dentro del scope.', 'The pick that currently expresses your cleanest version inside the scope.')}>
-          {championReference ? (
-            <div style={{ display: 'grid', gap: 14 }}>
-              <div style={panelStyle}>
-                <ChampionIdentity
-                  championName={championReference.championName}
-                  version={dataset.ddragonVersion}
-                  subtitle={t(locale, `${championReference.games} partidas · ${formatDecimal(championReference.winRate)}% WR`, `${championReference.games} games · ${formatDecimal(championReference.winRate)}% WR`)}
-                  meta={<span style={chipStyle}><TrendIndicator direction={signal(championReference.winRate - summary.winRate, 'up', 3).direction} tone={signal(championReference.winRate - summary.winRate, 'up', 3).tone} /><span>{signal(championReference.winRate - summary.winRate, 'up', 3).direction === 'steady' ? t(locale, 'parejo', 'steady') : signal(championReference.winRate - summary.winRate, 'up', 3).tone === 'positive' ? t(locale, 'por encima del bloque', 'above block') : t(locale, 'por debajo del bloque', 'below block')}</span></span>}
-                  size={60}
-                />
-              </div>
-              <div className="coaching-meta-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-                <MetaStat label="WR" value={`${formatDecimal(championReference.winRate)}%`} />
-                <MetaStat label="CS@15" value={formatDecimal(championReference.avgCsAt15)} />
-                <MetaStat label="Gold@15" value={formatInteger(championReference.avgGoldAt15)} />
-                <MetaStat label={t(locale, 'Muertes pre14', 'Deaths pre14')} value={formatDecimal(championReference.avgDeathsPre14)} />
-              </div>
-              <div style={panelStyle}>
-                <SectionEyebrow title={t(locale, 'Cómo usarlo', 'How to use it')} />
-                <div style={{ color: '#dfe7f4', lineHeight: 1.7 }}>
-                  {problematicMatchup
-                    ? t(locale, `Tomalo como tu pick de referencia para revisar cómo cambia tu plan cuando aparece ${formatChampionName(problematicMatchup.opponentChampionName)} y dónde se rompe primero el tempo.`, `Use it as your reference pick to review how your plan changes when ${formatChampionName(problematicMatchup.opponentChampionName)} shows up and where tempo breaks first.`)
-                    : t(locale, 'Tomalo como la versión de tu juego que hoy mejor ordena recalls, primeras rotaciones y entrada al mid game.', 'Use it as the version of your game that currently organizes recalls, first rotations and entry into mid game best.')}
-                </div>
-              </div>
-            </div>
-          ) : <div style={emptyStyle}>{t(locale, 'Todavía no hay suficiente muestra para leer un campeón de referencia claro.', 'There is not enough sample yet to read a clear reference champion.')}</div>}
-        </Card>
-
+      <section style={{ display: 'grid', gap: 16 }}>
         <Card title={t(locale, 'El cruce que hoy más te castiga', 'The matchup hurting you most right now')} subtitle={t(locale, 'Si se repite, deja de ser mala suerte y pasa a ser preparación concreta.', 'If it keeps repeating, it stops being bad luck and becomes concrete prep work.')}>
           {problematicMatchup ? (
             <div style={{ display: 'grid', gap: 14 }}>
@@ -466,7 +494,7 @@ export function CoachingHome({
         </Card>
       </section>
 
-      <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(320px, 1fr)', gap: 16 }}>
+      <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(320px, 1fr)', gap: 16, alignItems: 'start' }}>
         <Card title={t(locale, 'Qué cambió de verdad', 'What actually changed')} subtitle={t(locale, 'Esta comparación es tramo reciente contra bloque anterior, no contra toda la muestra. Ahí se explica mejor si algo subió o bajó.', 'This comparison is recent stretch versus previous block, not versus the full sample. That makes it much clearer whether something actually rose or fell.')}>
           <div style={{ display: 'grid', gap: 12 }}>
             <div style={panelStyle}>
@@ -488,7 +516,7 @@ export function CoachingHome({
 
         <Card title={t(locale, 'Prioridades del bloque', 'Block priorities')} subtitle={t(locale, 'Menos relleno, más estructura: qué te frena hoy y qué conviene hacer con eso.', 'Less filler, more structure: what is holding you back today and what to do with it.')}>
           <div style={{ display: 'grid', gap: 12 }}>
-            {topProblems.length ? topProblems.map((problem, index) => (
+            {visibleProblems.length ? visibleProblems.map((problem, index) => (
               <div key={problem.id} style={{ ...panelStyle, borderColor: problem.priority === 'high' ? 'rgba(255,107,107,0.18)' : problem.priority === 'low' ? 'rgba(103,214,164,0.16)' : 'rgba(255,255,255,0.05)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', flexWrap: 'wrap' }}>
                   <div style={{ display: 'grid', gap: 6 }}>
@@ -520,7 +548,7 @@ export function CoachingHome({
         {roleReferencesLoading ? <div style={emptyStyle}>{t(locale, 'Buscando referencias challenger del rol...', 'Loading challenger role references...')}</div> : null}
         {!roleReferencesLoading && !roleReferences.length ? <div style={emptyStyle}>{t(locale, 'Todavía no hay referencias challenger listas para este rol.', 'There are no challenger references ready for this role yet.')}</div> : null}
         {roleReferences.length ? (
-          <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+          <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, alignItems: 'start' }}>
             {roleReferences.map((reference) => (
               <ReferencePlayerCard
                 key={`${reference.slotId}-${reference.gameName}-${reference.tagLine}`}
@@ -605,7 +633,6 @@ function ReferencePlayerCard({ reference, dataset, locale }: { reference: RoleRe
     <div style={referenceCardStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start' }}>
         <Badge tone={reference.sourcePlatform === 'KR' ? 'low' : 'default'}>{reference.slotLabel}</Badge>
-        {reference.fallbackUsed ? <Badge>{t(locale, 'fallback', 'fallback')}</Badge> : null}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: profileIconUrl ? '54px minmax(0, 1fr)' : '1fr', gap: 12, alignItems: 'center' }}>
         {profileIconUrl ? <img src={profileIconUrl} alt={reference.gameName} width={54} height={54} style={{ width: 54, height: 54, borderRadius: 14, objectFit: 'cover', border: '1px solid rgba(255,255,255,0.08)' }} /> : null}

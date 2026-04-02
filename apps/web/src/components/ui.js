@@ -67,7 +67,7 @@ export function TrendIndicator({ direction, tone, label }) {
                 borderRight: '5px solid transparent',
                 borderTop: `8px solid ${color}`
             };
-    return (_jsxs("span", { style: { display: 'inline-flex', alignItems: 'center', gap: 6, color, fontWeight: 700 }, children: [_jsx("span", { "aria-hidden": "true", style: markerStyle }), label ? _jsx("span", { children: label }) : null] }));
+    return (_jsxs("span", { style: { display: 'inline-flex', alignItems: 'center', gap: 6, color, fontWeight: 700, fontSize: 12, lineHeight: 1.1, textAlign: 'left' }, children: [_jsx("span", { "aria-hidden": "true", style: markerStyle }), label ? _jsx("span", { children: label }) : null] }));
 }
 const hintWrapperStyle = {
     position: 'relative',

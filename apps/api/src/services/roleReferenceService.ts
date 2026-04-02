@@ -46,8 +46,12 @@ function buildSlotLabel(slotId: RoleReferenceProfile['slotId'], locale: SummaryL
     return locale === 'en' ? 'Best EUW reference' : 'Referencia EUW';
   }
 
+  if (fallbackUsed && sourcePlatform === 'NA1') {
+    return locale === 'en' ? 'NA reference' : 'Referencia NA';
+  }
+
   if (fallbackUsed && sourcePlatform === 'KR') {
-    return locale === 'en' ? 'KR fallback reference' : 'Referencia KR extra';
+    return locale === 'en' ? 'Global reference' : 'Referencia global';
   }
 
   return locale === 'en' ? 'Best home-server reference' : 'Referencia de tu servidor';
@@ -158,6 +162,7 @@ function buildSlotPlatforms(platform: RiotPlatform) {
   const homePlatformHasSeeds = Boolean(roleReferenceSeeds[homePlatform]);
   const krPlatform: RiotPlatform = 'KR';
   const euwPlatform: RiotPlatform = 'EUW1';
+  const naPlatform: RiotPlatform = 'NA1';
 
   return [
     { slotId: 'kr_best' as const, requestedPlatform: platform, sourcePlatforms: [krPlatform] },
@@ -166,12 +171,12 @@ function buildSlotPlatforms(platform: RiotPlatform) {
       slotId: 'home_best' as const,
       requestedPlatform: platform,
       sourcePlatforms: homePlatformHasSeeds && homePlatform !== 'KR' && homePlatform !== 'EUW1'
-        ? [homePlatform, krPlatform]
+        ? [homePlatform, krPlatform, euwPlatform, naPlatform]
         : homePlatform === 'KR'
-          ? [krPlatform, euwPlatform]
-          : homePlatform === 'EUW1'
-            ? [euwPlatform, krPlatform]
-            : [krPlatform]
+          ? [krPlatform, euwPlatform, naPlatform]
+        : homePlatform === 'EUW1'
+            ? [euwPlatform, krPlatform, naPlatform]
+            : [krPlatform, euwPlatform, naPlatform]
     }
   ];
 }

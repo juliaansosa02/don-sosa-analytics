@@ -187,7 +187,7 @@ export function StatsTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.05fr 1.05fr .9fr', gap: 16 }}>
+      <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.05fr 1.05fr .9fr', gap: 16, alignItems: 'start' }}>
         <Card title={locale === 'en' ? 'What is already holding your level up' : 'Qué ya está sosteniendo tu nivel'} subtitle={locale === 'en' ? 'Signals that are currently giving you competitive baseline' : 'Señales que hoy te están dando base competitiva'}>
           <div style={{ display: 'grid', gap: 10 }}>
             {strengths.map((entry) => (
@@ -213,7 +213,7 @@ export function StatsTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
         </Card>
       </div>
 
-      <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr .85fr', gap: 16 }}>
+      <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr .85fr', gap: 16, alignItems: 'start' }}>
         <Card title={locale === 'en' ? 'Economy benchmark' : 'Benchmark de economía'} subtitle={benchmarkContext.description}>
           <div style={{ display: 'grid', gap: 12 }}>
             <BenchmarkLane
@@ -258,6 +258,8 @@ export function StatsTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
                 />
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'end' }}>
                   <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota')}</Badge>
+                  <Badge>{`${locale === 'en' ? 'Score' : 'Score'} ${Math.round(match.score.total)}`}</Badge>
+                  <Badge>{`KDA ${formatDecimal((match.kills + match.assists) / Math.max(match.deaths, 1))}`}</Badge>
                   <Badge>{`${formatDecimal(match.timeline.csAt15)} CS@15`}</Badge>
                   <Badge>{locale === 'en' ? `${formatDecimal(match.timeline.levelAt15 ?? 0)} lvl@15` : `${formatDecimal(match.timeline.levelAt15 ?? 0)} lvl@15`}</Badge>
                 </div>
