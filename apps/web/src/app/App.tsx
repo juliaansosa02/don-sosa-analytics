@@ -128,6 +128,12 @@ function removeCachedDataset(gameName: string, tagLine: string, platform?: strin
   window.localStorage.removeItem(legacyDatasetStorageKey(gameName, tagLine));
 }
 
+function datasetNeedsBuildRehydration(dataset: Dataset | null) {
+  if (!dataset) return true;
+  if (!dataset.itemCatalog || !Object.keys(dataset.itemCatalog).length) return true;
+  return !dataset.matches.some((match) => (match.items?.purchaseEvents?.length ?? 0) > 0);
+}
+
 function mergeDatasets(current: Dataset | null, incoming: Dataset, locale: Locale): Dataset {
   if (!current) return incoming;
 
@@ -918,6 +924,7 @@ function AppShell() {
     if (!dataset) return false;
     return dataset.matches.length < matchCount;
   }, [dataset, matchCount]);
+  const needsBuildRehydration = useMemo(() => datasetNeedsBuildRehydration(dataset), [dataset]);
   const missingMatchesToTarget = useMemo(() => {
     if (!dataset) return 0;
     return Math.max(0, matchCount - dataset.matches.length);
@@ -1059,7 +1066,9 @@ function AppShell() {
 
     try {
       const previousDataset = readCachedDataset(gameName, tagLine, platform);
-      const shouldRefreshFullSample = !previousDataset || previousDataset.matches.length < cappedRequestedCount;
+      const shouldRefreshFullSample = !previousDataset
+        || previousDataset.matches.length < cappedRequestedCount
+        || datasetNeedsBuildRehydration(previousDataset);
       const result = await collectProfile(gameName, tagLine, cappedRequestedCount, {
         platform,
         locale,
@@ -1080,10 +1089,14 @@ function AppShell() {
           : (locale === 'en'
             ? 'No new matches were found to add. The analysis keeps your current history without overwriting it.'
             : 'No aparecieron partidas nuevas para sumar. El análisis mantiene tu histórico actual sin sobrescribirlo.'));
-        } else if (previousDataset && shouldRefreshFullSample) {
-        setSyncMessage(locale === 'en'
-          ? `The sample was rebuilt to ${mergedDataset.summary.matches} valid matches so the analysis is not biased by a smaller cache.`
-          : `Se reconstruyó la muestra hasta ${mergedDataset.summary.matches} partidas válidas para que el análisis no quede sesgado por una cache más chica.`);
+      } else if (previousDataset && shouldRefreshFullSample) {
+        setSyncMessage(datasetNeedsBuildRehydration(previousDataset)
+          ? (locale === 'en'
+            ? `The sample was rebuilt with enriched timelines across ${mergedDataset.summary.matches} valid matches, so builds and item timings can refresh correctly.`
+            : `Se reconstruyó la muestra con timelines enriquecidos en ${mergedDataset.summary.matches} partidas válidas, para que builds y timings de items se refresquen bien.`)
+          : (locale === 'en'
+            ? `The sample was rebuilt to ${mergedDataset.summary.matches} valid matches so the analysis is not biased by a smaller cache.`
+            : `Se reconstruyó la muestra hasta ${mergedDataset.summary.matches} partidas válidas para que el análisis no quede sesgado por una cache más chica.`));
       } else {
         setSyncMessage(locale === 'en'
           ? `${mergedDataset.summary.matches} valid matches were loaded to build your first sample.`
@@ -1876,15 +1889,20 @@ function AppShell() {
                       {needsSampleBackfill
                         ? <Badge tone="medium">{locale === 'en' ? `${missingMatchesToTarget} matches left to complete the block` : `Faltan ${missingMatchesToTarget} partidas para completar el bloque`}</Badge>
                         : <Badge tone="low">{locale === 'en' ? 'Block already complete' : 'Bloque ya completo'}</Badge>}
+                      {needsBuildRehydration
+                        ? <Badge tone="medium">{locale === 'en' ? 'Build timelines need refresh' : 'Build timelines necesitan refresh'}</Badge>
+                        : null}
                       {currentPlatformInfo ? <Badge tone="default">{currentPlatformInfo.platform}</Badge> : null}
                       {planEntitlements ? <Badge tone="default">{`${dataset.matches.length}/${planEntitlements.maxStoredMatchesPerProfile}`}</Badge> : null}
                     </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <button type="button" style={buttonStyle} onClick={() => void runAnalysis()}>
+                    <button type="button" style={buttonStyle} onClick={() => void runAnalysis()}>
                     {loading
                       ? (locale === 'en' ? 'Analyzing...' : 'Analizando...')
+                      : needsBuildRehydration
+                        ? (locale === 'en' ? 'Rebuild enriched sample' : 'Reconstruir muestra enriquecida')
                       : needsSampleBackfill
                         ? (locale === 'en' ? `Complete to ${matchCount} matches` : `Completar hasta ${matchCount} partidas`)
                         : (locale === 'en' ? 'Check for new matches' : 'Buscar nuevas partidas')}

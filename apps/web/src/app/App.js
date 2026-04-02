@@ -63,6 +63,13 @@ function removeCachedDataset(gameName, tagLine, platform) {
     window.localStorage.removeItem(datasetStorageKey(gameName, tagLine, platform));
     window.localStorage.removeItem(legacyDatasetStorageKey(gameName, tagLine));
 }
+function datasetNeedsBuildRehydration(dataset) {
+    if (!dataset)
+        return true;
+    if (!dataset.itemCatalog || !Object.keys(dataset.itemCatalog).length)
+        return true;
+    return !dataset.matches.some((match) => (match.items?.purchaseEvents?.length ?? 0) > 0);
+}
 function mergeDatasets(current, incoming, locale) {
     if (!current)
         return incoming;
@@ -822,6 +829,7 @@ function AppShell() {
             return false;
         return dataset.matches.length < matchCount;
     }, [dataset, matchCount]);
+    const needsBuildRehydration = useMemo(() => datasetNeedsBuildRehydration(dataset), [dataset]);
     const missingMatchesToTarget = useMemo(() => {
         if (!dataset)
             return 0;
@@ -939,7 +947,9 @@ function AppShell() {
         setProgress({ stage: 'queued', current: 0, total: 1, message: locale === 'en' ? 'Preparing analysis' : 'Preparando análisis' });
         try {
             const previousDataset = readCachedDataset(gameName, tagLine, platform);
-            const shouldRefreshFullSample = !previousDataset || previousDataset.matches.length < cappedRequestedCount;
+            const shouldRefreshFullSample = !previousDataset
+                || previousDataset.matches.length < cappedRequestedCount
+                || datasetNeedsBuildRehydration(previousDataset);
             const result = await collectProfile(gameName, tagLine, cappedRequestedCount, {
                 platform,
                 locale,
@@ -962,9 +972,13 @@ function AppShell() {
                         : 'No aparecieron partidas nuevas para sumar. El análisis mantiene tu histórico actual sin sobrescribirlo.'));
             }
             else if (previousDataset && shouldRefreshFullSample) {
-                setSyncMessage(locale === 'en'
-                    ? `The sample was rebuilt to ${mergedDataset.summary.matches} valid matches so the analysis is not biased by a smaller cache.`
-                    : `Se reconstruyó la muestra hasta ${mergedDataset.summary.matches} partidas válidas para que el análisis no quede sesgado por una cache más chica.`);
+                setSyncMessage(datasetNeedsBuildRehydration(previousDataset)
+                    ? (locale === 'en'
+                        ? `The sample was rebuilt with enriched timelines across ${mergedDataset.summary.matches} valid matches, so builds and item timings can refresh correctly.`
+                        : `Se reconstruyó la muestra con timelines enriquecidos en ${mergedDataset.summary.matches} partidas válidas, para que builds y timings de items se refresquen bien.`)
+                    : (locale === 'en'
+                        ? `The sample was rebuilt to ${mergedDataset.summary.matches} valid matches so the analysis is not biased by a smaller cache.`
+                        : `Se reconstruyó la muestra hasta ${mergedDataset.summary.matches} partidas válidas para que el análisis no quede sesgado por una cache más chica.`));
             }
             else {
                 setSyncMessage(locale === 'en'
@@ -1261,11 +1275,15 @@ function AppShell() {
                                                                 ? (locale === 'en' ? `Complete to ${action.target}` : `Completar a ${action.target}`)
                                                                 : `${action.label} ${locale === 'en' ? 'match' : 'partida'}${action.label === '+1' ? '' : 's'}` }, action.id))) })] })) : null }), _jsxs("div", { className: "two-col-grid", style: { display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 12 }, children: [_jsxs("div", { style: { display: 'grid', gap: 6 }, children: [_jsx("div", { style: fieldLabelStyle, children: locale === 'en' ? 'Target block' : 'Bloque objetivo' }), _jsx("select", { value: matchCount, onChange: (e) => setMatchCount(Number(e.target.value)), style: selectStyle, children: targetCountOptions.map((count) => (_jsxs("option", { value: count, children: [count, " ", locale === 'en' ? 'matches' : 'partidas'] }, count))) })] }), _jsxs("div", { style: { display: 'grid', gap: 6 }, children: [_jsx("div", { style: fieldLabelStyle, children: locale === 'en' ? 'Coaching scope' : 'Alcance del coaching' }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: coachScopeLabel }), dataset?.remakesExcluded ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? `${dataset.remakesExcluded} remakes excluded` : `${dataset.remakesExcluded} remakes excluidos` }) : null, needsSampleBackfill
                                                                     ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? `${missingMatchesToTarget} matches left to complete the block` : `Faltan ${missingMatchesToTarget} partidas para completar el bloque` })
-                                                                    : _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Block already complete' : 'Bloque ya completo' }), currentPlatformInfo ? _jsx(Badge, { tone: "default", children: currentPlatformInfo.platform }) : null, planEntitlements ? _jsx(Badge, { tone: "default", children: `${dataset.matches.length}/${planEntitlements.maxStoredMatchesPerProfile}` }) : null] })] })] }), _jsxs("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' }, children: [_jsx("button", { type: "button", style: buttonStyle, onClick: () => void runAnalysis(), children: loading
+                                                                    : _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Block already complete' : 'Bloque ya completo' }), needsBuildRehydration
+                                                                    ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? 'Build timelines need refresh' : 'Build timelines necesitan refresh' })
+                                                                    : null, currentPlatformInfo ? _jsx(Badge, { tone: "default", children: currentPlatformInfo.platform }) : null, planEntitlements ? _jsx(Badge, { tone: "default", children: `${dataset.matches.length}/${planEntitlements.maxStoredMatchesPerProfile}` }) : null] })] })] }), _jsxs("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' }, children: [_jsx("button", { type: "button", style: buttonStyle, onClick: () => void runAnalysis(), children: loading
                                                         ? (locale === 'en' ? 'Analyzing...' : 'Analizando...')
-                                                        : needsSampleBackfill
-                                                            ? (locale === 'en' ? `Complete to ${matchCount} matches` : `Completar hasta ${matchCount} partidas`)
-                                                            : (locale === 'en' ? 'Check for new matches' : 'Buscar nuevas partidas') }), _jsx("button", { type: "button", style: secondaryButtonStyle, onClick: () => setShowAccountControls(true), children: locale === 'en' ? 'Switch account' : 'Cambiar cuenta' })] })] })), !showAccountControls && dataset ? savedProfilesPanel : null] })] }), _jsxs("section", { style: { display: 'grid', gap: 12 }, children: [viewDataset && activeTab !== 'coach' ? (_jsxs("div", { style: roleFilterPanelStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Exploration scope' : 'Scope de exploración' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: locale === 'en' ? 'Inspect the exact slice without touching the main coaching read' : 'Inspeccioná el recorte exacto sin tocar la lectura principal del coaching' }), _jsx("div", { style: { color: '#8793a8', fontSize: 13 }, children: locale === 'en' ? 'These filters affect stats, matchups, runes, champions and match review only. Coaching keeps using its own saved role scope.' : 'Estos filtros afectan solo métricas, cruces, runas, campeones y review de partidas. El coaching sigue usando su propio scope guardado de roles.' })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: locale === 'en' ? 'Affects: stats, matchups, matches' : 'Afecta: stats, matchups, partidas' }), _jsx(Badge, { tone: "low", children: locale === 'en' ? `Coaching keeps ${coachScopeLabel}` : `El coaching sigue en ${coachScopeLabel}` })] }), _jsx("div", { className: "role-pill-grid", style: rolePillGridStyle, children: preferredRoles.map((role) => (_jsx("button", { type: "button", onClick: () => setRoleFilter(role), style: {
+                                                        : needsBuildRehydration
+                                                            ? (locale === 'en' ? 'Rebuild enriched sample' : 'Reconstruir muestra enriquecida')
+                                                            : needsSampleBackfill
+                                                                ? (locale === 'en' ? `Complete to ${matchCount} matches` : `Completar hasta ${matchCount} partidas`)
+                                                                : (locale === 'en' ? 'Check for new matches' : 'Buscar nuevas partidas') }), _jsx("button", { type: "button", style: secondaryButtonStyle, onClick: () => setShowAccountControls(true), children: locale === 'en' ? 'Switch account' : 'Cambiar cuenta' })] })] })), !showAccountControls && dataset ? savedProfilesPanel : null] })] }), _jsxs("section", { style: { display: 'grid', gap: 12 }, children: [viewDataset && activeTab !== 'coach' ? (_jsxs("div", { style: roleFilterPanelStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Exploration scope' : 'Scope de exploración' }), _jsx("div", { style: { color: '#eef4ff', fontSize: 16, fontWeight: 800 }, children: locale === 'en' ? 'Inspect the exact slice without touching the main coaching read' : 'Inspeccioná el recorte exacto sin tocar la lectura principal del coaching' }), _jsx("div", { style: { color: '#8793a8', fontSize: 13 }, children: locale === 'en' ? 'These filters affect stats, matchups, runes, champions and match review only. Coaching keeps using its own saved role scope.' : 'Estos filtros afectan solo métricas, cruces, runas, campeones y review de partidas. El coaching sigue usando su propio scope guardado de roles.' })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: locale === 'en' ? 'Affects: stats, matchups, matches' : 'Afecta: stats, matchups, partidas' }), _jsx(Badge, { tone: "low", children: locale === 'en' ? `Coaching keeps ${coachScopeLabel}` : `El coaching sigue en ${coachScopeLabel}` })] }), _jsx("div", { className: "role-pill-grid", style: rolePillGridStyle, children: preferredRoles.map((role) => (_jsx("button", { type: "button", onClick: () => setRoleFilter(role), style: {
                                             ...rolePillStyle,
                                             ...(roleFilter === role ? activeRolePillStyle : {})
                                         }, children: locale === 'en' ? translateRole(role, 'en') : getRoleLabel(role) }, role))) }), _jsxs("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }, children: [_jsxs("div", { style: contextGroupStyle, children: [_jsx("div", { style: contextLabelStyle, children: locale === 'en' ? 'Queue type' : 'Tipo de cola' }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: availableQueueFilters.map((queue) => (_jsx("button", { type: "button", onClick: () => setQueueFilter(queue), style: {
