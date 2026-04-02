@@ -1,5 +1,5 @@
 import { buildAggregateSummary } from '@don-sosa/core';
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { Component, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import {
   addCoachPlayer,
   changePassword,
@@ -256,7 +256,7 @@ function extractRankTierFromLabel(rankLabel?: string) {
   return rankLabel.split(' ')[0]?.toUpperCase();
 }
 
-export default function App() {
+function AppShell() {
   const [locale] = useState<Locale>(() => detectLocale());
   const [platform, setPlatform] = useState<RiotPlatform>(() => guessDefaultRiotPlatform(detectLocale()));
   const [activeTab, setActiveTab] = useState<TabId>('coach');
@@ -305,6 +305,14 @@ export default function App() {
   const planEntitlements = currentPlan?.entitlements ?? null;
   const authUser = authMe?.user ?? null;
   const actorUser = authMe?.actorUser ?? null;
+  const safeAdminUsers = useMemo(
+    () => adminUsers.filter((entry) => entry?.user && entry?.membership?.plan && entry?.membership?.account && entry?.usage),
+    [adminUsers]
+  );
+  const safeCoachRoster = useMemo(
+    () => coachRoster.filter((entry) => entry?.user && entry.assignmentId),
+    [coachRoster]
+  );
   const billingReady = membershipCatalog?.billing.ready ?? false;
   const currentPlanPriceLabel = currentPlan
     ? currentPlan.monthlyUsd === 0
@@ -1365,19 +1373,19 @@ export default function App() {
                   <button type="submit" style={buttonStyle} disabled={coachRosterLoading}>
                     {coachRosterLoading ? (locale === 'en' ? 'Saving...' : 'Guardando...') : (locale === 'en' ? 'Link player' : 'Vincular jugador')}
                   </button>
-                  {membership ? <Badge tone="low">{`${coachRoster.length}/${membership.plan.entitlements.maxManagedPlayers}`}</Badge> : null}
+                  {membership ? <Badge tone="low">{`${safeCoachRoster.length}/${membership.plan.entitlements.maxManagedPlayers}`}</Badge> : null}
                 </div>
               </form>
               <div style={{ ...softPanelStyle, alignContent: 'start' }}>
                 <div style={{ color: '#eef4ff', fontWeight: 700 }}>{locale === 'en' ? 'Current roster' : 'Roster actual'}</div>
                 {coachRosterLoading ? <div style={{ color: '#8f9bad', fontSize: 13 }}>{locale === 'en' ? 'Loading roster...' : 'Cargando roster...'}</div> : null}
-                {!coachRosterLoading && !coachRoster.length ? (
+                {!coachRosterLoading && !safeCoachRoster.length ? (
                   <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
                     {locale === 'en' ? 'No linked players yet. This base is ready for the coach desk.' : 'Todavía no hay jugadores vinculados. Esta base ya está lista para el coach desk.'}
                   </div>
                 ) : null}
                 <div style={{ display: 'grid', gap: 10 }}>
-                  {coachRoster.map((entry) => (
+                  {safeCoachRoster.map((entry) => (
                     <div key={entry.assignmentId} style={adminRowStyle}>
                       <div style={{ display: 'grid', gap: 4 }}>
                         <div style={{ color: '#eef4ff', fontWeight: 700 }}>{entry.user.displayName}</div>
@@ -1426,8 +1434,8 @@ export default function App() {
             </div>
             <div style={{ display: 'grid', gap: 10 }}>
               {adminLoading ? <div style={softPanelStyle}>{locale === 'en' ? 'Loading users...' : 'Cargando usuarios...'}</div> : null}
-              {!adminLoading && !adminUsers.length ? <div style={softPanelStyle}>{locale === 'en' ? 'No users available yet.' : 'Todavía no hay usuarios disponibles.'}</div> : null}
-              {adminUsers.map((entry) => (
+              {!adminLoading && !safeAdminUsers.length ? <div style={softPanelStyle}>{locale === 'en' ? 'No users available yet.' : 'Todavía no hay usuarios disponibles.'}</div> : null}
+              {safeAdminUsers.map((entry) => (
                 <div key={entry.user.id} style={adminUserCardStyle}>
                   <div style={{ display: 'grid', gap: 4 }}>
                     <div style={{ color: '#eef4ff', fontWeight: 800 }}>{entry.user.displayName}</div>
@@ -2080,6 +2088,52 @@ export default function App() {
         </footer>
       </div>
     </Shell>
+  );
+}
+
+interface AppErrorBoundaryState {
+  error: Error | null;
+}
+
+class AppErrorBoundary extends Component<{ children: ReactNode }, AppErrorBoundaryState> {
+  state: AppErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): AppErrorBoundaryState {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <Shell>
+          <div style={{ maxWidth: 980, margin: '0 auto', display: 'grid', gap: 16 }}>
+            <Card
+              title="La app encontró un error inesperado"
+              subtitle="Evitamos que toda la pantalla quede en negro para que puedas ver qué falló y seguir depurándolo."
+            >
+              <div style={{ display: 'grid', gap: 10 }}>
+                <div style={softPanelStyle}>
+                  {this.state.error.message || 'Unknown render error'}
+                </div>
+                <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
+                  Probá refrescar una vez. Si vuelve a aparecer, este mensaje ya nos deja una pista mucho más clara que una pantalla totalmente negra.
+                </div>
+              </div>
+            </Card>
+          </div>
+        </Shell>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+export default function App() {
+  return (
+    <AppErrorBoundary>
+      <AppShell />
+    </AppErrorBoundary>
   );
 }
 
