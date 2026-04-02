@@ -161,6 +161,114 @@ export interface AICoachResult {
       reasonChain: string[];
       dataGaps: string[];
     };
+    referenceAudit?: Array<{
+      id: string;
+      metric: string;
+      label: string;
+      source: 'internal';
+      status: 'active' | 'weak' | 'replace' | 'missing';
+      note: string;
+      replacement: string | null;
+    }>;
+    intelligence?: {
+      intelligenceVersion: string;
+      languagePlan: {
+        mode: 'fundamental' | 'scaffolded' | 'direct' | 'optimization';
+        explanationStyle: string;
+        priorityRule: string;
+        avoid: string[];
+      };
+      taxonomy: {
+        primaryProblemId: string | null;
+        mappedProblems: Array<{
+          problemId: string;
+          focusMetric: string | null;
+          detectedTypes: Array<{
+            taxonomyId: string;
+            label: string;
+            summary: string;
+            confidence: number;
+            priorityBand: 'foundational' | 'structural' | 'advanced';
+            detectionMode: 'measured' | 'proxy' | 'blocked';
+            reasons: string[];
+            missingSignals: string[];
+          }>;
+          candidateTypes: Array<{
+            taxonomyId: string;
+            label: string;
+            summary: string;
+            confidence: number;
+            priorityBand: 'foundational' | 'structural' | 'advanced';
+            detectionMode: 'measured' | 'proxy' | 'blocked';
+            reasons: string[];
+            missingSignals: string[];
+          }>;
+          blockedTypes: Array<{
+            taxonomyId: string;
+            label: string;
+            summary: string;
+            confidence: number;
+            priorityBand: 'foundational' | 'structural' | 'advanced';
+            detectionMode: 'measured' | 'proxy' | 'blocked';
+            reasons: string[];
+            missingSignals: string[];
+          }>;
+        }>;
+      };
+      interventionPlan: {
+        primaryObjective: string;
+        whyNow: string[];
+        queue: Array<{
+          problemId: string;
+          focusMetric: string | null;
+          title: string;
+          urgency: 'play_now' | 'next_block' | 'later' | 'watch';
+          recommendedDepth: 'quick_review' | 'coach_review' | 'deep_vod_review';
+          languageMode: 'fundamental' | 'scaffolded' | 'direct' | 'optimization';
+          score: number;
+          taxonomyIds: string[];
+          stability: 'stable_signal' | 'stable_leak' | 'emerging_regression' | 'recent_anomaly' | 'improving' | 'volatile';
+          reasons: string[];
+        }>;
+      };
+      reviewPlan: {
+        quickReview: {
+          objective: string;
+          prompts: string[];
+          anchors: string[];
+        };
+        coachReview: {
+          objective: string;
+          prompts: string[];
+          anchors: string[];
+        };
+        deepVodReview: {
+          objective: string;
+          prompts: string[];
+          anchors: string[];
+        };
+      };
+      signalStability: {
+        overallState: 'stable_signal' | 'stable_leak' | 'emerging_regression' | 'recent_anomaly' | 'improving' | 'volatile';
+        summary: string;
+      };
+      referenceFrames: Array<{
+        id: string;
+        scope: 'evergreen' | 'patch' | 'champion' | 'role' | 'elo' | 'sample';
+        label: string;
+        version: string;
+        source: string;
+        status: 'active' | 'weak' | 'scaffold_only' | 'missing';
+        justification: string;
+        nextUpgrade: string | null;
+      }>;
+      metaReadiness: {
+        status: 'ready' | 'partial' | 'missing';
+        availableSignals: string[];
+        missingSignals: string[];
+        futureSources: string[];
+      };
+    };
   };
   retrieval: {
     localKnowledgeCount: number;

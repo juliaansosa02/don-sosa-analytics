@@ -6,6 +6,7 @@ import { env } from '../config/env.js';
 import { loadProfileSnapshot } from './profileStore.js';
 import { retrieveKnowledgeCards } from './knowledgeBase.js';
 import { enrichCoachContextWithKnowledge } from './coachKnowledgeService.js';
+import { enrichCoachContextWithIntelligence } from './coachIntelligenceService.js';
 import { getPatchContextForCoach } from './patchNotes.js';
 import { aiCoachOutputSchema, type AICoachContext, type AICoachContinuity, type AICoachOutput, type AICoachProcessing, type AICoachRequest } from './aiCoachSchemas.js';
 import { loadAICoachUsageForMonth, loadLatestAICoachingGenerationForRequest, saveAICoachingGeneration } from './aiCoachStore.js';
@@ -13,7 +14,7 @@ import type { collectPlayerSnapshot } from './collectionService.js';
 import { assertCoachEntitlement, limitDatasetToMembership, type MembershipContext } from './membershipService.js';
 
 type StoredDataset = Awaited<ReturnType<typeof collectPlayerSnapshot>>;
-const AI_COACH_LOGIC_VERSION = '2026-04-knowledge-layer-v1';
+const AI_COACH_LOGIC_VERSION = '2026-04-intelligence-layer-v1';
 
 const openai = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
 
@@ -458,7 +459,7 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
     }))
     .digest('hex');
 
-  const baseContext: Omit<AICoachContext, 'patchContext' | 'knowledge' | 'diagnosis'> = {
+  const baseContext: Omit<AICoachContext, 'patchContext' | 'knowledge' | 'diagnosis' | 'intelligence'> = {
     player: {
       gameName: dataset.player,
       tagLine: dataset.tagLine,
@@ -626,22 +627,32 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       sampleSignature,
       latestMatchId: matches[0]?.matchId ?? null,
       latestGameCreation: matches[0]?.gameCreation ?? null
-    }
+    },
+    referenceAudit: summary.referenceAudit.map((entry) => ({
+      id: entry.id,
+      metric: entry.metric,
+      label: entry.label,
+      source: entry.source,
+      status: entry.status,
+      note: entry.note,
+      replacement: entry.replacement
+    }))
   };
 
   const patchContext = await getPatchContextForCoach(baseContext);
-
-  return enrichCoachContextWithKnowledge({
+  const knowledgeContext = await enrichCoachContextWithKnowledge({
     ...baseContext,
     patchContext
   });
+
+  return enrichCoachContextWithIntelligence(knowledgeContext);
 }
 
 function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: { id: string; title: string; body: string; actionables: string[] } }>): AICoachOutput {
+  const locale = context.player.locale;
   const topProblem = context.coaching.topProblems[0];
   const secondProblem = context.coaching.topProblems[1];
   const topPositive = context.positiveSignals[0];
-  const topReview = context.reviewAgenda[0];
   const topCards = knowledgeCards.slice(0, 3).map((entry) => entry.card);
   const championPatchAlert = context.patchContext.relevantChampionUpdates[0] ?? null;
   const problematicMatchup = context.problematicMatchup;
@@ -649,70 +660,117 @@ function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: 
   const championKnowledgeNote = context.knowledge.championIdentity?.priorityNotes[0]
     ?? context.knowledge.championIdentity?.misreadWarnings[0]?.message
     ?? null;
+  const primaryIntervention = context.intelligence.interventionPlan.queue[0] ?? null;
+  const primaryMapping = primaryIntervention
+    ? context.intelligence.taxonomy.mappedProblems.find((entry) => entry.problemId === primaryIntervention.problemId) ?? null
+    : null;
+  const primaryDetectedType = primaryMapping?.detectedTypes[0]
+    ?? primaryMapping?.candidateTypes[0]
+    ?? primaryMapping?.blockedTypes[0]
+    ?? null;
+  const quickReview = context.intelligence.reviewPlan.quickReview;
+  const coachReview = context.intelligence.reviewPlan.coachReview;
+  const primarySignalSummary = context.intelligence.signalStability.primarySignal?.summary
+    ?? context.intelligence.signalStability.summary;
+  const whyNow = context.intelligence.interventionPlan.whyNow[0]
+    ?? diagnosedIssue?.reasons[0]
+    ?? topProblem?.cause
+    ?? (locale === 'en'
+      ? 'The current block still needs a cleaner root-cause read.'
+      : 'El bloque actual todavía necesita una lectura de causa raíz más limpia.');
+  const referenceWarnings = context.intelligence.referenceFrames
+    .filter((entry) => entry.status !== 'active')
+    .slice(0, 2);
+  const dedupe = (values: Array<string | null | undefined>) => Array.from(new Set(values.filter((value): value is string => Boolean(value))));
+  const confidenceMultiplier = context.intelligence.signalStability.overallState === 'volatile'
+    ? 0.84
+    : context.intelligence.signalStability.overallState === 'stable_leak'
+      ? 1.05
+      : 0.96;
+  const draftConfidence = Number(Math.max(0.28, Math.min(0.96, context.diagnosis.confidence * confidenceMultiplier)).toFixed(2));
 
   return {
-    summary: (diagnosedIssue ?? topProblem)
-      ? context.player.locale === 'en'
-        ? `${(diagnosedIssue?.problem ?? topProblem?.problem)}. The immediate goal is to turn this from a recurring leak into a controllable habit.`
-        : `${(diagnosedIssue?.problem ?? topProblem?.problem)}. El objetivo inmediato es convertir esto de una fuga recurrente en un habito controlable.`
-      : context.player.locale === 'en'
+    summary: primaryIntervention
+      ? (locale === 'en'
+        ? `${primaryIntervention.title}. The system wants to fix this first because ${whyNow.toLowerCase()}.`
+        : `${primaryIntervention.title}. El sistema quiere corregir esto primero porque ${whyNow.toLowerCase()}.`)
+      : (diagnosedIssue ?? topProblem)
+        ? locale === 'en'
+          ? `${(diagnosedIssue?.problem ?? topProblem?.problem)}. The immediate goal is to turn this from a recurring leak into a controllable habit.`
+          : `${(diagnosedIssue?.problem ?? topProblem?.problem)}. El objetivo inmediato es convertir esto de una fuga recurrente en un habito controlable.`
+      : locale === 'en'
         ? 'There is not enough signal yet to define a sharp AI coaching read.'
         : 'Todavía no hay suficiente señal para definir una lectura de coaching IA realmente filosa.',
-    mainLeak: diagnosedIssue?.problem ?? topProblem?.problem ?? (context.player.locale === 'en' ? 'Insufficient sample' : 'Muestra insuficiente'),
-    whyItHappens: topProblem?.sampleWarning
-      ? `${diagnosedIssue?.reasons[0] ?? topProblem?.cause ?? ''} ${topProblem.sampleWarning}`.trim()
-      : diagnosedIssue?.reasons[0] ?? topProblem?.cause ?? (context.player.locale === 'en'
-      ? 'The current sample is still too small or too mixed to isolate a real root cause.'
-      : 'La muestra todavía es demasiado chica o demasiado mezclada como para aislar una causa raíz real.'),
-    whatToReview: [
-      ...(context.reviewAgenda.map((item) =>
-        context.player.locale === 'en'
-          ? `${item.title}: ${item.question}`
-          : `${item.title}: ${item.question}`
-      ) ?? []),
-      ...(topProblem?.evidence.slice(0, 1) ?? []),
-      ...(diagnosedIssue?.reasons.slice(0, 1) ?? []),
-      ...(problematicMatchup ? [problematicMatchup.summary] : []),
-      ...(topCards[0] ? [topCards[0].body] : []),
-      ...(secondProblem ? [secondProblem.problem] : [])
-    ].slice(0, 4),
-    whatToDoNext3Games: [
+    mainLeak: primaryIntervention
+      ? `${primaryIntervention.title}${primaryDetectedType ? ` (${primaryDetectedType.label})` : ''}`
+      : diagnosedIssue?.problem ?? topProblem?.problem ?? (locale === 'en' ? 'Insufficient sample' : 'Muestra insuficiente'),
+    whyItHappens: dedupe([
+      whyNow,
+      primarySignalSummary,
+      topProblem?.sampleWarning,
+      primaryDetectedType?.detectionMode === 'blocked'
+        ? (locale === 'en'
+          ? 'Part of this read is still blocked by missing telemetry, so the system is keeping the explanation scoped.'
+          : 'Parte de esta lectura sigue bloqueada por telemetría faltante, así que el sistema mantiene la explicación acotada.')
+        : null
+    ]).join(' '),
+    whatToReview: dedupe([
+      ...quickReview.prompts,
+      ...coachReview.prompts,
+      ...context.reviewAgenda.slice(0, 2).map((item) => `${item.title}: ${item.question}`),
+      primaryDetectedType?.summary,
+      problematicMatchup?.summary
+    ]).slice(0, 4),
+    whatToDoNext3Games: dedupe([
       ...(problematicMatchup?.adjustments.slice(0, 1) ?? []),
       ...(topProblem?.actions.slice(0, 2) ?? []),
+      ...(secondProblem?.actions.slice(0, 1) ?? []),
       ...(topPositive?.actions.slice(0, 1) ?? []),
       ...topCards.flatMap((card) => card.actionables).slice(0, 3)
-    ].slice(0, 4),
+    ]).slice(0, 4),
     championSpecificNote: context.player.anchorChampion
-      ? (context.player.locale === 'en'
+      ? (locale === 'en'
         ? championPatchAlert
-          ? `${context.player.anchorChampion} is your current reference pick, and patch ${context.patchContext.currentPatch} recently touched it: ${championPatchAlert.summary}`
-          : championKnowledgeNote
-            ? `${context.player.anchorChampion} is your current reference pick. ${championKnowledgeNote}`
-            : `${context.player.anchorChampion} is your current reference pick. Use it as the cleanest lens for recalls, tempo and objective setup before widening the pool.`
+          ? `${context.player.anchorChampion} is still your anchor pick, and patch ${context.patchContext.currentPatch} recently touched it: ${championPatchAlert.summary}`
+          : primaryDetectedType?.taxonomyId === 'champion_identity_execution' && championKnowledgeNote
+            ? `${context.player.anchorChampion} is being judged through its real identity lens. ${championKnowledgeNote}`
+            : championKnowledgeNote
+              ? `${context.player.anchorChampion} is your current reference pick. ${championKnowledgeNote}`
+              : `${context.player.anchorChampion} is your current reference pick. Use it as the cleanest lens for recalls, tempo and objective setup before widening the pool.`
         : championPatchAlert
-          ? `${context.player.anchorChampion} es hoy tu pick de referencia, y el parche ${context.patchContext.currentPatch} lo tocó hace poco: ${championPatchAlert.summary}`
-          : championKnowledgeNote
-            ? `${context.player.anchorChampion} es hoy tu pick de referencia. ${championKnowledgeNote}`
-            : `${context.player.anchorChampion} es hoy tu pick de referencia. Usalo como la lente más limpia para recalls, tempo y setup de objetivos antes de abrir más el pool.`)
+          ? `${context.player.anchorChampion} sigue siendo tu pick ancla, y el parche ${context.patchContext.currentPatch} lo tocó hace poco: ${championPatchAlert.summary}`
+          : primaryDetectedType?.taxonomyId === 'champion_identity_execution' && championKnowledgeNote
+            ? `${context.player.anchorChampion} está siendo evaluado con su identidad real. ${championKnowledgeNote}`
+            : championKnowledgeNote
+              ? `${context.player.anchorChampion} es hoy tu pick de referencia. ${championKnowledgeNote}`
+              : `${context.player.anchorChampion} es hoy tu pick de referencia. Usalo como la lente más limpia para recalls, tempo y setup de objetivos antes de abrir más el pool.`)
       : null,
     matchupSpecificNote: problematicMatchup
       ? problematicMatchup.summary
       : context.matchupAlert
-      ? (context.player.locale === 'en'
-        ? `${context.matchupAlert.opponentChampionName} deserves explicit preparation: the pattern is recurring enough to justify review before you queue again.`
-        : `${context.matchupAlert.opponentChampionName} merece preparación explícita: el patrón se repite lo suficiente como para justificar review antes de volver a jugar.`)
-      : null,
-    grounding: [
+        ? (locale === 'en'
+          ? `${context.matchupAlert.opponentChampionName} deserves explicit preparation: the pattern is recurring enough to justify review before you queue again.`
+          : `${context.matchupAlert.opponentChampionName} merece preparación explícita: el patrón se repite lo suficiente como para justificar review antes de volver a jugar.`)
+        : null,
+    grounding: dedupe([
       ...context.diagnosis.reasonChain.slice(0, 2),
-      topProblem?.impact,
+      primarySignalSummary,
+      primaryDetectedType?.summary,
       topPositive?.impact,
-      topReview ? `${topReview.title}: ${topReview.reason}` : null,
-      problematicMatchup?.summary,
-      ...context.patchContext.relevantChampionUpdates.slice(0, 1).map((update) => `${update.championName}: ${update.summary}`),
+      referenceWarnings[0]
+        ? (locale === 'en'
+          ? `${referenceWarnings[0].label} is running with ${referenceWarnings[0].status} reference quality.`
+          : `${referenceWarnings[0].label} hoy corre con calidad de referencia ${referenceWarnings[0].status}.`)
+        : null,
+      context.intelligence.metaReadiness.status !== 'ready'
+        ? (locale === 'en'
+          ? 'Meta ingestion is scaffolded but still partial, so patch-sensitive reads stay conservative.'
+          : 'La ingestión de meta ya está preparada pero sigue parcial, así que las lecturas sensibles a parche se mantienen conservadoras.')
+        : null,
       ...topCards.map((card) => card.title)
-    ].filter(Boolean).slice(0, 4) as string[],
+    ]).slice(0, 4),
     knowledgeCardIds: topCards.map((card) => card.id),
-    confidence: context.diagnosis.confidence
+    confidence: draftConfidence
   };
 }
 
@@ -951,6 +1009,13 @@ Rules:
 - Use retrieved coaching knowledge only to explain or sharpen the recommendation.
 - Use patch context to warn about recent champion or system changes when it materially affects the advice.
 - Treat diagnosis.primaryIssue as the default hierarchy unless the raw evidence clearly contradicts it.
+- Use intelligence.interventionPlan.queue as the recommended order of intervention unless the evidence in context clearly contradicts it.
+- Use intelligence.languagePlan.mode to adapt complexity, tone and abstraction level to the player's level.
+- Use intelligence.taxonomy.mappedProblems to distinguish the likely real problem type behind the visible metric leak.
+- Use intelligence.signalStability to separate stable player signals from recent anomalies.
+- Use intelligence.referenceFrames to be explicit about what is evergreen, patch-based, champion-based or still weak.
+- Use intelligence.reviewPlan to structure quick review, coach review and deep VOD review.
+- Use intelligence.metaReadiness to avoid overclaiming patch/meta reads when the feed is still partial.
 - Respect coaching.topProblems[].interpretation and coaching.topProblems[].evidenceStrength: structural reads can be firmer, situational reads should stay scoped, observational reads must stay cautious.
 - Use knowledge.roleIdentity, knowledge.championIdentity and knowledge.eloProfile to avoid applying generic advice that does not fit the pick, role or elo.
 - If diagnosis.dataGaps says a champion-specific read is blocked by missing telemetry, do not pretend you detected that mechanic directly.
@@ -996,8 +1061,8 @@ function buildUserPrompt(
         }
       : null,
     instruction: context.player.locale === 'en'
-      ? 'Use the diagnosis, role fundamentals, champion identity, elo adaptation, patch context, positive signals, review agenda and retrieved coaching knowledge to produce the next coaching block. Write only in English, make the main leak concrete and personalized, keep the read inside the scoped role and picks unless the connection is explicit, do not invent champion-specific mechanical detections when diagnosis.dataGaps says the signal is missing, surface real strengths when they exist, and if previous coaching exists, update the guidance with continuity instead of restarting from zero. Respect player.profileStrength: elite profiles need fine-grained optimization language, not generic leak-hunting.'
-      : 'Usá el diagnóstico, los fundamentos del rol, la identidad del campeon, la adaptación por elo, el contexto de parche, las señales positivas, la agenda de review y el conocimiento recuperado para producir el siguiente bloque de coaching. Escribí solo en español, hacé que el problema principal sea concreto y personalizado, mantené la lectura dentro del rol y de los picks del scope salvo conexión explícita, no inventes detecciones mecanicas si diagnosis.dataGaps marca que faltan señales, mostrà fortalezas reales cuando existan, y si existe coaching previo, actualizá la guía con continuidad en vez de reiniciarla desde cero. Respetá player.profileStrength: los perfiles elite necesitan lenguaje de optimización fina, no caza de leaks genéricos.'
+      ? 'Use the diagnosis, role fundamentals, champion identity, elo adaptation, intelligence taxonomy, intervention priority, signal stability, patch context, positive signals, review agenda and retrieved coaching knowledge to produce the next coaching block. Write only in English, make the main leak concrete and personalized, keep the read inside the scoped role and picks unless the connection is explicit, distinguish stable leaks from recent anomalies, adapt the language to intelligence.languagePlan.mode, do not invent champion-specific mechanical detections when diagnosis.dataGaps says the signal is missing, surface real strengths when they exist, and if previous coaching exists, update the guidance with continuity instead of restarting from zero. Respect player.profileStrength: elite profiles need fine-grained optimization language, not generic leak-hunting.'
+      : 'Usá el diagnóstico, los fundamentos del rol, la identidad del campeon, la adaptación por elo, la taxonomía de inteligencia, la prioridad de intervención, la estabilidad de señal, el contexto de parche, las señales positivas, la agenda de review y el conocimiento recuperado para producir el siguiente bloque de coaching. Escribí solo en español, hacé que el problema principal sea concreto y personalizado, mantené la lectura dentro del rol y de los picks del scope salvo conexión explícita, distinguí entre fuga estable y anomalía reciente, adaptá el lenguaje a intelligence.languagePlan.mode, no inventes detecciones mecanicas si diagnosis.dataGaps marca que faltan señales, mostrà fortalezas reales cuando existan, y si existe coaching previo, actualizá la guía con continuidad en vez de reiniciarla desde cero. Respetá player.profileStrength: los perfiles elite necesitan lenguaje de optimización fina, no caza de leaks genéricos.'
   });
 }
 

@@ -39,7 +39,7 @@ const patchNotesSchema = z.object({
 });
 
 type PatchNotesFile = z.infer<typeof patchNotesSchema>;
-type CoachContextBeforeKnowledge = Omit<AICoachContext, 'patchContext' | 'knowledge' | 'diagnosis'>;
+type CoachContextBeforeKnowledge = Omit<AICoachContext, 'patchContext' | 'knowledge' | 'diagnosis' | 'intelligence'>;
 
 type LatestPatchEntry = {
   patch: string;

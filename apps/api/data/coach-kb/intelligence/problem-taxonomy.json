@@ -1,0 +1,324 @@
+[
+  {
+    "id": "mechanics_execution",
+    "label": { "en": "Mechanical execution", "es": "Ejecucion mecanica" },
+    "summary": {
+      "en": "The leak is likely tied to buttons, combo order, reaction timing or missed damage windows.",
+      "es": "La fuga probablemente esta atada a botones, orden de combo, timing de reaccion o ventanas de daño perdidas."
+    },
+    "priorityBand": "foundational",
+    "focusMetrics": ["deaths_pre_10", "matchup_review", "primary_pick"],
+    "roleBias": ["TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"],
+    "championArchetypes": ["assassin", "skirmisher", "diver", "combo"],
+    "skillBrackets": ["all"],
+    "requiredSignals": ["spell_casts", "ability_usage"],
+    "quickReviewPrompts": [
+      { "en": "Pause on the first failed all-in and ask which input sequence broke.", "es": "Frená en el primer all-in fallido y preguntate qué secuencia de inputs se rompió." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Identify whether the mistake was execution, patience or choosing the wrong window.", "es": "Identificá si el error fue de ejecucion, de paciencia o de elegir mal la ventana." }
+    ],
+    "deepVodPrompts": [
+      { "en": "Track spell order, cursor commitment and whether the player buffered the right response under pressure.", "es": "Seguí el orden de hechizos, el compromiso del cursor y si el jugador bufferizó la respuesta correcta bajo presion." }
+    ]
+  },
+  {
+    "id": "spacing_and_trading",
+    "label": { "en": "Spacing and trading", "es": "Spacing y trade" },
+    "summary": {
+      "en": "The player is likely losing lane state through bad distance, bad respect points or poor trade selection.",
+      "es": "El jugador probablemente pierde estado de linea por mala distancia, malos puntos de respeto o mala seleccion de trade."
+    },
+    "priorityBand": "foundational",
+    "focusMetrics": ["deaths_pre_10", "gold_diff_at_15", "matchup_review"],
+    "roleBias": ["TOP", "MIDDLE", "BOTTOM", "UTILITY"],
+    "championArchetypes": ["lane_bully", "duelist", "mage", "marksman"],
+    "skillBrackets": ["all"],
+    "requiredSignals": ["position_frames"],
+    "quickReviewPrompts": [
+      { "en": "Find the first trade where the player stayed inside enemy answer range for too long.", "es": "Encontrá el primer trade donde el jugador quedó demasiado tiempo dentro del rango de respuesta enemigo." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Separate bad spacing from bad matchup knowledge: was the idea wrong or the distance wrong?", "es": "Separá mal spacing de mal conocimiento del matchup: ¿la idea era mala o la distancia era mala?" }
+    ],
+    "deepVodPrompts": [
+      { "en": "Mark every punish window where the player had no spacing exit after committing.", "es": "Marcá cada ventana de castigo donde el jugador ya no tenía salida de spacing después de comprometerse." }
+    ]
+  },
+  {
+    "id": "tempo_and_route_integrity",
+    "label": { "en": "Tempo and route integrity", "es": "Tempo e integridad de ruta" },
+    "summary": {
+      "en": "The sample is leaking value because resets, routes or rotations break too often before the next good play.",
+      "es": "La muestra pierde valor porque resets, rutas o rotaciones se rompen demasiado seguido antes de la siguiente buena jugada."
+    },
+    "priorityBand": "foundational",
+    "focusMetrics": ["deaths_pre_14", "cs_at_15", "gold_diff_at_15", "kill_participation"],
+    "roleBias": ["JUNGLE", "TOP", "MIDDLE", "BOTTOM"],
+    "championArchetypes": ["side_pressure", "tempo", "roamer"],
+    "skillBrackets": ["all"],
+    "requiredSignals": ["match_summary", "timeline_gold_xp", "objective_windows"],
+    "quickReviewPrompts": [
+      { "en": "Find the first route break or side play that delayed the next clean window.", "es": "Encontrá el primer desvío de ruta o side play que atrasó la siguiente ventana limpia." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Ask whether the player spent resources before the map actually paid them back.", "es": "Preguntá si el jugador gastó recursos antes de que el mapa realmente se los devolviera." }
+    ],
+    "deepVodPrompts": [
+      { "en": "Rebuild the full minute before each tempo loss: camps, wave, recall, move and what died while moving.", "es": "Reconstruí el minuto completo antes de cada pérdida de tempo: camps, wave, recall, move y qué se perdió mientras se movía." }
+    ]
+  },
+  {
+    "id": "reset_timing",
+    "label": { "en": "Reset timing", "es": "Timing de reset" },
+    "summary": {
+      "en": "The player is probably arriving late to the next state because recalls are delayed or mistimed.",
+      "es": "El jugador probablemente llega tarde al siguiente estado porque los recalls se atrasan o se hacen mal."
+    },
+    "priorityBand": "foundational",
+    "focusMetrics": ["cs_at_15", "gold_diff_at_15", "deaths_pre_14"],
+    "roleBias": ["TOP", "MIDDLE", "BOTTOM", "UTILITY"],
+    "championArchetypes": ["marksman", "mage", "side_pressure"],
+    "skillBrackets": ["all"],
+    "requiredSignals": ["timeline_gold_xp"],
+    "quickReviewPrompts": [
+      { "en": "Pause on the recall that forced the player to choose between item timing and map timing.", "es": "Frená en el recall que obligó al jugador a elegir entre timing de item y timing de mapa." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Check whether greed for one more wave or camp removed the next clean arrival.", "es": "Chequeá si la codicia por una wave o camp más eliminó la siguiente llegada limpia." }
+    ],
+    "deepVodPrompts": [
+      { "en": "Track every base against the next spawn or fight and mark which one created the real debt.", "es": "Seguí cada base contra el siguiente spawn o pelea y marcá cuál creó la deuda real." }
+    ]
+  },
+  {
+    "id": "objective_setup",
+    "label": { "en": "Objective setup", "es": "Setup de objetivo" },
+    "summary": {
+      "en": "The sample is likely losing high-value windows before the fight because the setup minute is weak.",
+      "es": "La muestra probablemente pierde ventanas de alto valor antes de la pelea porque el minuto de setup es débil."
+    },
+    "priorityBand": "structural",
+    "focusMetrics": ["objective_fight_deaths", "lead_conversion", "kill_participation"],
+    "roleBias": ["JUNGLE", "UTILITY", "MIDDLE", "TOP", "BOTTOM"],
+    "championArchetypes": ["global", "utility_frontline", "engage", "roamer"],
+    "skillBrackets": ["all"],
+    "requiredSignals": ["objective_windows", "match_summary"],
+    "quickReviewPrompts": [
+      { "en": "Watch the 45 to 70 seconds before spawn, not just the fight itself.", "es": "Mirá los 45 a 70 segundos antes del spawn, no solo la pelea." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Separate arrival order, reset state, vision line and number advantage before judging execution.", "es": "Separá orden de llegada, estado de reset, línea de visión y ventaja numérica antes de juzgar la ejecución." }
+    ],
+    "deepVodPrompts": [
+      { "en": "Map every objective setup into who moved first, who had resources and who entered blind.", "es": "Mapeá cada setup de objetivo en quién se movió primero, quién tenía recursos y quién entró ciego." }
+    ]
+  },
+  {
+    "id": "target_selection",
+    "label": { "en": "Target selection", "es": "Selección de objetivo" },
+    "summary": {
+      "en": "The real leak may be choosing the wrong target or wrong fight line after entering combat.",
+      "es": "La fuga real puede ser elegir mal el objetivo o la línea de pelea después de entrar en combate."
+    },
+    "priorityBand": "advanced",
+    "focusMetrics": ["objective_fight_deaths", "lead_conversion"],
+    "roleBias": ["TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"],
+    "championArchetypes": ["assassin", "diver", "marksman", "frontline"],
+    "skillBrackets": ["mid_elo", "high_elo", "apex"],
+    "requiredSignals": ["position_frames", "ability_usage"],
+    "quickReviewPrompts": [
+      { "en": "Mark the first fight where the player changed target without a strong reason.", "es": "Marcá la primera pelea donde el jugador cambió de objetivo sin una razón fuerte." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Check whether the role should hit front line, peel or dive instead of following instinct.", "es": "Chequeá si el rol debía pegar frontline, peel o divear en vez de seguir el instinto." }
+    ],
+    "deepVodPrompts": [
+      { "en": "Follow camera and cooldowns to see whether the target call matched the champion's win condition.", "es": "Seguí cámara y cooldowns para ver si la elección de objetivo coincidió con la win condition del campeón." }
+    ]
+  },
+  {
+    "id": "champion_identity_execution",
+    "label": { "en": "Champion identity execution", "es": "Ejecución de identidad de campeón" },
+    "summary": {
+      "en": "The player may be using the champion like a generic pick instead of around its real value pattern.",
+      "es": "El jugador puede estar usando el campeón como un pick genérico en vez de alrededor de su patrón real de valor."
+    },
+    "priorityBand": "structural",
+    "focusMetrics": ["cs_at_15", "kill_participation", "lead_conversion", "matchup_review", "primary_pick"],
+    "roleBias": ["ALL", "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"],
+    "championArchetypes": ["global", "low_econ", "side_pressure", "protect_carry", "roamer"],
+    "skillBrackets": ["all"],
+    "requiredSignals": ["match_summary", "rank_context"],
+    "quickReviewPrompts": [
+      { "en": "Ask whether the champion was judged by the right KPI for its identity.", "es": "Preguntate si el campeón fue juzgado con el KPI correcto para su identidad." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Compare what the pick is supposed to create with how the player actually tried to win the game.", "es": "Compará lo que el pick debería crear con cómo el jugador realmente intentó ganar la partida." }
+    ],
+    "deepVodPrompts": [
+      { "en": "Track every major window where the champion's identity should have changed the map call, side assignment or fight plan.", "es": "Seguí cada ventana importante donde la identidad del campeón debería haber cambiado el call de mapa, la side o el plan de pelea." }
+    ]
+  },
+  {
+    "id": "map_rotation_connection",
+    "label": { "en": "Map rotation and connection", "es": "Rotación y conexión al mapa" },
+    "summary": {
+      "en": "The player is likely disconnected from the live side of the map, so leads and fights are reached late or empty.",
+      "es": "El jugador probablemente está desconectado del lado vivo del mapa, así que llega tarde o vacío a ventajas y peleas."
+    },
+    "priorityBand": "structural",
+    "focusMetrics": ["kill_participation", "lead_conversion", "objective_fight_deaths"],
+    "roleBias": ["JUNGLE", "MIDDLE", "UTILITY", "TOP"],
+    "championArchetypes": ["roamer", "global", "utility_frontline"],
+    "skillBrackets": ["all"],
+    "requiredSignals": ["match_summary", "objective_windows"],
+    "quickReviewPrompts": [
+      { "en": "Find the first move where the player chose the dead side instead of the live side.", "es": "Encontrá el primer move donde el jugador eligió el lado muerto en vez del lado vivo." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Check whether the player was following the wave, the objective or just random action density.", "es": "Chequeá si el jugador estaba siguiendo la wave, el objetivo o solo la densidad aleatoria de acción." }
+    ],
+    "deepVodPrompts": [
+      { "en": "Rebuild every rotation before the key fight and note which information should have redirected it earlier.", "es": "Reconstruí cada rotación antes de la pelea clave y anotá qué información debería haberla redirigido antes." }
+    ]
+  },
+  {
+    "id": "side_lane_macro",
+    "label": { "en": "Side-lane macro", "es": "Macro de side lane" },
+    "summary": {
+      "en": "The player is probably misusing side pressure, overextending the lane or missing collapse timing.",
+      "es": "El jugador probablemente usa mal la presión lateral, se pasa de largo en la side o pierde el timing del collapse."
+    },
+    "priorityBand": "advanced",
+    "focusMetrics": ["lead_conversion", "kill_participation"],
+    "roleBias": ["TOP", "MIDDLE"],
+    "championArchetypes": ["side_pressure", "splitpush", "duelist", "global"],
+    "skillBrackets": ["mid_elo", "high_elo", "apex"],
+    "requiredSignals": ["position_frames", "objective_windows"],
+    "quickReviewPrompts": [
+      { "en": "Pause on the side wave that should have been the last one before regrouping.", "es": "Frená en la side wave que debería haber sido la última antes de reagrupar." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Judge side pressure by what it unlocked on map, not just by tower hits or farm.", "es": "Juzgá la presión lateral por lo que desbloqueó en mapa, no solo por golpes a torre o farm." }
+    ],
+    "deepVodPrompts": [
+      { "en": "Track every side assignment relative to teleport, objective timer and enemy disappearance.", "es": "Seguí cada asignación lateral en relación con teleport, timer de objetivo y desaparición enemiga." }
+    ]
+  },
+  {
+    "id": "summoner_usage",
+    "label": { "en": "Summoner usage", "es": "Uso de summoners" },
+    "summary": {
+      "en": "The leak may be avoidable because flashes or combat summoners are used too late, too early or for bad windows.",
+      "es": "La fuga puede ser evitable porque flashes o summoners de combate se usan tarde, temprano o en malas ventanas."
+    },
+    "priorityBand": "foundational",
+    "focusMetrics": ["deaths_pre_10", "deaths_pre_14", "objective_fight_deaths"],
+    "roleBias": ["ALL", "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"],
+    "championArchetypes": ["engage", "marksman", "mage", "frontline"],
+    "skillBrackets": ["all"],
+    "requiredSignals": ["spell_casts"],
+    "quickReviewPrompts": [
+      { "en": "Find the first death where a summoner could have changed the outcome or the cost.", "es": "Encontrá la primera muerte donde un summoner podía cambiar el resultado o el costo." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Check whether the player used summoners to preserve state or only as a last panic action.", "es": "Chequeá si el jugador usó summoners para preservar estado o solo como última acción de pánico." }
+    ],
+    "deepVodPrompts": [
+      { "en": "Log every flash, heal, barrier or ignite and judge whether it matched the expected danger window.", "es": "Registrá cada flash, heal, barrier o ignite y juzgá si coincidió con la ventana de peligro esperada." }
+    ]
+  },
+  {
+    "id": "itemization",
+    "label": { "en": "Itemization", "es": "Itemización" },
+    "summary": {
+      "en": "The player may be building the wrong combat profile for the matchup, team comp or patch.",
+      "es": "El jugador puede estar construyendo el perfil de combate incorrecto para el matchup, la compo o el parche."
+    },
+    "priorityBand": "advanced",
+    "focusMetrics": ["gold_diff_at_15", "lead_conversion", "primary_pick"],
+    "roleBias": ["ALL", "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"],
+    "championArchetypes": [],
+    "skillBrackets": ["mid_elo", "high_elo", "apex"],
+    "requiredSignals": ["items_runes"],
+    "quickReviewPrompts": [
+      { "en": "Compare the first two completed items with the actual damage or utility problem in game.", "es": "Compará los dos primeros items completos con el problema real de daño o utilidad en la partida." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Ask whether the build served the champion identity, the enemy threats and the patch context together.", "es": "Preguntá si la build sirvió a la identidad del campeón, a las amenazas enemigas y al contexto del parche a la vez." }
+    ],
+    "deepVodPrompts": [
+      { "en": "Track recall gold, purchase order and whether the player missed a higher-value item branch for the game state.", "es": "Seguí oro de recall, orden de compra y si el jugador dejó pasar una rama de items de más valor para ese estado." }
+    ]
+  },
+  {
+    "id": "rune_setup",
+    "label": { "en": "Rune setup", "es": "Setup de runas" },
+    "summary": {
+      "en": "The leak may start before the game through rune choices that do not fit lane, matchup or role task.",
+      "es": "La fuga puede empezar antes de la partida por runas que no encajan con línea, matchup o tarea del rol."
+    },
+    "priorityBand": "advanced",
+    "focusMetrics": ["gold_diff_at_15", "matchup_review", "primary_pick"],
+    "roleBias": ["ALL", "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"],
+    "championArchetypes": [],
+    "skillBrackets": ["mid_elo", "high_elo", "apex"],
+    "requiredSignals": ["items_runes"],
+    "quickReviewPrompts": [
+      { "en": "Check if the rune page solved the matchup you actually queued into.", "es": "Chequeá si la página de runas resolvía el matchup que realmente tocó." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Review whether the rune setup matched the lane plan, fight length and win condition.", "es": "Revisá si el setup de runas coincidía con el plan de línea, la duración de peleas y la condición de victoria." }
+    ],
+    "deepVodPrompts": [
+      { "en": "Compare the chosen runes with the first three decisive exchanges and identify what the page failed to support.", "es": "Compará las runas elegidas con los tres primeros intercambios decisivos e identificá qué no sostuvo la página." }
+    ]
+  },
+  {
+    "id": "resource_discipline",
+    "label": { "en": "Resource discipline", "es": "Disciplina de recursos" },
+    "summary": {
+      "en": "The player is probably donating gold, xp, cooldowns or life totals before the game demands it.",
+      "es": "El jugador probablemente regala oro, xp, cooldowns o vida antes de que la partida lo demande."
+    },
+    "priorityBand": "foundational",
+    "focusMetrics": ["deaths_pre_14", "cs_at_15", "gold_diff_at_15"],
+    "roleBias": ["ALL", "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"],
+    "championArchetypes": [],
+    "skillBrackets": ["all"],
+    "requiredSignals": ["match_summary", "timeline_gold_xp"],
+    "quickReviewPrompts": [
+      { "en": "Find the first avoidable spend of HP, wave, camp or cooldown that reduced the next playable state.", "es": "Encontrá el primer gasto evitable de vida, wave, camp o cooldown que redujo el siguiente estado jugable." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Measure whether the player was losing because of a big mistake or because of many small resource leaks.", "es": "Medí si el jugador perdía por un gran error o por muchas fugas chicas de recursos." }
+    ],
+    "deepVodPrompts": [
+      { "en": "Log every unnecessary resource donation in the first 14 minutes and connect it to the next map consequence.", "es": "Registrá cada regalo innecesario de recursos en los primeros 14 minutos y conectalo con la siguiente consecuencia de mapa." }
+    ]
+  },
+  {
+    "id": "review_process",
+    "label": { "en": "Review process", "es": "Proceso de review" },
+    "summary": {
+      "en": "The biggest leak may be that the player is mixing samples, picks or matchups and cannot isolate a repeatable lesson.",
+      "es": "La fuga más grande puede ser que el jugador mezcla muestras, picks o matchups y no logra aislar una lección repetible."
+    },
+    "priorityBand": "structural",
+    "focusMetrics": ["champion_pool_stability", "matchup_review", "primary_pick"],
+    "roleBias": ["ALL", "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"],
+    "championArchetypes": [],
+    "skillBrackets": ["all"],
+    "requiredSignals": ["match_summary", "rank_context"],
+    "quickReviewPrompts": [
+      { "en": "Check whether the sample is too mixed to teach one habit clearly.", "es": "Chequeá si la muestra está demasiado mezclada como para enseñar un hábito con claridad." }
+    ],
+    "coachReviewPrompts": [
+      { "en": "Separate champion mastery problems from review process problems before changing the pool again.", "es": "Separá problemas de maestría del campeón de problemas del proceso de review antes de volver a cambiar el pool." }
+    ],
+    "deepVodPrompts": [
+      { "en": "Rebuild the block by role, champion and matchup so the next review compares like with like.", "es": "Reconstruí el bloque por rol, campeón y matchup para que el siguiente review compare peras con peras." }
+    ]
+  }
+]

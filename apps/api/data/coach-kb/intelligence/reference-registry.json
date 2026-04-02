@@ -1,0 +1,92 @@
+[
+  {
+    "id": "signal_engine_core",
+    "scope": "sample",
+    "label": { "en": "Signal engine", "es": "Motor de señales" },
+    "source": "packages/core",
+    "version": "2026-04-signal-engine-v1",
+    "note": {
+      "en": "Deterministic sample metrics, evidence strength and trend windows come from the core summary engine.",
+      "es": "Las métricas determinísticas de muestra, fuerza de evidencia y ventanas de tendencia vienen del motor core de summary."
+    },
+    "upgradePath": {
+      "en": "Expand from summary proxies into richer event telemetry before claiming deeper diagnosis.",
+      "es": "Expandir de proxies del summary hacia telemetría de eventos más rica antes de reclamar diagnósticos más profundos."
+    }
+  },
+  {
+    "id": "role_identities",
+    "scope": "role",
+    "label": { "en": "Role identities", "es": "Identidades por rol" },
+    "source": "apps/api/data/coach-kb/identities/roles.json",
+    "version": "2026-04-role-identities-v1",
+    "note": {
+      "en": "Role floors, blind spots and review prompts live in curated role identity files.",
+      "es": "Los pisos, blind spots y review prompts por rol viven en archivos curados de identidad."
+    },
+    "upgradePath": {
+      "en": "Replace more fixed targets with internal percentiles by role, queue and patch when sample allows.",
+      "es": "Reemplazar más targets fijos por percentiles internos por rol, cola y parche cuando la muestra lo permita."
+    }
+  },
+  {
+    "id": "elo_profiles",
+    "scope": "elo",
+    "label": { "en": "Elo adaptation profiles", "es": "Perfiles de adaptación por elo" },
+    "source": "apps/api/data/coach-kb/identities/elos.json",
+    "version": "2026-04-elo-profiles-v1",
+    "note": {
+      "en": "Coach style, emphasis and de-emphasis rules by bracket live in elo profile files.",
+      "es": "El estilo de coach, énfasis y reglas de de-enfasis por bracket viven en archivos de elo."
+    },
+    "upgradePath": {
+      "en": "Refine bracket rules using actual retention and improvement outcomes from coaching blocks.",
+      "es": "Refinar las reglas por bracket usando resultados reales de retención y mejora de bloques de coaching."
+    }
+  },
+  {
+    "id": "champion_identity_engine",
+    "scope": "champion",
+    "label": { "en": "Champion identity engine", "es": "Champion identity engine" },
+    "source": "apps/api/data/coach-kb/identities/champions/*.json",
+    "version": "2026-04-champion-identities-v1",
+    "note": {
+      "en": "Champion files define value pattern, misread guardrails and blocked heuristics when telemetry is missing.",
+      "es": "Los archivos de campeón definen patrón de valor, guardrails contra falsas lecturas y heurísticas bloqueadas cuando falta telemetría."
+    },
+    "upgradePath": {
+      "en": "Increase coverage champion by champion and link each heuristic to required telemetry before activating it.",
+      "es": "Aumentar cobertura campeón por campeón y vincular cada heurística a la telemetría requerida antes de activarla."
+    }
+  },
+  {
+    "id": "meta_patch_layer",
+    "scope": "patch",
+    "label": { "en": "Meta patch layer", "es": "Capa de meta por parche" },
+    "source": "apps/api/data/coach-kb/meta/patches/*.json + patch-notes service",
+    "version": "2026-04-meta-layer-v1",
+    "note": {
+      "en": "Patch references and meta scaffolding exist, but the feed can still be scaffold-only for some patches.",
+      "es": "Las referencias de parche y el scaffold de meta existen, pero el feed todavía puede estar en modo scaffold para algunos parches."
+    },
+    "upgradePath": {
+      "en": "Feed curated patch+role+champion tier/build/rune trends so the layer becomes operational instead of advisory only.",
+      "es": "Alimentar tendencias curadas de tier/build/runas por parche+rol+campeón para que la capa pase de consultiva a operativa."
+    }
+  },
+  {
+    "id": "coach_taxonomy",
+    "scope": "evergreen",
+    "label": { "en": "Coach taxonomy", "es": "Taxonomía de coaching" },
+    "source": "apps/api/data/coach-kb/intelligence/problem-taxonomy.json",
+    "version": "2026-04-problem-taxonomy-v1",
+    "note": {
+      "en": "Player problems are classified through an explicit error taxonomy instead of prompt-only phrasing.",
+      "es": "Los problemas del jugador se clasifican con una taxonomía explícita de errores en vez de solo phrasing de prompt."
+    },
+    "upgradePath": {
+      "en": "Keep adding tags and validation rules so more issues move from proxy guesses into measured detection.",
+      "es": "Seguir agregando tags y reglas de validación para mover más problemas de guesses por proxy a detección medida."
+    }
+  }
+]

@@ -18,7 +18,8 @@ import {
   type SkillBracket
 } from './coachKnowledgeSchemas.js';
 
-type CoachContextBeforeKnowledge = Omit<AICoachContext, 'knowledge' | 'diagnosis'>;
+export type CoachContextWithKnowledge = Omit<AICoachContext, 'intelligence'>;
+type CoachContextBeforeKnowledge = Omit<AICoachContext, 'knowledge' | 'diagnosis' | 'intelligence'>;
 
 const identitiesDir = fileURLToPath(new URL('../../data/coach-kb/identities', import.meta.url));
 const championIdentitiesDir = fileURLToPath(new URL('../../data/coach-kb/identities/champions', import.meta.url));
@@ -627,7 +628,7 @@ function buildDiagnosisSummary(params: {
   };
 }
 
-export async function enrichCoachContextWithKnowledge(context: CoachContextBeforeKnowledge): Promise<AICoachContext> {
+export async function enrichCoachContextWithKnowledge(context: CoachContextBeforeKnowledge): Promise<CoachContextWithKnowledge> {
   const catalog = await loadKnowledgeCatalog();
   const locale = context.player.locale;
   const skillBracket = deriveSkillBracket(context.player.highestTier);
