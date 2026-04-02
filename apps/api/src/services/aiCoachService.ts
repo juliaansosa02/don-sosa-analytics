@@ -722,7 +722,8 @@ function getRoleLabel(roleFilter: string, locale: 'es' | 'en') {
 function buildPersonalizedMainLeak(context: AICoachContext, coach: AICoachOutput) {
   const locale = context.player.locale;
   const topProblem = context.coaching.topProblems[0];
-  const roleTargets = getRoleTargets(resolvePrimaryCoachRole(context));
+  const primaryRole = resolvePrimaryCoachRole(context);
+  const roleTargets = getRoleTargets(primaryRole);
   const anchorChampion = context.player.anchorChampion;
   const championText = anchorChampion
     ? anchorChampion
@@ -777,9 +778,32 @@ function buildPersonalizedMainLeak(context: AICoachContext, coach: AICoachOutput
         ? `Your biggest leak is early income on ${roleText}: you are averaging ${context.performance.avgCsAt15} CS at 15 when the current block needs to be closer to ${roleTargets.csAt15Target}.`
         : `Tu mayor fuga hoy es de ingresos tempranos en ${roleText}: promediás ${context.performance.avgCsAt15} CS al 15 cuando el bloque actual necesita acercarse más a ${roleTargets.csAt15Target}.`;
     case 'objective_fight_deaths':
-      return locale === 'en'
-        ? `You are not mainly losing one random fight. You are arriving badly to objective windows and giving away control before the real play starts.`
-        : `No estás perdiendo por una teamfight aislada. Estás llegando mal a las ventanas de objetivo y regalando el control antes de que empiece la jugada real.`;
+      switch (primaryRole) {
+        case 'JUNGLE':
+          return locale === 'en'
+            ? `Your jungle block is not mainly breaking inside the fight. It is leaking tempo between reset, camp sequence and first arrival, so too many objective windows start with you already late or half-prepared.`
+            : `Tu bloque de jungla no se está rompiendo principalmente dentro de la pelea. Está perdiendo tempo entre reset, secuencia de camps y primera llegada, así que demasiadas ventanas de objetivo ya empiezan tarde o a medio preparar.`;
+        case 'MIDDLE':
+          return locale === 'en'
+            ? `This is not one random fight. Your mid priority is not turning into a clean first move often enough, so objective windows start without the position your role should be giving.`
+            : `Esto no es una pelea random. Tu prioridad de mid no se está convirtiendo lo bastante seguido en un primer movimiento limpio, así que las ventanas de objetivo arrancan sin la posición que tu rol debería dar.`;
+        case 'SUPPORT':
+          return locale === 'en'
+            ? `The leak is not raw mechanics. Your support windows are reaching objectives with vision or first positioning too weak, so the fight begins from an already uncomfortable shape.`
+            : `La fuga no está en la mecánica pura. Tus ventanas de support están llegando al objetivo con visión o primera posición demasiado débiles, así que la pelea empieza desde una forma ya incómoda.`;
+        case 'BOTTOM':
+          return locale === 'en'
+            ? `You are not just losing a random fight. Too many objective windows are starting with your damage line arriving without enough space, cover or setup to hit cleanly.`
+            : `No estás perdiendo solo una pelea random. Demasiadas ventanas de objetivo están empezando con tu línea de daño llegando sin el espacio, cover o setup suficiente para pegar limpio.`;
+        case 'TOP':
+          return locale === 'en'
+            ? `This is less about one bad fight and more about how much pressure you are carrying into the objective. Your transitions from side lane, reset or flank are still donating too much tempo.`
+            : `Esto tiene menos que ver con una pelea mala y más con cuánta presión llegás a cargar al objetivo. Tus transiciones desde side, reset o flank todavía están regalando demasiado tempo.`;
+        default:
+          return locale === 'en'
+            ? `You are not mainly losing one random fight. You are arriving badly to objective windows and giving away control before the real play starts.`
+            : `No estás perdiendo por una pelea aislada. Estás llegando mal a las ventanas de objetivo y cediendo control antes de que empiece la jugada real.`;
+      }
     case 'gold_diff_at_15':
       return locale === 'en'
         ? `Your current block is leaking too much state before minute 15: you are averaging ${context.performance.avgGoldDiffAt15} gold diff and ${context.performance.avgLevelDiffAt15} levels by minute 15 on ${roleText}.`

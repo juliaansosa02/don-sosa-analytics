@@ -425,13 +425,13 @@ export function CoachingHome({
 
         <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
           <SectionEyebrow title={t(locale, 'Señales rápidas', 'Quick signals')} />
-          <div className="coaching-signal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12, alignItems: 'stretch' }}>
+          <div className="coaching-signal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12, alignItems: 'start' }}>
             {metricCards.map((metric) => <SignalTile key={metric.label} {...metric} />)}
           </div>
         </div>
       </Card>
 
-      <section className="coaching-overview-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16, alignItems: 'stretch' }}>
+      <section className="coaching-overview-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
         <Card title={t(locale, 'Base que ya te sostiene hoy', 'What is already holding you up')} subtitle={t(locale, 'Fusionamos tu pick de referencia con lo que ya te da nivel para que la lectura sea más directa y menos redundante.', 'We merge your reference pick with what is already giving you level so the read feels stronger and less redundant.')}>
           <div style={{ display: 'grid', gap: 12 }}>
             {championReference ? (
@@ -573,13 +573,13 @@ export function CoachingHome({
               </div>
               {problematicMatchup.adjustments.slice(0, 3).map((adjustment) => <div key={adjustment} style={actionStyle}>{adjustment}</div>)}
             </div>
-          ) : <div style={emptyStyle}>{t(locale, 'Todavía no aparece un matchup perdedor suficientemente repetido dentro de este scope.', 'There is no repeated losing matchup strong enough inside this scope yet.')}</div>}
+          ) : <div style={emptyStyle}>{t(locale, 'Todavía no aparece un cruce perdedor lo bastante repetido dentro de este bloque como para volverlo prioridad.', 'There is not a repeated losing matchup strong enough inside this block to make it a priority yet.')}</div>}
         </Card>
       </section>
 
       <Card title={t(locale, 'Sesión de revisión', 'Review session')} subtitle={t(locale, 'Abrí pocos replays, pero con una pregunta concreta. La idea es entender rápido qué mirar y para qué mirarlo.', 'Open only a few replays, but with a concrete question. The goal is to understand quickly what to watch and why.')}>
         {reviewAgenda.length ? (
-          <div className="coaching-review-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, alignItems: 'stretch' }}>
+          <div className="coaching-review-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, alignItems: 'start' }}>
             {reviewAgenda.map((item) => (
               <div key={item.matchId} style={reviewCardStyle}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', flexWrap: 'wrap' }}>
@@ -743,7 +743,7 @@ function ReferencePlayerCard({ reference, dataset, locale }: { reference: RoleRe
 }
 
 const panelStyle = { display: 'grid', gap: 12, padding: '16px 16px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;
-const tileStyle = { display: 'grid', gap: 8, padding: '15px 16px', borderRadius: 16, minHeight: 128, alignContent: 'start', background: 'linear-gradient(180deg, rgba(11, 15, 24, 0.98), rgba(7, 10, 16, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;
+const tileStyle = { display: 'grid', gap: 8, padding: '15px 16px', borderRadius: 16, minHeight: 112, alignContent: 'start', background: 'linear-gradient(180deg, rgba(11, 15, 24, 0.98), rgba(7, 10, 16, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;
 const metaStyle = { display: 'grid', gap: 8, padding: '14px 14px', borderRadius: 16, minHeight: 108, alignContent: 'start', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' } as const;
 const infoStyle = { padding: 15, borderRadius: 16, background: 'linear-gradient(180deg, rgba(11, 15, 24, 0.98), rgba(7, 10, 16, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;
 const stepStyle = { display: 'grid', gridTemplateColumns: '28px minmax(0, 1fr)', gap: 10, alignItems: 'start', padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' } as const;
@@ -763,5 +763,5 @@ const reviewMetricStyle = { display: 'grid', gap: 6, padding: '10px 11px', borde
 const anchorMetricStyle = { display: 'grid', gap: 7, padding: '11px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', alignContent: 'start' } as const;
 const strengthItemStyle = { display: 'grid', gap: 10, padding: '14px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)', alignContent: 'start' } as const;
 const compactListStyle = { padding: '10px 11px', borderRadius: 12, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)', color: '#dfe7f4', lineHeight: 1.55 } as const;
-const reviewCardStyle = { display: 'grid', gap: 12, padding: '16px 16px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))', border: '1px solid rgba(255,255,255,0.05)', alignContent: 'start', height: '100%' } as const;
+const reviewCardStyle = { display: 'grid', gap: 12, padding: '16px 16px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))', border: '1px solid rgba(255,255,255,0.05)', alignContent: 'start' } as const;
 const referenceCardStyle = { display: 'grid', gap: 12, padding: '16px 16px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;

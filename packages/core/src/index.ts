@@ -1906,6 +1906,129 @@ function buildInsightRefinementContext(matches: ParticipantSnapshot[], championP
 
 function refineInsights(matches: ParticipantSnapshot[], championPool: ChampionAggregate[], insights: CoachInsight[], locale: SummaryLocale = 'es') {
   const context = buildInsightRefinementContext(matches, championPool, locale);
+  const primaryRole = context.primaryRole;
+
+  function getHeadlineBoost(insight: CoachInsight) {
+    const focus = insight.focusMetric ?? '';
+    const roleBoosts: Record<string, Partial<Record<string, number>>> = {
+      JUNGLE: {
+        gold_diff_at_15: 18,
+        kill_participation: 15,
+        lead_conversion: 13,
+        deaths_pre_14: 12,
+        objective_fight_deaths: 4,
+        cs_at_15: 6,
+        champion_pool_stability: 8,
+        matchup_review: 10
+      },
+      MIDDLE: {
+        gold_diff_at_15: 18,
+        cs_at_15: 15,
+        deaths_pre_14: 13,
+        kill_participation: 10,
+        lead_conversion: 9,
+        objective_fight_deaths: 5,
+        matchup_review: 10
+      },
+      TOP: {
+        gold_diff_at_15: 18,
+        cs_at_15: 14,
+        deaths_pre_14: 13,
+        lead_conversion: 10,
+        objective_fight_deaths: 5,
+        champion_pool_stability: 8,
+        matchup_review: 11
+      },
+      BOTTOM: {
+        cs_at_15: 18,
+        gold_diff_at_15: 15,
+        deaths_pre_14: 13,
+        lead_conversion: 10,
+        objective_fight_deaths: 6,
+        matchup_review: 10
+      },
+      SUPPORT: {
+        kill_participation: 17,
+        deaths_pre_14: 14,
+        lead_conversion: 10,
+        objective_fight_deaths: 8,
+        gold_diff_at_15: 6,
+        champion_pool_stability: 8,
+        matchup_review: 10
+      },
+      ALL: {
+        deaths_pre_14: 10,
+        gold_diff_at_15: 8,
+        objective_fight_deaths: 7,
+        kill_participation: 8
+      }
+    };
+
+    let boost = roleBoosts[primaryRole]?.[focus] ?? roleBoosts.ALL[focus] ?? 0;
+
+    if (focus === 'objective_fight_deaths') {
+      const objectiveShare = percent(context.objectiveWindowBreaks.length, matches.length);
+      boost += context.objectiveDeaths >= 1.8 ? 5 : 0;
+      boost += objectiveShare >= 45 ? 4 : 0;
+      boost -= context.avgGoldDiffAt15 <= -200 ? 7 : 0;
+      boost -= context.avgPre14Deaths > context.stableLimit + 0.5 ? 5 : 0;
+    }
+
+    if (focus === 'gold_diff_at_15') {
+      boost += context.avgGoldDiffAt15 <= -350 ? 6 : 0;
+      boost += context.avgLevelDiffAt15 <= -0.9 ? 4 : 0;
+    }
+
+    if (focus === 'kill_participation') {
+      boost += context.avgKillParticipation <= context.kpTarget - 6 ? 4 : 0;
+      boost += percent(context.disconnectedGames.length, matches.length) >= 45 ? 3 : 0;
+    }
+
+    if (focus === 'lead_conversion') {
+      boost += context.positiveLeadLosses.length >= 3 ? 4 : 0;
+    }
+
+    if (focus === 'matchup_review') {
+      boost += primaryRole === 'TOP' || primaryRole === 'MIDDLE' ? 2 : 0;
+    }
+
+    return boost;
+  }
+
+  function buildObjectiveRoleCopy() {
+    switch (primaryRole) {
+      case 'JUNGLE':
+        return {
+          title: text(locale, 'Tu ruta hacia el objetivo sigue entrando con demasiado tempo cedido.', 'Your route into objectives is still leaking too much tempo.'),
+          problem: text(locale, 'Tus resets, camps y primera llegada al objetivo están cediendo demasiado control', 'Your resets, camps and first arrival to objectives are giving away too much control')
+        };
+      case 'SUPPORT':
+        return {
+          title: text(locale, 'Tus ventanas de objetivo todavía entran con visión y posicionamiento demasiado frágiles.', 'Your objective windows are still entering too fragile on vision and positioning.'),
+          problem: text(locale, 'La preparación de visión y la primera posición en objetivos están cediendo demasiado valor', 'Vision prep and first positioning around objectives are giving away too much value')
+        };
+      case 'MIDDLE':
+        return {
+          title: text(locale, 'Tus primeros movimientos hacia objetivo siguen llegando tarde o sin prioridad limpia.', 'Your first moves toward objectives are still arriving late or without clean priority.'),
+          problem: text(locale, 'Tu prioridad de línea todavía no se está convirtiendo en una llegada fuerte a los objetivos', 'Your lane priority is still not converting into strong objective arrivals')
+        };
+      case 'TOP':
+        return {
+          title: text(locale, 'Tus transiciones desde side o reset hacia objetivos siguen costando demasiado tempo.', 'Your transitions from side lane or reset into objectives are still costing too much tempo.'),
+          problem: text(locale, 'Estás cediendo demasiada presencia útil cuando la partida gira hacia el objetivo', 'You are giving away too much useful presence when the game turns toward the objective')
+        };
+      case 'BOTTOM':
+        return {
+          title: text(locale, 'Tus ventanas de objetivo siguen entrando con daño disponible pero setup demasiado débil.', 'Your objective windows still enter with damage available but setup that is too weak.'),
+          problem: text(locale, 'Tu llegada a los objetivos no está protegiendo lo suficiente tu daño y tu espacio de pelea', 'Your approach to objectives is not protecting your damage and fight space enough')
+        };
+      default:
+        return {
+          title: text(locale, 'Tus ventanas de objetivo siguen entrando con demasiado valor cedido antes de pelear.', 'Your objective windows are still giving away too much value before the fight starts.'),
+          problem: text(locale, 'El setup de objetivos está cediendo demasiado valor', 'Your objective setup is giving away too much value')
+        };
+    }
+  }
 
   const refined = insights.map((insight) => {
     switch (insight.focusMetric) {
@@ -2000,9 +2123,10 @@ function refineInsights(matches: ParticipantSnapshot[], championPool: ChampionAg
         return buildInsight({
           locale,
           ...insight,
+          ...buildObjectiveRoleCopy(),
           metricValue: round(context.objectiveDeaths, 1),
           severity: context.objectiveDeaths >= 1.7 ? 'high' : 'medium',
-          priority: context.objectiveDeaths >= 1.9 ? 'high' : 'medium',
+          priority: context.objectiveDeaths >= 1.95 && percent(context.objectiveWindowBreaks.length, matches.length) >= 45 ? 'high' : 'medium',
           sampleSize: matches.length,
           flaggedCount: context.objectiveWindowBreaks.length,
           severityScore: Math.min(24, context.objectiveDeaths * 10),
@@ -2064,8 +2188,9 @@ function refineInsights(matches: ParticipantSnapshot[], championPool: ChampionAg
     const evidenceWeight = { high: 3, medium: 2, low: 1 };
 
     return (
-      evidenceWeight[(b.evidenceStrength ?? 'low') as keyof typeof evidenceWeight] - evidenceWeight[(a.evidenceStrength ?? 'low') as keyof typeof evidenceWeight]
+      getHeadlineBoost(b) - getHeadlineBoost(a)
       || priorityWeight[b.priority] - priorityWeight[a.priority]
+      evidenceWeight[(b.evidenceStrength ?? 'low') as keyof typeof evidenceWeight] - evidenceWeight[(a.evidenceStrength ?? 'low') as keyof typeof evidenceWeight]
       || severityWeight[b.severity] - severityWeight[a.severity]
       || (b.evidenceScore ?? 0) - (a.evidenceScore ?? 0)
     );

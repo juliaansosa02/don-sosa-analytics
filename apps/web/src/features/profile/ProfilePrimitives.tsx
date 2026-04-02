@@ -8,9 +8,9 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
   const anchorQueue = rank.soloQueue.tier !== 'UNRANKED' ? rank.soloQueue : rank.highest;
   const lpProgress = Math.max(0, Math.min(anchorQueue.leaguePoints, 100));
   const showFlex = rank.flexQueue.tier !== 'UNRANKED';
-  const primaryQueueSummary = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'} · ${rank.soloQueue.tier === 'UNRANKED' ? (locale === 'en' ? 'Unranked' : 'Sin rango') : `${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP`}`;
-  const secondaryQueueSummary = showFlex ? `${locale === 'en' ? 'Flex' : 'Flex'} · ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP` : null;
-  const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${rank.soloQueue.label} · ${rank.soloQueue.leaguePoints} LP · ${rank.soloQueue.winRate}% WR${showFlex ? `\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR` : ''}`;
+  const soloText = rank.soloQueue.tier === 'UNRANKED' ? (locale === 'en' ? 'Unranked' : 'Sin rango') : rank.soloQueue.label;
+  const title = `${locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}: ${soloText}${rank.soloQueue.tier !== 'UNRANKED' ? ` · ${rank.soloQueue.leaguePoints} LP` : ''} · ${rank.soloQueue.winRate}% WR${showFlex ? `\nFlex: ${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP · ${rank.flexQueue.winRate}% WR` : ''}`;
+  const flexSummary = showFlex ? `${rank.flexQueue.label} · ${rank.flexQueue.leaguePoints} LP` : null;
 
   if (compact) {
     return (
@@ -23,20 +23,17 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
         background: 'rgba(9, 14, 22, 0.86)',
         border: `1px solid ${palette.primary}33`
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '92px minmax(0, 1fr)', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '78px minmax(0, 1fr)', alignItems: 'center', gap: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={92} />
+            <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={78} />
           </div>
           <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
             <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 17, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.soloQueue.tier === 'UNRANKED' ? (locale === 'en' ? 'Unranked' : 'Sin rango') : rank.soloQueue.label}</span>
+              <span style={{ fontSize: 17, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{soloText}</span>
               {rank.soloQueue.tier !== 'UNRANKED' ? <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.soloQueue.leaguePoints} LP`}</span> : null}
             </div>
-            <div style={{ display: 'grid', gap: 5 }}>
-              <span style={rankQueueSummaryStyle}>{primaryQueueSummary}</span>
-              {secondaryQueueSummary ? <span style={rankQueueSummaryStyle}>{secondaryQueueSummary}</span> : null}
-            </div>
+            {flexSummary ? <span style={rankQueueSummaryStyle}>{`Flex · ${flexSummary}`}</span> : <span style={rankQueueSummaryStyle}>{`${rank.soloQueue.winRate}% WR`}</span>}
           </div>
         </div>
         <div style={{ height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
@@ -56,27 +53,22 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
       background: compact ? 'rgba(9, 14, 22, 0.86)' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
       border: `1px solid ${palette.primary}33`
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '116px minmax(0, 1fr)', alignItems: 'center', gap: 10 }}>
-        <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={116} />
-        <div style={{ display: 'grid', gap: 3, minWidth: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '88px minmax(0, 1fr)', alignItems: 'center', gap: 10 }}>
+        <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={88} />
+        <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
           <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Solo/Duo' : 'Solo/Duo'}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{rank.soloQueue.tier === 'UNRANKED' ? (locale === 'en' ? 'Unranked' : 'Sin rango') : rank.soloQueue.label}</span>
+            <span style={{ fontSize: 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{soloText}</span>
             {rank.soloQueue.tier !== 'UNRANKED' ? <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.soloQueue.leaguePoints} LP`}</span> : null}
           </div>
-          <div style={{ display: 'grid', gap: 5 }}>
-            <span style={rankQueueSummaryStyle}>{primaryQueueSummary}</span>
-            {secondaryQueueSummary ? <span style={rankQueueSummaryStyle}>{secondaryQueueSummary}</span> : null}
+          <div style={{ display: 'grid', gap: 7 }}>
+            <span style={rankQueueSummaryStyle}>{`${rank.soloQueue.winRate}% WR`}</span>
+            {flexSummary ? <span style={rankQueueSummaryStyle}>{`Flex · ${flexSummary}`}</span> : null}
           </div>
         </div>
       </div>
-      <div style={{ display: 'grid', gap: 5 }}>
-        <div style={{ height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
-          <div style={{ width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` }} />
-        </div>
-        <div style={{ color: '#7e889b', fontSize: 11 }}>
-          {locale === 'en' ? 'Hover to view Solo/Duo and Flex' : 'Hover para ver Solo/Duo y Flex'}
-        </div>
+      <div style={{ height: 5, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+        <div style={{ width: `${lpProgress}%`, height: '100%', borderRadius: 999, background: `linear-gradient(90deg, ${palette.primary}, ${palette.glow})` }} />
       </div>
     </div>
   );
@@ -86,8 +78,8 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
   const emblem = getRankEmblemDataUrl(tier);
   const palette = getRankPalette(tier);
   const usesOfficialEmblem = Boolean(tier && tier !== 'UNRANKED');
-  const assetSize = Math.round(size * (usesOfficialEmblem ? 3.2 : 1.72));
-  const verticalOffset = Math.round(size * (usesOfficialEmblem ? 0.26 : 0.08));
+  const assetSize = Math.round(size * (usesOfficialEmblem ? 4.4 : 1.82));
+  const verticalOffset = Math.round(size * (usesOfficialEmblem ? 0.38 : 0.08));
 
   return (
     <div
@@ -99,9 +91,9 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: Math.round(size * 0.24),
+        borderRadius: Math.round(size * 0.18),
         background: 'radial-gradient(circle at 50% 42%, rgba(255,255,255,0.07), rgba(255,255,255,0) 64%)',
-        filter: `drop-shadow(0 18px 34px ${palette.primary}24)`
+        filter: `drop-shadow(0 18px 34px ${palette.primary}2e)`
       }}
     >
       <img
