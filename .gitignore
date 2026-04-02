@@ -7,3 +7,4 @@ apps/api/data/output/*.json
 apps/api/data/output/*.csv
 apps/api/data/output/*.log
 apps/api/data/membership/
+apps/api/data/auth/

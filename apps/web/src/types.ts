@@ -165,6 +165,7 @@ export interface MembershipBillingCapabilities {
   provider: 'stripe';
   ready: boolean;
   webhookReady: boolean;
+  publishableKeyReady?: boolean;
 }
 
 export interface MembershipCatalogResponse {
@@ -175,10 +176,58 @@ export interface MembershipCatalogResponse {
 
 export interface MembershipMeResponse {
   viewerId: string;
+  subjectId?: string;
+  authenticated?: boolean;
   account: MembershipAccount;
+  actualPlan?: MembershipPlanDefinition;
   plan: MembershipPlanDefinition;
   linkedProfiles: ViewerProfileLink[];
   usage: MembershipUsageSummary;
   billing: MembershipBillingCapabilities;
   devToolsEnabled: boolean;
+  overrideReason?: 'admin_full_access' | null;
+}
+
+export type UserRole = 'user' | 'coach' | 'admin';
+
+export interface SafeAuthUser {
+  id: string;
+  email: string;
+  displayName: string;
+  role: UserRole;
+  locale: 'es' | 'en';
+  emailVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt?: string | null;
+}
+
+export interface AuthMeResponse {
+  authenticated: boolean;
+  user: SafeAuthUser | null;
+  actorUser: SafeAuthUser | null;
+  isImpersonating: boolean;
+  anonymousViewerId: string | null;
+  membership: MembershipMeResponse;
+}
+
+export interface AdminUserRecord {
+  user: SafeAuthUser;
+  membership: MembershipMeResponse;
+  usage: MembershipUsageSummary;
+}
+
+export interface AdminUsersResponse {
+  users: AdminUserRecord[];
+}
+
+export interface CoachRosterEntry {
+  assignmentId: string;
+  note: string | null;
+  linkedAt: string;
+  user: SafeAuthUser;
+}
+
+export interface CoachRosterResponse {
+  players: CoachRosterEntry[];
 }

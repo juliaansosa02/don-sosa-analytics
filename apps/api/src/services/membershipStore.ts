@@ -1,4 +1,4 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
@@ -259,4 +259,99 @@ export async function touchViewerProfileLink(input: {
   );
 
   return nextRecord;
+}
+
+export async function listMembershipAccounts() {
+  if (!pool) {
+    try {
+      const files = await readdir(accountsDir);
+      const entries = await Promise.all(files
+        .filter((file) => file.endsWith('.json'))
+        .map(async (file) => {
+          try {
+            const raw = await readFile(`${accountsDir}/${file}`, 'utf8');
+            return JSON.parse(raw) as MembershipAccountRecord;
+          } catch {
+            return null;
+          }
+        }));
+      return entries.filter((entry): entry is MembershipAccountRecord => Boolean(entry));
+    } catch {
+      return [];
+    }
+  }
+
+  await ensureTables();
+  const result = await pool.query<{
+    viewer_id: string;
+    plan_id: MembershipPlanId;
+    status: MembershipStatus;
+    source: 'default' | 'dev_override' | 'stripe';
+    billing_provider: 'stripe' | null;
+    stripe_customer_id: string | null;
+    stripe_subscription_id: string | null;
+    stripe_price_id: string | null;
+    current_period_end: string | null;
+    created_at: string;
+    updated_at: string;
+  }>(`SELECT * FROM membership_accounts ORDER BY updated_at DESC`);
+
+  return result.rows.map((row) => ({
+    viewerId: row.viewer_id,
+    planId: row.plan_id,
+    status: row.status,
+    source: row.source,
+    billingProvider: row.billing_provider,
+    stripeCustomerId: row.stripe_customer_id,
+    stripeSubscriptionId: row.stripe_subscription_id,
+    stripePriceId: row.stripe_price_id,
+    currentPeriodEnd: row.current_period_end,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  } satisfies MembershipAccountRecord));
+}
+
+export async function loadMembershipAccountByStripeCustomerId(stripeCustomerId: string) {
+  const accounts = await listMembershipAccounts();
+  return accounts.find((account) => account.stripeCustomerId === stripeCustomerId) ?? null;
+}
+
+export async function loadMembershipAccountByStripeSubscriptionId(stripeSubscriptionId: string) {
+  const accounts = await listMembershipAccounts();
+  return accounts.find((account) => account.stripeSubscriptionId === stripeSubscriptionId) ?? null;
+}
+
+export async function transferMembershipState(fromViewerId: string, toViewerId: string) {
+  if (!fromViewerId || fromViewerId === toViewerId) return;
+
+  const sourceAccount = await loadMembershipAccount(fromViewerId);
+  const targetAccount = await loadMembershipAccount(toViewerId);
+  if (sourceAccount && !targetAccount) {
+    await saveMembershipAccount({
+      viewerId: toViewerId,
+      planId: sourceAccount.planId,
+      status: sourceAccount.status,
+      source: sourceAccount.source,
+      billingProvider: sourceAccount.billingProvider,
+      stripeCustomerId: sourceAccount.stripeCustomerId ?? null,
+      stripeSubscriptionId: sourceAccount.stripeSubscriptionId ?? null,
+      stripePriceId: sourceAccount.stripePriceId ?? null,
+      currentPeriodEnd: sourceAccount.currentPeriodEnd ?? null,
+      createdAt: sourceAccount.createdAt
+    });
+  }
+
+  const sourceLinks = await listViewerProfileLinks(fromViewerId);
+  const targetLinks = await listViewerProfileLinks(toViewerId);
+  const targetKeys = new Set(targetLinks.map((entry) => entry.profileKey));
+  for (const entry of sourceLinks) {
+    if (targetKeys.has(entry.profileKey)) continue;
+    await touchViewerProfileLink({
+      viewerId: toViewerId,
+      profileKey: entry.profileKey,
+      gameName: entry.gameName,
+      tagLine: entry.tagLine,
+      platform: entry.platform
+    });
+  }
 }

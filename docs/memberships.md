@@ -1,120 +1,208 @@
-# Don Sosa Coach · Memberships
+# Don Sosa Coach · Accounts, Memberships and Billing
 
-## Modelo actual
+## Mental model
 
-Mientras el producto todavía no tiene login real, la membresía se resuelve por `viewerId`.
+The product now separates four layers clearly:
 
-- El frontend crea un `client id` persistente en `localStorage`.
-- Ese id se manda al backend en `x-don-sosa-client-id`.
-- El backend resuelve plan, entitlements, perfiles vinculados y uso mensual de IA contra ese `viewerId`.
+- `user`: the real account that signs up and logs in
+- `role`: `user`, `coach`, or `admin`
+- `membership`: `free`, `pro_player`, or `pro_coach`
+- `billing status`: `active`, `trialing`, `past_due`, `canceled`, or `inactive`
 
-Cuando exista auth real, el reemplazo natural es:
+Effective access is resolved from role + membership entitlements.
 
-- `viewerId` temporal en beta/dev
-- `userId` real para cuentas autenticadas
+Admins always get full effective access, even if their underlying subscription is lower.
 
-La arquitectura ya separa:
-
-- `plan`
-- `status`
-- `source`
-- `billingProvider`
-- ids de Stripe
-
-## Planes
+## Plans
 
 ### Free
 
-- hasta 2 perfiles guardados
-- hasta 30 partidas por perfil
-- hasta 1 rol por bloque de coaching
-- hasta 6 corridas mensuales de coaching IA
+- up to 2 saved Riot profiles
+- up to 30 stored matches per profile
+- 1 coaching role per AI block
+- 6 AI coaching runs per month
 
 ### Pro Player
 
-- US$5/mes
-- hasta 8 perfiles guardados
-- hasta 1000 partidas por perfil
-- hasta 2 roles por bloque de coaching
-- hasta 60 corridas mensuales de coaching IA
-- hasta 16 corridas premium
+- US$5/month
+- up to 8 saved Riot profiles
+- up to 1000 stored matches per profile
+- 2 coaching roles per AI block
+- 60 AI coaching runs per month
+- 16 premium AI runs per month
 
 ### Pro Coach
 
-- US$20/mes
-- hasta 40 perfiles guardados
-- hasta 1000 partidas por perfil
-- hasta 30 jugadores gestionables
-- workspace de coach habilitado
-- hasta 240 corridas mensuales de coaching IA
-- hasta 80 corridas premium
+- US$20/month
+- up to 40 saved Riot profiles
+- up to 1000 stored matches per profile
+- up to 30 managed players
+- coach workspace enabled
+- 240 AI coaching runs per month
+- 80 premium AI runs per month
 
-## Enforcements actuales
+## Roles
 
-Backend:
+### user
 
-- límite de perfiles vinculados por viewer
-- límite de partidas por perfil
-- límite de roles por bloque de coaching
-- límite mensual de coaching IA por viewer
-- datasets capados según plan al leer snapshots existentes
+- normal player account
+- can use the app according to membership entitlements
 
-Frontend:
+### coach
 
-- selects y quick actions adaptados al plan
-- plan actual visible
-- upgrades visibles
-- tool de cambio de plan en dev
+- same as user, plus coach roster
+- can link players by account email
+- can inspect/manage assigned players in the coach workspace base
 
-## Activación en dev
+### admin
 
-Variables:
+- full product access
+- can inspect users
+- can change roles
+- can change plans
+- can impersonate users
+- effective entitlements are treated as `pro_coach`
 
-- `MEMBERSHIP_DEV_TOOLS=true`
-- `STRIPE_SECRET_KEY=` opcional por ahora
-- `STRIPE_WEBHOOK_SECRET=` opcional por ahora
+## Storage model
 
-Endpoint para cambiar plan en dev:
+Auth and coach workspace are persisted in:
 
-- `POST /api/membership/dev/plan`
+- file storage under `apps/api/data/auth/` in local/dev fallback
+- PostgreSQL tables when `DATABASE_URL` exists
 
-Body:
+Main records:
 
-```json
-{
-  "planId": "free"
-}
-```
+- `auth_users`
+- `auth_sessions`
+- `auth_password_reset_tokens`
+- `coach_player_assignments`
 
-o
+Membership state is persisted separately and linked to the authenticated subject:
 
-```json
-{
-  "planId": "pro_player"
-}
-```
+- anonymous beta/dev subject: client-based viewer id
+- authenticated subject: `user:<userId>`
 
-o
+On signup/login, anonymous viewer state is migrated into the authenticated subject for:
 
-```json
-{
-  "planId": "pro_coach"
-}
-```
+- memberships
+- AI coaching usage/cache
 
-La web ya lo usa automáticamente cuando `MEMBERSHIP_DEV_TOOLS` está activo.
+## Auth flow
 
-## Base para Stripe
+Implemented:
 
-Ya existe:
+- signup
+- login
+- logout
+- cookie session
+- password reset request
+- password reset confirm
+- password change
 
-- catálogo de planes con `stripeProductKey` y `stripePriceLookupKey`
-- account store con campos de Stripe
-- endpoint placeholder:
-  - `POST /api/membership/billing/checkout-session`
+Session cookie envs:
 
-Falta para cerrar Stripe real:
+- `SESSION_COOKIE_NAME`
+- `SESSION_TTL_DAYS`
 
-- crear checkout session
-- webhook para sincronizar subscription status
-- migrar de `viewerId` a `userId` autenticado cuando exista login
+Password reset envs:
+
+- `PASSWORD_RESET_TTL_MINUTES`
+- `DEV_EXPOSE_RESET_TOKEN`
+
+## Admin bootstrap in dev or production
+
+You can seed two initial admin accounts through env:
+
+- `ADMIN_1_EMAIL`
+- `ADMIN_1_PASSWORD`
+- `ADMIN_1_NAME`
+- `ADMIN_2_EMAIL`
+- `ADMIN_2_PASSWORD`
+- `ADMIN_2_NAME`
+
+At API startup, these accounts are created if missing and forced to:
+
+- role `admin`
+- membership `pro_coach`
+
+## Stripe
+
+The architecture is ready for real subscription billing and already includes:
+
+- checkout session creation
+- billing portal session creation
+- Stripe webhook route
+- subscription sync into membership storage
+
+Required envs:
+
+- `STRIPE_SECRET_KEY`
+- `STRIPE_PUBLISHABLE_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+- `APP_BASE_URL`
+- `STRIPE_SUCCESS_URL`
+- `STRIPE_CANCEL_URL`
+
+Important:
+
+- checkout is only used for paid plans
+- Stripe customer and subscription ids are stored on the membership account
+- webhook updates membership status and Stripe metadata
+
+## Dev controls
+
+If `MEMBERSHIP_DEV_TOOLS=true`, the UI and API can switch plans without real billing for local testing.
+
+This is useful to validate:
+
+- free limits
+- pro player capacity
+- pro coach roster flow
+- admin override behavior
+
+## Main routes
+
+Auth:
+
+- `GET /api/auth/me`
+- `POST /api/auth/signup`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `POST /api/auth/password/request-reset`
+- `POST /api/auth/password/reset`
+- `POST /api/auth/password/change`
+
+Admin:
+
+- `GET /api/admin/users`
+- `POST /api/admin/users/:userId/role`
+- `POST /api/admin/users/:userId/plan`
+- `POST /api/admin/impersonate`
+- `POST /api/admin/impersonate/stop`
+
+Coach:
+
+- `GET /api/coach/players`
+- `POST /api/coach/players`
+- `DELETE /api/coach/players/:playerUserId`
+
+Billing:
+
+- `POST /api/billing/checkout-session`
+- `POST /api/billing/portal-session`
+- `POST /api/billing/webhook/stripe`
+
+## Local validation checklist
+
+1. Build API and web.
+2. Sign up a new user.
+3. Log out and log back in.
+4. Request a reset token in dev and reset the password.
+5. Confirm free limits are enforced.
+6. Switch to `pro_player` in dev or Stripe and confirm higher capacity.
+7. Switch to `pro_coach` and confirm coach roster works.
+8. Sign in as admin and confirm:
+   - user list
+   - role changes
+   - plan changes
+   - impersonation

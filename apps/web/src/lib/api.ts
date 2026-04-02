@@ -1,4 +1,13 @@
-import type { AICoachResult, Dataset, MembershipCatalogResponse, MembershipMeResponse } from '../types';
+import type {
+  AdminUsersResponse,
+  AICoachResult,
+  AuthMeResponse,
+  CoachRosterResponse,
+  Dataset,
+  MembershipCatalogResponse,
+  MembershipMeResponse,
+  SafeAuthUser
+} from '../types';
 import type { Locale } from './i18n';
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') ?? 'http://localhost:8787/api';
@@ -57,6 +66,13 @@ async function readErrorMessage(response: Response) {
   }
 }
 
+async function apiFetch(input: string, init?: RequestInit) {
+  return fetch(input, {
+    credentials: 'include',
+    ...init
+  });
+}
+
 export async function collectProfile(
   gameName: string,
   tagLine: string,
@@ -72,7 +88,7 @@ export async function collectProfile(
   const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const startResponse = await fetch(`${API_BASE}/analytics/collect/start`, {
+    const startResponse = await apiFetch(`${API_BASE}/analytics/collect/start`, {
       method: 'POST',
       headers: apiHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ gameName, tagLine, platform: options?.platform, count, knownMatchIds: options?.knownMatchIds ?? [], locale: options?.locale ?? 'es' }),
@@ -89,7 +105,7 @@ export async function collectProfile(
     while (true) {
       await delay(POLL_INTERVAL_MS);
 
-      const jobResponse = await fetch(`${API_BASE}/analytics/collect/${startJob.jobId}`, {
+      const jobResponse = await apiFetch(`${API_BASE}/analytics/collect/${startJob.jobId}`, {
         headers: apiHeaders(),
         signal: controller.signal
       });
@@ -123,7 +139,7 @@ export async function collectProfile(
 }
 
 export async function fetchCachedProfile(gameName: string, tagLine: string, platform: string, locale: Locale = 'es'): Promise<Dataset | null> {
-  const response = await fetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?locale=${locale}&platform=${encodeURIComponent(platform)}`, {
+  const response = await apiFetch(`${API_BASE}/analytics/profile/${encodeURIComponent(gameName)}/${encodeURIComponent(tagLine)}?locale=${locale}&platform=${encodeURIComponent(platform)}`, {
     headers: apiHeaders()
   });
   if (response.status === 404) {
@@ -147,7 +163,7 @@ export async function generateAICoach(input: {
   queueFilter: 'ALL' | 'RANKED' | 'RANKED_SOLO' | 'RANKED_FLEX' | 'OTHER';
   windowFilter: 'ALL' | 'LAST_20' | 'LAST_8';
 }): Promise<AICoachResult> {
-  const response = await fetch(`${API_BASE}/ai/coach/generate`, {
+  const response = await apiFetch(`${API_BASE}/ai/coach/generate`, {
     method: 'POST',
     headers: apiHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input)
@@ -165,7 +181,7 @@ export async function sendAICoachFeedback(input: {
   verdict: 'useful' | 'mixed' | 'generic' | 'incorrect';
   notes?: string;
 }) {
-  const response = await fetch(`${API_BASE}/ai/coach/feedback`, {
+  const response = await apiFetch(`${API_BASE}/ai/coach/feedback`, {
     method: 'POST',
     headers: apiHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input)
@@ -179,7 +195,7 @@ export async function sendAICoachFeedback(input: {
 }
 
 export async function fetchMembershipCatalog() {
-  const response = await fetch(`${API_BASE}/membership/catalog`, {
+  const response = await apiFetch(`${API_BASE}/membership/catalog`, {
     headers: apiHeaders()
   });
 
@@ -191,7 +207,7 @@ export async function fetchMembershipCatalog() {
 }
 
 export async function fetchMembershipMe() {
-  const response = await fetch(`${API_BASE}/membership/me`, {
+  const response = await apiFetch(`${API_BASE}/membership/me`, {
     headers: apiHeaders()
   });
 
@@ -203,7 +219,7 @@ export async function fetchMembershipMe() {
 }
 
 export async function setMembershipPlanDev(planId: 'free' | 'pro_player' | 'pro_coach') {
-  const response = await fetch(`${API_BASE}/membership/dev/plan`, {
+  const response = await apiFetch(`${API_BASE}/membership/dev/plan`, {
     method: 'POST',
     headers: apiHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ planId })
@@ -214,4 +230,176 @@ export async function setMembershipPlanDev(planId: 'free' | 'pro_player' | 'pro_
   }
 
   return response.json() as Promise<{ ok: true; account: MembershipMeResponse['account']; plan: MembershipMeResponse['plan'] }>;
+}
+
+export async function fetchAuthMe() {
+  const response = await apiFetch(`${API_BASE}/auth/me`, {
+    headers: apiHeaders()
+  });
+
+  if (!response.ok) {
+    throw new Error(await readErrorMessage(response));
+  }
+
+  return response.json() as Promise<AuthMeResponse>;
+}
+
+export async function signup(input: {
+  email: string;
+  password: string;
+  displayName: string;
+  locale: Locale;
+}) {
+  const response = await apiFetch(`${API_BASE}/auth/signup`, {
+    method: 'POST',
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(input)
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true; user: SafeAuthUser; membership: MembershipMeResponse }>;
+}
+
+export async function login(input: {
+  email: string;
+  password: string;
+}) {
+  const response = await apiFetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(input)
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true; user: SafeAuthUser; membership: MembershipMeResponse }>;
+}
+
+export async function logout() {
+  const response = await apiFetch(`${API_BASE}/auth/logout`, {
+    method: 'POST',
+    headers: apiHeaders()
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true }>;
+}
+
+export async function requestPasswordReset(input: { email: string }) {
+  const response = await apiFetch(`${API_BASE}/auth/password/request-reset`, {
+    method: 'POST',
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(input)
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true; devResetToken: string | null }>;
+}
+
+export async function resetPassword(input: { token: string; newPassword: string }) {
+  const response = await apiFetch(`${API_BASE}/auth/password/reset`, {
+    method: 'POST',
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(input)
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true }>;
+}
+
+export async function changePassword(input: { currentPassword: string; newPassword: string }) {
+  const response = await apiFetch(`${API_BASE}/auth/password/change`, {
+    method: 'POST',
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(input)
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true }>;
+}
+
+export async function fetchAdminUsers() {
+  const response = await apiFetch(`${API_BASE}/admin/users`, {
+    headers: apiHeaders()
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<AdminUsersResponse>;
+}
+
+export async function updateAdminUserRole(userId: string, role: 'user' | 'coach' | 'admin') {
+  const response = await apiFetch(`${API_BASE}/admin/users/${encodeURIComponent(userId)}/role`, {
+    method: 'POST',
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ role })
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true }>;
+}
+
+export async function updateAdminUserPlan(userId: string, planId: 'free' | 'pro_player' | 'pro_coach') {
+  const response = await apiFetch(`${API_BASE}/admin/users/${encodeURIComponent(userId)}/plan`, {
+    method: 'POST',
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ planId })
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true }>;
+}
+
+export async function startAdminImpersonation(userId: string) {
+  const response = await apiFetch(`${API_BASE}/admin/impersonate`, {
+    method: 'POST',
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ userId })
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true }>;
+}
+
+export async function stopAdminImpersonation() {
+  const response = await apiFetch(`${API_BASE}/admin/impersonate/stop`, {
+    method: 'POST',
+    headers: apiHeaders()
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true }>;
+}
+
+export async function fetchCoachPlayers() {
+  const response = await apiFetch(`${API_BASE}/coach/players`, {
+    headers: apiHeaders()
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<CoachRosterResponse>;
+}
+
+export async function addCoachPlayer(input: { playerEmail: string; note?: string }) {
+  const response = await apiFetch(`${API_BASE}/coach/players`, {
+    method: 'POST',
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(input)
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true }>;
+}
+
+export async function removeCoachPlayer(playerUserId: string) {
+  const response = await apiFetch(`${API_BASE}/coach/players/${encodeURIComponent(playerUserId)}`, {
+    method: 'DELETE',
+    headers: apiHeaders()
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true }>;
+}
+
+export async function createCheckoutSession(planId: 'pro_player' | 'pro_coach') {
+  const response = await apiFetch(`${API_BASE}/billing/checkout-session`, {
+    method: 'POST',
+    headers: apiHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ planId })
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true; session: { id: string; url: string } }>;
+}
+
+export async function createBillingPortalSession() {
+  const response = await apiFetch(`${API_BASE}/billing/portal-session`, {
+    method: 'POST',
+    headers: apiHeaders()
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json() as Promise<{ ok: true; session: { id: string; url: string } }>;
 }

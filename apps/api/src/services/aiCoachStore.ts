@@ -329,3 +329,39 @@ export async function loadAICoachUsageForMonth(input: {
     estimatedCostUsd: Number(Number(row?.estimated_cost_usd ?? 0).toFixed(4))
   };
 }
+
+export async function transferAICoachViewerState(fromViewerId: string, toViewerId: string) {
+  if (!fromViewerId || fromViewerId === toViewerId) return;
+
+  if (!pool) {
+    try {
+      const files = await readdir(generationsDir);
+      await Promise.all(
+        files
+          .filter((file) => file.endsWith('.json'))
+          .map(async (file) => {
+            try {
+              const path = `${generationsDir}/${file}`;
+              const raw = await readFile(path, 'utf8');
+              const parsed = JSON.parse(raw) as { viewerId?: string };
+              if ((parsed.viewerId ?? 'anon-viewer') !== fromViewerId) return;
+              await ensureWrite(path, JSON.stringify({ ...parsed, viewerId: toViewerId }, null, 2));
+            } catch {
+              return;
+            }
+          })
+      );
+    } catch {
+      return;
+    }
+    return;
+  }
+
+  await ensureTables();
+  await pool.query(
+    `UPDATE ai_coaching_generations
+     SET viewer_id = $2
+     WHERE viewer_id = $1`,
+    [fromViewerId, toViewerId]
+  );
+}

@@ -8,7 +8,11 @@ import { healthRouter } from './routes/health.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { aiCoachRouter } from './routes/aiCoach.js';
 import { membershipRouter } from './routes/membership.js';
+import { authRouter, adminRouter, coachRouter } from './routes/auth.js';
+import { billingRouter, stripeWebhookRouter } from './routes/billing.js';
 import { refreshPatchNotesFromOfficialSource } from './services/patchNotes.js';
+import { readCookies } from './lib/cookies.js';
+import { attachAuthContext, bootstrapAdminAccounts } from './services/authService.js';
 
 const app = express();
 const webDistPath = fileURLToPath(new URL('../../web/dist', import.meta.url));
@@ -22,31 +26,20 @@ app.use(cors({
     }
 
     callback(new Error(`Origin ${origin} not allowed by CORS`));
-  }
+  },
+  credentials: true
 }));
+app.use('/api/billing/webhook', express.raw({ type: 'application/json' }), stripeWebhookRouter);
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: false }));
+app.use(attachAuthContext);
 
 app.use('/api/health', healthRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/admin', adminRouter);
+app.use('/api/coach', coachRouter);
 app.use('/api/membership', membershipRouter);
-
-function readCookies(req: Request) {
-  const cookieHeader = req.headers.cookie;
-  if (!cookieHeader) return {};
-
-  return Object.fromEntries(
-    cookieHeader
-      .split(';')
-      .map((entry) => entry.trim())
-      .filter(Boolean)
-      .map((entry) => {
-        const separator = entry.indexOf('=');
-        const key = separator === -1 ? entry : entry.slice(0, separator);
-        const value = separator === -1 ? '' : entry.slice(separator + 1);
-        return [decodeURIComponent(key), decodeURIComponent(value)];
-      })
-  );
-}
+app.use('/api/billing', billingRouter);
 
 function renderBetaAccessPage(errorMessage?: string) {
   return `<!doctype html>
@@ -130,7 +123,7 @@ if (env.BETA_ACCESS_CODE) {
   });
 
   app.use((req, res, next) => {
-    if (req.path === '/beta-access' || req.path.startsWith('/api/health')) {
+    if (req.path === '/beta-access' || req.path.startsWith('/api/health') || req.path.startsWith('/api/billing/webhook/stripe')) {
       next();
       return;
     }
@@ -161,5 +154,6 @@ if (hasWebBuild) {
 
 app.listen(env.PORT, () => {
   console.log(`Don Sosa API listening on http://localhost:${env.PORT}`);
+  void bootstrapAdminAccounts();
   void refreshPatchNotesFromOfficialSource(false);
 });

@@ -6,6 +6,7 @@ import { env } from '../config/env.js';
 import { listViewerProfileLinks, loadMembershipAccount, saveMembershipAccount, touchViewerProfileLink, type MembershipAccountRecord } from './membershipStore.js';
 import type { collectPlayerSnapshot } from './collectionService.js';
 import type { AICoachRequest } from './aiCoachSchemas.js';
+import { getAuthContext } from './authService.js';
 
 type StoredDataset = Awaited<ReturnType<typeof collectPlayerSnapshot>>;
 
@@ -13,17 +14,15 @@ export interface MembershipContext {
   viewerId: string;
   account: MembershipAccountRecord;
   plan: MembershipPlanDefinition;
+  actualPlan: MembershipPlanDefinition;
   linkedProfiles: Awaited<ReturnType<typeof listViewerProfileLinks>>;
 }
 
 export function resolveViewerId(req: Request) {
-  const raw = req.header('x-don-sosa-client-id')?.trim();
-  if (raw) return raw.slice(0, 128);
-  return 'anon-viewer';
+  return getAuthContext(req).subjectId;
 }
 
-export async function resolveMembershipContext(req: Request): Promise<MembershipContext> {
-  const viewerId = resolveViewerId(req);
+export async function resolveMembershipContextForSubject(viewerId: string, role?: 'user' | 'coach' | 'admin' | null): Promise<MembershipContext> {
   const existingAccount = await loadMembershipAccount(viewerId);
   const account = existingAccount ?? await saveMembershipAccount({
     viewerId,
@@ -33,12 +32,21 @@ export async function resolveMembershipContext(req: Request): Promise<Membership
     billingProvider: null
   });
   const linkedProfiles = await listViewerProfileLinks(viewerId);
+  const actualPlan = getMembershipPlan(account.planId);
+  const plan = role === 'admin' ? getMembershipPlan('pro_coach') : actualPlan;
   return {
     viewerId,
     account,
-    plan: getMembershipPlan(account.planId),
+    actualPlan,
+    plan,
     linkedProfiles
   };
+}
+
+export async function resolveMembershipContext(req: Request): Promise<MembershipContext> {
+  const viewerId = resolveViewerId(req);
+  const auth = getAuthContext(req);
+  return resolveMembershipContextForSubject(viewerId, auth.actorUser?.role ?? null);
 }
 
 export function getMembershipCatalog() {
@@ -148,6 +156,7 @@ export function buildBillingCapabilities() {
   return {
     provider: 'stripe' as const,
     ready: Boolean(env.STRIPE_SECRET_KEY),
-    webhookReady: Boolean(env.STRIPE_WEBHOOK_SECRET)
+    webhookReady: Boolean(env.STRIPE_WEBHOOK_SECRET),
+    publishableKeyReady: Boolean(env.STRIPE_PUBLISHABLE_KEY)
   };
 }
