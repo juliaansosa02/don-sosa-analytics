@@ -73,10 +73,33 @@ function getErrorMessage(error: unknown) {
   return 'Unknown error';
 }
 
+async function buildMembershipPayload(req: Parameters<typeof resolveMembershipContext>[0]) {
+  const membership = await resolveMembershipContext(req);
+  const usage = await loadAICoachUsageForMonth({ viewerId: membership.viewerId });
+  return {
+    viewerId: membership.viewerId,
+    subjectId: membership.viewerId,
+    authenticated: getAuthContext(req).isAuthenticated,
+    account: membership.account,
+    actualPlan: membership.actualPlan,
+    plan: membership.plan,
+    linkedProfiles: membership.linkedProfiles,
+    usage,
+    billing: {
+      provider: 'stripe' as const,
+      ready: Boolean(process.env.STRIPE_SECRET_KEY),
+      webhookReady: Boolean(process.env.STRIPE_WEBHOOK_SECRET),
+      publishableKeyReady: Boolean(process.env.STRIPE_PUBLISHABLE_KEY)
+    },
+    devToolsEnabled: process.env.MEMBERSHIP_DEV_TOOLS === 'true',
+    overrideReason: membership.actualPlan.id !== membership.plan.id ? 'admin_full_access' as const : null
+  };
+}
+
 authRouter.get('/me', async (req, res) => {
   try {
     const auth = getAuthContext(req);
-    const membership = await resolveMembershipContext(req);
+    const membership = await buildMembershipPayload(req);
     res.json({
       authenticated: auth.isAuthenticated,
       user: getSafeUserFromAuth(req),
@@ -108,7 +131,7 @@ authRouter.post('/signup', async (req, res) => {
       ...input,
       anonymousViewerId: resolveAnonymousViewerId(req)
     }, res);
-    const membership = await resolveMembershipContext(req);
+    const membership = await buildMembershipPayload(req);
     res.status(201).json({ ok: true, user, membership });
   } catch (error) {
     const status = error instanceof HttpError ? error.status : 400;
@@ -123,7 +146,7 @@ authRouter.post('/login', async (req, res) => {
       ...input,
       anonymousViewerId: resolveAnonymousViewerId(req)
     }, res);
-    const membership = await resolveMembershipContext(req);
+    const membership = await buildMembershipPayload(req);
     res.json({ ok: true, user, membership });
   } catch (error) {
     const status = error instanceof HttpError ? error.status : 400;
