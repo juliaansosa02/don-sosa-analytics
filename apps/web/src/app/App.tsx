@@ -1360,30 +1360,53 @@ function AppShell() {
             </div>
           </div>
           <div style={accountAccessStyle}>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', width: '100%' }}>
-              {authMe?.isImpersonating ? <Badge tone="medium">{locale === 'en' ? 'Impersonating' : 'Suplantando'}</Badge> : null}
-              {authUser && currentPlan ? <Badge tone="default">{currentPlan.name}</Badge> : null}
-              {authUser ? (
+            {authUser ? (
+              <>
+                <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
+                  <div style={{ color: '#7f90a8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    {locale === 'en' ? 'Account' : 'Cuenta'}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {authMe?.isImpersonating ? <Badge tone="medium">{locale === 'en' ? 'Impersonating' : 'Suplantando'}</Badge> : null}
+                    {actorUser ? <Badge tone={actorUser.role === 'admin' ? 'medium' : actorUser.role === 'coach' ? 'default' : 'low'}>{actorUser.role.toUpperCase()}</Badge> : null}
+                    {currentPlan ? <Badge tone="default">{currentPlan.name}</Badge> : null}
+                  </div>
+                </div>
                 <button type="button" style={accountTriggerStyle} onClick={() => openAccountPanel()}>
-                  <span style={accountAvatarStyle}>{(authUser.displayName || authUser.email || 'D').slice(0, 1).toUpperCase()}</span>
-                  <span style={{ display: 'grid', gap: 2, textAlign: 'left' }}>
-                    <span style={{ color: '#eef4ff', fontWeight: 800, fontSize: 14 }}>{authUser.displayName}</span>
-                    <span style={{ color: '#8692a7', fontSize: 11 }}>
-                      {locale === 'en' ? 'Profile, billing and settings' : 'Perfil, facturación y ajustes'}
+                  <span style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
+                    <span style={accountAvatarStyle}>{(authUser.displayName || authUser.email || 'D').slice(0, 1).toUpperCase()}</span>
+                    <span style={{ display: 'grid', gap: 2, minWidth: 0, textAlign: 'left' }}>
+                      <span style={{ color: '#eef4ff', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis' }}>{authUser.displayName}</span>
+                      <span style={{ color: '#8692a7', fontSize: 11 }}>
+                        {locale === 'en' ? 'Profile, billing and settings' : 'Perfil, billing y ajustes'}
+                      </span>
                     </span>
                   </span>
+                  <span style={accountTriggerMetaStyle}>{locale === 'en' ? 'Open' : 'Abrir'}</span>
                 </button>
-              ) : (
-                <>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+                  <div style={{ color: '#7f90a8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                    {locale === 'en' ? 'Account' : 'Cuenta'}
+                  </div>
+                  <div style={{ color: '#95a4b8', fontSize: 13, lineHeight: 1.55, maxWidth: 300 }}>
+                    {locale === 'en'
+                      ? 'Save coaching, plans and profiles under a real account instead of only in this browser.'
+                      : 'Guardá coaching, planes y perfiles en una cuenta real y no solo en este navegador.'}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                   <button type="button" style={secondaryButtonStyle} onClick={() => { setAuthMode('login'); openAccountPanel('auth'); }}>
                     {locale === 'en' ? 'Login' : 'Ingresar'}
                   </button>
                   <button type="button" style={buttonStyle} onClick={() => { setAuthMode('signup'); openAccountPanel('auth'); }}>
                     {locale === 'en' ? 'Create account' : 'Crear cuenta'}
                   </button>
-                </>
-              )}
-            </div>
+                </div>
+              </>
+            )}
           </div>
         </section>
 
@@ -1495,59 +1518,77 @@ function AppShell() {
           ) : (
             <div style={{ display: 'grid', gap: 16 }}>
               <div style={heroIntroPanelStyle}>
-                <div style={{ display: 'grid', gap: 16 }}>
-                  <div style={{ display: 'grid', gap: 10 }}>
-                    <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>
-                      {locale === 'en' ? 'Current profile' : 'Perfil actual'}
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: profileIconUrl ? '88px minmax(0, 1fr)' : '1fr', gap: 16, alignItems: 'center' }}>
-                      {profileIconUrl ? (
-                        <img
-                          src={profileIconUrl}
-                          alt={dataset.player}
-                          width={88}
-                          height={88}
-                          style={{ ...profileIconStyle, width: 88, height: 88, objectFit: 'cover', boxShadow: '0 16px 32px rgba(0,0,0,0.22)' }}
-                        />
-                      ) : null}
-                      <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
-                        <h1 style={{ margin: 0, fontSize: 38, letterSpacing: '-0.05em', lineHeight: 1.05 }}>
-                          {dataset.player}<span style={{ color: '#8894ab' }}>#{dataset.tagLine}</span>
-                        </h1>
-                        {dataset.profile ? (
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                            <Badge>{locale === 'en' ? `Level ${dataset.profile.summonerLevel}` : `Nivel ${dataset.profile.summonerLevel}`}</Badge>
-                            {currentPlatformInfo ? <Badge tone="default">{`${currentPlatformInfo.platform} · ${currentPlatformInfo.shortLabel}`}</Badge> : null}
-                          </div>
+                <div style={profileHeroPanelStyle}>
+                  <div className="profile-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.08fr) minmax(280px, 0.92fr)', gap: 18, alignItems: 'start' }}>
+                    <div style={{ display: 'grid', gap: 14 }}>
+                      <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>
+                        {locale === 'en' ? 'Current profile' : 'Perfil actual'}
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: profileIconUrl ? '96px minmax(0, 1fr)' : '1fr', gap: 18, alignItems: 'center' }}>
+                        {profileIconUrl ? (
+                          <img
+                            src={profileIconUrl}
+                            alt={dataset.player}
+                            width={96}
+                            height={96}
+                            style={{ ...profileIconStyle, width: 96, height: 96, objectFit: 'cover', borderRadius: 22, boxShadow: '0 18px 40px rgba(0,0,0,0.24)' }}
+                          />
                         ) : null}
-                        <p style={{ margin: 0, color: '#96a1b4', maxWidth: 760, lineHeight: 1.65 }}>
-                          {locale === 'en'
-                            ? 'The coaching block uses this saved sample as its base. You can explore the rest of the product without spending tokens again on every visual filter change.'
-                            : 'El bloque de coaching usa esta muestra guardada como base. Podés explorar el resto del producto sin volver a gastar tokens por cada cambio visual de filtros.'}
-                        </p>
+                        <div style={{ display: 'grid', gap: 8, minWidth: 0 }}>
+                          <h1 style={{ margin: 0, fontSize: 40, letterSpacing: '-0.05em', lineHeight: 1.02 }}>
+                            {dataset.player}<span style={{ color: '#8894ab' }}>#{dataset.tagLine}</span>
+                          </h1>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                            {dataset.profile ? <Badge>{locale === 'en' ? `Level ${dataset.profile.summonerLevel}` : `Nivel ${dataset.profile.summonerLevel}`}</Badge> : null}
+                            {currentPlatformInfo ? <Badge tone="default">{`${currentPlatformInfo.platform} · ${currentPlatformInfo.shortLabel}`}</Badge> : null}
+                            <Badge tone="low">{locale === 'en' ? 'Saved coaching base' : 'Base guardada del coaching'}</Badge>
+                          </div>
+                          <p style={{ margin: 0, color: '#96a1b4', maxWidth: 760, lineHeight: 1.68 }}>
+                            {locale === 'en'
+                              ? 'This saved sample is the root of the coaching read. The rest of the product can be explored without spending tokens again on every visual filter change.'
+                              : 'Esta muestra guardada es la base real del coaching. El resto del producto se puede explorar sin volver a gastar tokens por cada cambio visual de filtros.'}
+                          </p>
+                        </div>
                       </div>
                     </div>
+                    <div style={profileRankColumnStyle}>
+                      {dataset.rank ? (
+                        <RankBadge rank={dataset.rank} compact locale={locale} />
+                      ) : (
+                        <div style={profileRankEmptyStyle}>
+                          <div style={{ color: '#8ea0b6', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            {locale === 'en' ? 'Visible rank' : 'Rango visible'}
+                          </div>
+                          <div style={{ color: '#eef4ff', fontSize: 18, fontWeight: 800 }}>
+                            {locale === 'en' ? 'No rank loaded yet' : 'Todavía no hay rango cargado'}
+                          </div>
+                          <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.55 }}>
+                            {locale === 'en' ? 'The profile is still useful for coaching and scope decisions.' : 'El perfil igual sirve para coaching y para decidir el scope.'}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, .92fr) repeat(3, minmax(0, 1fr))', gap: 12 }}>
-                    {dataset.rank ? <RankBadge rank={dataset.rank} compact locale={locale} /> : null}
-                    <div style={heroMetaChipStyle}>
+                  <div className="four-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
+                    <div style={profileMetaCardStyle}>
                       <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Scope sample' : 'Muestra del scope'}</div>
                       <div style={heroMetaValueStyle}>{coachDataset?.summary.matches ?? dataset.summary.matches}</div>
                       <div style={heroMetaSubtleStyle}>{coachRoles.length ? coachScopeLabel : (locale === 'en' ? 'all saved roles' : 'todos los roles guardados')}</div>
                     </div>
-                    <div style={heroMetaChipStyle}>
+                    <div style={profileMetaCardStyle}>
                       <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Win rate' : 'WR'}</div>
                       <div style={heroMetaValueStyle}>{coachDataset?.summary.winRate ?? dataset.summary.winRate}%</div>
                       <div style={heroMetaSubtleStyle}>{`${coachDataset?.summary.wins ?? dataset.summary.wins}-${coachDataset?.summary.losses ?? dataset.summary.losses}`}</div>
                     </div>
-                    <div style={heroMetaChipStyle}>
+                    <div style={profileMetaCardStyle}>
                       <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Performance' : 'Rendimiento'}</div>
                       <div style={heroMetaValueStyle}>{coachDataset?.summary.avgPerformanceScore ?? dataset.summary.avgPerformanceScore}</div>
-                      <div style={heroMetaSubtleStyle}>
-                        {locale === 'en'
-                          ? `CS@15 ${coachDataset?.summary.avgCsAt15 ?? dataset.summary.avgCsAt15}`
-                          : `CS@15 ${coachDataset?.summary.avgCsAt15 ?? dataset.summary.avgCsAt15}`}
-                      </div>
+                      <div style={heroMetaSubtleStyle}>{`CS@15 ${coachDataset?.summary.avgCsAt15 ?? dataset.summary.avgCsAt15} · Gold@15 ${coachDataset?.summary.avgGoldAt15 ?? dataset.summary.avgGoldAt15}`}</div>
+                    </div>
+                    <div style={profileMetaCardStyle}>
+                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Queue context' : 'Contexto de colas'}</div>
+                      <div style={{ ...heroMetaValueStyle, fontSize: 18 }}>{formatQueueSummary(dataset, locale)}</div>
+                      <div style={heroMetaSubtleStyle}>{locale === 'en' ? 'Saved ranked context' : 'Contexto ranked guardado'}</div>
                     </div>
                   </div>
                 </div>
@@ -1698,7 +1739,7 @@ function AppShell() {
                   </div>
                 </div>
                 {savedProfilesPanel}
-                <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 12 }}>
+                <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
                   <div style={softPanelStyle}>
                     <div style={{ color: '#eef4ff', fontWeight: 700 }}>
                       {locale === 'en' ? 'Routing context' : 'Contexto de routing'}
@@ -1713,26 +1754,25 @@ function AppShell() {
                           : 'Elegí la platform de Riot donde realmente juega esta cuenta.')}
                     </div>
                   </div>
-                </div>
-
-                <div style={softPanelStyle}>
-                  <div style={{ display: 'grid', gap: 4 }}>
-                    <div style={{ color: '#eef4ff', fontWeight: 700 }}>
-                      {locale === 'en' ? 'Recommended start' : 'Inicio recomendado'}
+                  <div style={softPanelStyle}>
+                    <div style={{ display: 'grid', gap: 4 }}>
+                      <div style={{ color: '#eef4ff', fontWeight: 700 }}>
+                        {locale === 'en' ? 'Recommended start' : 'Inicio recomendado'}
+                      </div>
+                      <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
+                        {matchCount >= 100
+                          ? (locale === 'en' ? `A ${Math.min(100, planEntitlements?.maxStoredMatchesPerProfile ?? 100)}-match baseline gives the sharpest first read, but it can take longer because of Riot rate limits.` : `Una base de ${Math.min(100, planEntitlements?.maxStoredMatchesPerProfile ?? 100)} partidas da la lectura inicial más filosa, pero puede tardar más por los límites de Riot.`)
+                          : (locale === 'en' ? 'Start smaller if you want speed, then scale the sample when you want a more stable baseline.' : 'Empezá más chico si querés velocidad y después escalá la muestra cuando quieras una base más estable.')}
+                      </div>
                     </div>
-                    <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
-                      {matchCount >= 100
-                        ? (locale === 'en' ? `A ${Math.min(100, planEntitlements?.maxStoredMatchesPerProfile ?? 100)}-match baseline gives the sharpest first read, but it can take longer because of Riot rate limits.` : `Una base de ${Math.min(100, planEntitlements?.maxStoredMatchesPerProfile ?? 100)} partidas da la lectura inicial más filosa, pero puede tardar más por los límites de Riot.`)
-                        : (locale === 'en' ? 'Start smaller if you want speed, then scale the sample when you want a more stable baseline.' : 'Empezá más chico si querés velocidad y después escalá la muestra cuando quieras una base más estable.')}
-                    </div>
+                    {!dataset && gameName && tagLine ? (
+                      <div style={{ color: '#a5b2c6', fontSize: 13, lineHeight: 1.6 }}>
+                        {locale === 'en'
+                          ? 'Once this account is loaded, it will stay saved here and future refreshes will only complete what is missing.'
+                          : 'Una vez que cargues esta cuenta, va a quedar guardada acá y los próximos refreshes solo completarán lo que falte.'}
+                      </div>
+                    ) : null}
                   </div>
-                  {!dataset && gameName && tagLine ? (
-                    <div style={{ color: '#a5b2c6', fontSize: 13, lineHeight: 1.6 }}>
-                      {locale === 'en'
-                        ? 'Once this account is loaded, it will stay saved here and future refreshes will only complete what is missing.'
-                        : 'Una vez que cargues esta cuenta, va a quedar guardada acá y los próximos refreshes solo completarán lo que falte.'}
-                    </div>
-                  ) : null}
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -2058,38 +2098,49 @@ const topBarStyle: CSSProperties = {
 };
 
 const accountAccessStyle: CSSProperties = {
-  display: 'flex',
+  display: 'grid',
+  gridTemplateColumns: 'minmax(0, 1fr) auto',
   gap: 14,
   alignItems: 'center',
-  justifyContent: 'flex-end',
-  padding: '10px 12px',
-  borderRadius: 18,
+  padding: '12px 14px',
+  borderRadius: 20,
   background: 'linear-gradient(180deg, rgba(14,18,28,0.94), rgba(8,11,18,0.98))',
   border: '1px solid rgba(255,255,255,0.07)',
-  width: 'min(100%, 430px)',
-  boxShadow: '0 16px 40px rgba(0,0,0,0.14)'
+  width: 'min(100%, 520px)',
+  minHeight: 78,
+  boxShadow: '0 18px 44px rgba(0,0,0,0.16)'
 };
 
 const accountTriggerStyle: CSSProperties = {
   display: 'flex',
-  gap: 10,
+  justifyContent: 'space-between',
+  gap: 14,
   alignItems: 'center',
-  padding: '8px 10px',
-  borderRadius: 14,
+  minWidth: 238,
+  padding: '10px 12px',
+  borderRadius: 16,
   border: '1px solid rgba(255,255,255,0.07)',
-  background: 'rgba(255,255,255,0.02)',
+  background: 'rgba(255,255,255,0.03)',
   color: '#eef4ff'
 };
 
 const accountAvatarStyle: CSSProperties = {
-  width: 34,
-  height: 34,
+  width: 38,
+  height: 38,
   borderRadius: 999,
   display: 'inline-grid',
   placeItems: 'center',
   background: 'linear-gradient(180deg, rgba(216,253,241,0.16), rgba(90,182,157,0.18))',
   color: '#eefcf3',
   fontWeight: 800
+};
+
+const accountTriggerMetaStyle: CSSProperties = {
+  color: '#90a0b7',
+  fontSize: 11,
+  fontWeight: 700,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em'
 };
 
 const accountPanelStyle: CSSProperties = {
@@ -2455,6 +2506,37 @@ const heroMetaValueStyle: CSSProperties = {
 const heroMetaSubtleStyle: CSSProperties = {
   color: '#8d98ad',
   fontSize: 12
+};
+
+const profileHeroPanelStyle: CSSProperties = {
+  display: 'grid',
+  gap: 18
+};
+
+const profileRankColumnStyle: CSSProperties = {
+  display: 'grid',
+  gap: 12,
+  alignContent: 'start'
+};
+
+const profileRankEmptyStyle: CSSProperties = {
+  display: 'grid',
+  gap: 8,
+  minHeight: 124,
+  padding: '18px 18px',
+  borderRadius: 18,
+  background: 'linear-gradient(180deg, rgba(8,12,20,0.8), rgba(6,9,15,0.92))',
+  border: '1px solid rgba(255,255,255,0.06)',
+  alignContent: 'start'
+};
+
+const profileMetaCardStyle: CSSProperties = {
+  ...heroMetaChipStyle,
+  gap: 6,
+  minHeight: 92,
+  padding: '14px 14px',
+  background: 'rgba(7,11,18,0.82)',
+  alignContent: 'start'
 };
 
 const rankQueuePillStyle: CSSProperties = {

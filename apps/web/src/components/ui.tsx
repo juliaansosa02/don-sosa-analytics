@@ -15,8 +15,8 @@ export function Shell({ sidebar, children }: PropsWithChildren<{ sidebar?: React
 
 export function Card({ title, subtitle, children }: PropsWithChildren<{ title: string; subtitle?: string }>) {
   return (
-    <section style={{ background: 'linear-gradient(180deg, rgba(8,12,20,0.98), rgba(5,8,14,0.98))', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 20, padding: 20, boxShadow: '0 18px 50px rgba(0,0,0,0.18)' }}>
-      <div style={{ marginBottom: 18, display: 'grid', gap: 8 }}>
+    <section style={{ display: 'grid', alignContent: 'start', gap: 18, height: '100%', background: 'linear-gradient(180deg, rgba(8,12,20,0.98), rgba(5,8,14,0.98))', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 22, padding: 22, boxShadow: '0 22px 56px rgba(0,0,0,0.2)' }}>
+      <div style={{ display: 'grid', gap: 8 }}>
         <h3 style={{ margin: 0, fontSize: 18, letterSpacing: '-0.02em' }}>{title}</h3>
         {subtitle ? <p style={{ margin: 0, color: '#7f8898', lineHeight: 1.6 }}>{subtitle}</p> : null}
       </div>
@@ -164,19 +164,20 @@ export function TrendIndicator({
   tone: TrendTone;
   label?: string;
 }) {
+  const isNeutral = tone === 'neutral' || direction === 'steady';
   const color = tone === 'positive'
     ? '#7ef5c7'
     : tone === 'negative'
       ? '#ff8f8f'
-      : '#8ea0bb';
+      : '#8293ac';
 
   const markerStyle = direction === 'steady'
     ? {
-        width: 8,
-        height: 8,
-        borderRadius: 2,
-        background: color,
-        transform: 'rotate(45deg)'
+        width: 6,
+        height: 6,
+        borderRadius: 999,
+        background: `${color}33`,
+        border: `1px solid ${color}`
       }
     : direction === 'up'
       ? {
@@ -195,9 +196,9 @@ export function TrendIndicator({
         };
 
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color, fontWeight: 700, fontSize: 12, lineHeight: 1.1, textAlign: 'left' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: isNeutral ? 5 : 6, color, fontWeight: isNeutral ? 600 : 700, fontSize: isNeutral ? 11 : 12, lineHeight: 1.1, textAlign: 'left', whiteSpace: 'nowrap' }}>
       <span aria-hidden="true" style={markerStyle} />
-      {label ? <span>{label}</span> : null}
+      {label ? <span style={{ letterSpacing: isNeutral ? '0.01em' : undefined }}>{label}</span> : null}
     </span>
   );
 }

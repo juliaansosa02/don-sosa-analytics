@@ -36,8 +36,8 @@ function withSteadyLabel(trend: TrendSignal, steadyLabel: string, movingLabel?: 
 
 function comparisonDetail(locale: Locale, baselineLabel: string, recentLabel: string, baselineMatches: number, recentMatches: number) {
   return locale === 'en'
-    ? `Now ${recentLabel} in ${recentMatches} recent games. Before: ${baselineLabel} across ${baselineMatches} earlier games.`
-    : `Ahora ${recentLabel} en ${recentMatches} partidas recientes. Antes: ${baselineLabel} en ${baselineMatches} partidas previas.`;
+    ? `Before ${baselineLabel} (${baselineMatches}) · Now ${recentLabel} (${recentMatches})`
+    : `Antes ${baselineLabel} (${baselineMatches}) · Ahora ${recentLabel} (${recentMatches})`;
 }
 
 function formatKda(kills: number, deaths: number, assists: number) {
@@ -321,6 +321,32 @@ export function CoachingHome({
       trend: withSteadyLabel(signal(trend.killParticipationDelta, 'up', 2), steadyLabel, delta(trend.killParticipationDelta, ' pts'))
     }
   ];
+  const anchorSignals = championReference ? [
+    {
+      label: 'WR',
+      value: `${formatDecimal(championReference.winRate)}%`,
+      detail: t(locale, `${championReference.games} partidas del pick`, `${championReference.games} games on the pick`),
+      trend: withSteadyLabel(signal(championReference.winRate - summary.winRate, 'up', 3), steadyLabel, delta(championReference.winRate - summary.winRate, ' pts'))
+    },
+    {
+      label: t(locale, 'Rendimiento', 'Performance'),
+      value: formatDecimal(championReference.avgScore),
+      detail: t(locale, 'cuando el plan sale limpio', 'when the plan looks clean'),
+      trend: withSteadyLabel(signal(championReference.avgScore - summary.avgPerformanceScore, 'up', 0.3), steadyLabel, delta(championReference.avgScore - summary.avgPerformanceScore))
+    },
+    {
+      label: 'CS@15',
+      value: formatDecimal(championReference.avgCsAt15),
+      detail: t(locale, 'piso económico del pick', 'economic floor of the pick'),
+      trend: withSteadyLabel(signal(championReference.avgCsAt15 - summary.avgCsAt15, 'up', 1), steadyLabel, delta(championReference.avgCsAt15 - summary.avgCsAt15))
+    },
+    {
+      label: t(locale, 'Muertes pre14', 'Deaths pre14'),
+      value: formatDecimal(championReference.avgDeathsPre14),
+      detail: t(locale, 'disciplina del early', 'early discipline'),
+      trend: withSteadyLabel(signal(championReference.avgDeathsPre14 - summary.avgDeathsPre14, 'down', 0.15), steadyLabel, delta(championReference.avgDeathsPre14 - summary.avgDeathsPre14))
+    }
+  ] : [];
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
@@ -366,7 +392,7 @@ export function CoachingHome({
             </div>
             <div className="coaching-meta-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, alignItems: 'start' }}>
               <MetaStat label={t(locale, 'Muestra', 'Sample')} value={`${summary.matches}`} caption={t(locale, 'partidas del scope', 'games in scope')} />
-              <MetaStat label={t(locale, 'Campeón de referencia', 'Reference champion')} value={championReference ? formatChampionName(championReference.championName) : t(locale, 'Sin señal', 'No signal')} caption={championReference ? t(locale, `${championReference.games} partidas · ${formatDecimal(championReference.winRate)}% WR`, `${championReference.games} games · ${formatDecimal(championReference.winRate)}% WR`) : t(locale, 'todavía falta muestra', 'needs more sample')} />
+              <MetaStat label={t(locale, 'Tramo reciente', 'Recent block')} value={`${trend.recentMatches}`} caption={t(locale, 'partidas comparadas ahora', 'games compared now')} />
               <MetaStat label={t(locale, 'Patrón estable', 'Stable pattern')} value={stableWinRate !== null ? `${formatDecimal(stableWinRate)}% WR` : t(locale, 'Sin señal', 'No signal')} caption={stableMatches.length ? t(locale, `${stableMatches.length} partidas limpias`, `${stableMatches.length} clean games`) : t(locale, 'todavía sin bloque limpio', 'no clean block yet')} />
               <MetaStat label={t(locale, 'Cruce más duro', 'Hardest matchup')} value={problematicMatchup ? `vs ${formatChampionName(problematicMatchup.opponentChampionName)}` : t(locale, 'Sin alerta', 'No alert')} caption={problematicMatchup ? (problematicMatchup.directGames >= 2 ? t(locale, `${problematicMatchup.directGames} cruces directos`, `${problematicMatchup.directGames} direct games`) : t(locale, `${problematicMatchup.recentLosses} derrotas repetidas`, `${problematicMatchup.recentLosses} repeated losses`)) : t(locale, 'sin patrón repetido', 'no repeated pattern')} />
             </div>
@@ -382,86 +408,118 @@ export function CoachingHome({
 
         <div style={{ display: 'grid', gap: 10, marginTop: 18 }}>
           <SectionEyebrow title={t(locale, 'Señales rápidas', 'Quick signals')} />
-          <div className="coaching-signal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 12, alignItems: 'start' }}>
+          <div className="coaching-signal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12, alignItems: 'stretch' }}>
             {metricCards.map((metric) => <SignalTile key={metric.label} {...metric} />)}
           </div>
         </div>
       </Card>
 
-      <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(320px, 1fr)', gap: 16, alignItems: 'start' }}>
-        <Card title={t(locale, 'Lo que ya te sostiene hoy', 'What is already holding you up')} subtitle={t(locale, 'Uní tu pick más limpio con las señales que conviene repetir. Menos bloques, más lectura útil.', 'Combine your cleanest pick with the signals worth repeating. Less blocks, more useful read.')}>
+      <section className="coaching-overview-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16, alignItems: 'stretch' }}>
+        <Card title={t(locale, 'Base que ya te sostiene hoy', 'What is already holding you up')} subtitle={t(locale, 'Fusionamos tu pick de referencia con lo que ya te da nivel para que la lectura sea más directa y menos redundante.', 'We merge your reference pick with what is already giving you level so the read feels stronger and less redundant.')}>
           <div style={{ display: 'grid', gap: 12 }}>
             {championReference ? (
               <div style={panelStyle}>
-                <ChampionIdentity
-                  championName={championReference.championName}
-                  version={dataset.ddragonVersion}
-                  subtitle={t(
-                    locale,
-                    `${championReference.games} partidas del scope · ${formatDecimal(championReference.winRate)}% WR`,
-                    `${championReference.games} scoped games · ${formatDecimal(championReference.winRate)}% WR`
-                  )}
-                  meta={
-                    <>
-                      <span style={chipStyle}><span>{`CS@15 ${formatDecimal(championReference.avgCsAt15)}`}</span></span>
-                      <span style={chipStyle}><span>{`Gold@15 ${formatInteger(championReference.avgGoldAt15)}`}</span></span>
-                      <span style={chipStyle}><span>{`${t(locale, 'Muertes pre14', 'Deaths pre14')} ${formatDecimal(championReference.avgDeathsPre14)}`}</span></span>
-                    </>
-                  }
-                  size={58}
-                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
+                  <ChampionIdentity
+                    championName={championReference.championName}
+                    version={dataset.ddragonVersion}
+                    subtitle={t(
+                      locale,
+                      `${championReference.games} partidas del scope · ${formatDecimal(championReference.winRate)}% WR`,
+                      `${championReference.games} scoped games · ${formatDecimal(championReference.winRate)}% WR`
+                    )}
+                    meta={
+                      <>
+                        <span style={chipStyle}><span>{`CS@15 ${formatDecimal(championReference.avgCsAt15)}`}</span></span>
+                        <span style={chipStyle}><span>{`${t(locale, 'Muertes pre14', 'Deaths pre14')} ${formatDecimal(championReference.avgDeathsPre14)}`}</span></span>
+                      </>
+                    }
+                    size={62}
+                  />
+                  <Badge tone="low">{t(locale, 'Pick más limpio', 'Cleanest pick')}</Badge>
+                </div>
                 <div style={{ color: '#9aa5b7', lineHeight: 1.65 }}>
                   {problematicMatchup
-                    ? t(locale, `Usalo como pick de referencia para revisar cómo cambia tu plan cuando aparece ${formatChampionName(problematicMatchup.opponentChampionName)} y qué parte del early sí estás resolviendo bien.`, `Use it as your reference pick to review how your plan changes when ${formatChampionName(problematicMatchup.opponentChampionName)} shows up and which part of the early game you are actually solving well.`)
-                    : t(locale, 'Tomalo como la versión más limpia de tu plan actual: el pick donde hoy se nota mejor qué hábitos ya valen la pena repetir.', 'Treat it as the cleanest version of your current plan: the pick where it is easiest to see which habits are already worth repeating.')}
+                    ? t(locale, `Tomalo como tu base de referencia: acá se ve mejor qué hábitos sostienen el bloque y cómo cambia el plan cuando aparece ${formatChampionName(problematicMatchup.opponentChampionName)}.`, `Use it as your reference base: this is where it is easiest to see which habits are holding the block and how the plan changes when ${formatChampionName(problematicMatchup.opponentChampionName)} shows up.`)
+                    : t(locale, 'Es la versión donde el plan se ve más ordenado hoy. Si querés copiar algo, copiá esta estructura y no solo el resultado final.', 'This is the version where the plan looks most organized right now. If you want to copy something, copy this structure, not only the final result.')}
+                </div>
+                <div className="four-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
+                  {anchorSignals.map((entry) => <AnchorMetric key={entry.label} {...entry} />)}
                 </div>
               </div>
             ) : null}
-            {positives.length ? positives.map((insight) => (
-              <div key={insight.id} style={panelStyle}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ color: '#eef4ff', fontSize: 20, fontWeight: 800, lineHeight: 1.2 }}>{insight.problem}</div>
-                    <div style={{ color: '#9aa5b7', lineHeight: 1.6 }}>{insight.title}</div>
+            {positives.length ? (
+              <div className="coaching-strength-grid" style={{ display: 'grid', gridTemplateColumns: positives.length > 1 ? 'repeat(2, minmax(0, 1fr))' : '1fr', gap: 10 }}>
+                {positives.map((insight) => (
+                  <div key={insight.id} style={strengthItemStyle}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        <div style={{ color: '#eef4ff', fontSize: 18, fontWeight: 800, lineHeight: 1.22 }}>{insight.problem}</div>
+                        <div style={{ color: '#9aa5b7', lineHeight: 1.55 }}>{insight.title}</div>
+                      </div>
+                      <Badge tone="low">{t(locale, 'Te sostiene', 'Holding')}</Badge>
+                    </div>
+                    {insight.evidence[0] ? <div style={compactListStyle}>{insight.evidence[0]}</div> : null}
+                    {insight.actions.slice(0, 1).map((action) => <div key={action} style={actionStyle}>{action}</div>)}
                   </div>
-                  <Badge tone="low">{t(locale, 'Real', 'Real')}</Badge>
-                </div>
-                {insight.evidence[0] ? <div style={listStyle}>{insight.evidence[0]}</div> : null}
-                {insight.actions.slice(0, 2).map((action) => <div key={action} style={actionStyle}>{action}</div>)}
+                ))}
               </div>
-            )) : <div style={emptyStyle}>{t(locale, 'Todavía no aparece una fortaleza clara en este scope.', 'There is no clear strength in this scope yet.')}</div>}
+            ) : <div style={emptyStyle}>{t(locale, 'Todavía no aparece una fortaleza clara en este scope.', 'There is no clear strength in this scope yet.')}</div>}
           </div>
         </Card>
 
-        <Card title={t(locale, 'Agenda de review', 'Review agenda')} subtitle={t(locale, 'No es una lista de partidas: es qué abrir, por qué abrirlo y qué pregunta contestar mirando el replay.', 'This is not just a match list: it is what to open, why to open it and which question to answer in the replay.')}>
+        <Card title={t(locale, 'Qué cambió de verdad', 'What actually changed')} subtitle={t(locale, 'Tramo reciente contra bloque anterior. Esa comparación muestra mejor si hoy hay mejora, deterioro o un patrón estable.', 'Recent stretch against the previous block. That comparison shows much more clearly whether you are improving, slipping or staying flat.')}>
           <div style={{ display: 'grid', gap: 10 }}>
-            {reviewAgenda.length ? reviewAgenda.map((item) => (
-              <div key={item.matchId} style={panelStyle}>
+            <div style={panelStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
+                <div style={{ display: 'grid', gap: 6 }}>
+                  <div style={{ color: '#eef4ff', fontSize: 20, fontWeight: 800, lineHeight: 1.2 }}>{changeSummary}</div>
+                  <div style={{ color: '#9aa5b7', lineHeight: 1.6 }}>{t(locale, `Comparación usada: ${trend.baselineMatches} partidas previas contra ${trend.recentMatches} partidas recientes.`, `Comparison used: ${trend.baselineMatches} earlier games against ${trend.recentMatches} recent games.`)}</div>
+                </div>
+                <span style={chipStyle}><TrendIndicator direction={performanceTrend.direction} tone={performanceTrend.tone} /><span>{performanceTrend.direction === 'steady' ? t(locale, 'parejo', 'steady') : performanceTrend.tone === 'positive' ? t(locale, 'mejora', 'improving') : t(locale, 'retroceso', 'slipping')}</span></span>
+              </div>
+            </div>
+            <ProgressRow label={t(locale, 'Rendimiento', 'Performance')} baseline={formatDecimal(trend.baselineScore)} recent={formatDecimal(trend.recentScore)} trend={signal(trend.scoreDelta, 'up', 0.25)} deltaLabel={delta(trend.scoreDelta)} locale={locale} />
+            <ProgressRow label="WR" baseline={`${formatDecimal(trend.baselineWinRate)}%`} recent={`${formatDecimal(trend.recentWinRate)}%`} trend={signal(trend.winRateDelta, 'up', 1)} deltaLabel={delta(trend.winRateDelta, ' pts')} locale={locale} />
+            <ProgressRow label="Gold@15" baseline={formatInteger(trend.baselineGoldAt15)} recent={formatInteger(trend.recentGoldAt15)} trend={signal(trend.goldAt15Delta, 'up', 120)} deltaLabel={delta(trend.goldAt15Delta, '', 0)} locale={locale} />
+            <ProgressRow label={t(locale, 'Muertes pre14', 'Deaths pre14')} baseline={formatDecimal(trend.baselineDeathsPre14)} recent={formatDecimal(trend.recentDeathsPre14)} trend={signal(trend.deathsPre14Delta, 'down', 0.15)} deltaLabel={delta(trend.deathsPre14Delta)} locale={locale} />
+            <ProgressRow label={t(locale, 'Consistencia', 'Consistency')} baseline={formatDecimal(trend.baselineConsistency)} recent={formatDecimal(trend.recentConsistency)} trend={signal(trend.consistencyDelta, 'up', 1.5)} deltaLabel={delta(trend.consistencyDelta)} locale={locale} />
+          </div>
+        </Card>
+
+        <Card title={t(locale, 'Prioridades del bloque', 'Block priorities')} subtitle={t(locale, 'Qué te frena hoy y qué conviene hacer con eso, con menos relleno y mejor jerarquía.', 'What is holding you back today and what to do with it, with less filler and better hierarchy.')}>
+          <div style={{ display: 'grid', gap: 12 }}>
+            {visibleProblems.length ? visibleProblems.map((problem, index) => (
+              <div key={problem.id} style={{ ...panelStyle, borderColor: problem.priority === 'high' ? 'rgba(255,107,107,0.18)' : problem.priority === 'low' ? 'rgba(103,214,164,0.16)' : 'rgba(255,255,255,0.05)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', flexWrap: 'wrap' }}>
-                  <ChampionIdentity championName={item.championName} version={dataset.ddragonVersion} subtitle={new Date(item.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')} size={54} />
+                  <div style={{ display: 'grid', gap: 6 }}>
+                    <div style={{ color: '#8e9cb0', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{t(locale, `Bloque ${index + 1}`, `Block ${index + 1}`)}</div>
+                    <div style={{ color: '#eef4ff', fontSize: 21, fontWeight: 800, lineHeight: 1.15 }}>{problem.problem}</div>
+                    <div style={{ color: '#9aa5b7', lineHeight: 1.6 }}>{problem.title}</div>
+                  </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {item.tags.slice(0, 2).map((tag) => <Badge key={tag}>{tag}</Badge>)}
-                    <Badge tone={item.win ? 'low' : 'high'}>{item.win ? t(locale, 'Victoria', 'Win') : t(locale, 'Derrota', 'Loss')}</Badge>
+                    <Badge tone={infoTone(problem.priority)}>{t(locale, `Prioridad ${problem.priority}`, `${problem.priority} priority`)}</Badge>
+                    <Badge>{problem.category}</Badge>
                   </div>
                 </div>
-                <div style={{ color: '#eef4ff', fontSize: 18, fontWeight: 800, lineHeight: 1.2 }}>{item.title}</div>
-                <div style={{ color: '#9aa5b7', lineHeight: 1.65 }}>{item.reason}</div>
-                <div className="review-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 10 }}>
-                  <ReviewMetric label="KDA" value={formatKda(item.kills, item.deaths, item.assists)} />
-                  <ReviewMetric label="CS" value={formatInteger(item.cs)} />
-                  <ReviewMetric label={t(locale, 'Daño', 'Damage')} value={formatInteger(item.damageToChampions)} />
-                  <ReviewMetric label="KP" value={`${formatDecimal(item.killParticipation)}%`} />
-                  <ReviewMetric label={t(locale, 'Rend.', 'Perf.')} value={formatDecimal(item.performanceScore)} />
+                <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+                  <InfoBlock title={t(locale, 'Impacto', 'Impact')} info={t(locale, 'Cómo pega este patrón en tus resultados.', 'How hard this pattern hits your results.')}>{problem.impact}</InfoBlock>
+                  <InfoBlock title={t(locale, 'Causa', 'Cause')} info={t(locale, 'Qué está explicando mejor el patrón actual.', 'What best explains the current pattern.')}>{problem.cause}</InfoBlock>
                 </div>
-                <div style={questionStyle}>
-                  <SectionEyebrow title={t(locale, 'Pregunta de review', 'Review question')} />
-                  <div style={{ color: '#eff7f2', lineHeight: 1.65 }}>{item.question}</div>
-                </div>
-                <div style={listStyle}>
-                  <strong style={{ color: '#eef4ff' }}>{t(locale, 'Mirá esto:', 'Look at this:')}</strong> {item.focus}
-                </div>
+                {problem.evidence[0] ? (
+                  <>
+                    <SectionEyebrow title={t(locale, 'Se ve en', 'Shows up in')} />
+                    <div style={listStyle}>{problem.evidence[0]}</div>
+                  </>
+                ) : null}
+                {problem.actions.length ? (
+                  <>
+                    <SectionEyebrow title={t(locale, 'Qué hacer hoy', 'What to do today')} />
+                    {problem.actions.slice(0, 2).map((action) => <div key={action} style={actionStyle}>{action}</div>)}
+                  </>
+                ) : null}
               </div>
-            )) : <div style={emptyStyle}>{t(locale, 'Todavía no hay una agenda de review clara.', 'There is no clear review agenda yet.')}</div>}
+            )) : <div style={emptyStyle}>{t(locale, 'Todavía no hay prioridades claras para este bloque.', 'There are no clear priorities for this block yet.')}</div>}
           </div>
         </Card>
       </section>
@@ -494,54 +552,39 @@ export function CoachingHome({
         </Card>
       </section>
 
-      <section className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) minmax(320px, 1fr)', gap: 16, alignItems: 'start' }}>
-        <Card title={t(locale, 'Qué cambió de verdad', 'What actually changed')} subtitle={t(locale, 'Esta comparación es tramo reciente contra bloque anterior, no contra toda la muestra. Ahí se explica mejor si algo subió o bajó.', 'This comparison is recent stretch versus previous block, not versus the full sample. That makes it much clearer whether something actually rose or fell.')}>
-          <div style={{ display: 'grid', gap: 12 }}>
-            <div style={panelStyle}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
-                <div style={{ display: 'grid', gap: 6 }}>
-                  <div style={{ color: '#eef4ff', fontSize: 20, fontWeight: 800, lineHeight: 1.2 }}>{changeSummary}</div>
-                  <div style={{ color: '#9aa5b7', lineHeight: 1.6 }}>{t(locale, `Comparación usada: ${trend.baselineMatches} partidas previas contra ${trend.recentMatches} partidas recientes.`, `Comparison used: ${trend.baselineMatches} earlier games against ${trend.recentMatches} recent games.`)}</div>
-                </div>
-                <span style={chipStyle}><TrendIndicator direction={performanceTrend.direction} tone={performanceTrend.tone} /><span>{performanceTrend.direction === 'steady' ? t(locale, 'parejo', 'steady') : performanceTrend.tone === 'positive' ? t(locale, 'mejora', 'improving') : t(locale, 'retroceso', 'slipping')}</span></span>
-              </div>
-            </div>
-            <ProgressRow label={t(locale, 'Rendimiento', 'Performance')} baseline={formatDecimal(trend.baselineScore)} recent={formatDecimal(trend.recentScore)} trend={signal(trend.scoreDelta, 'up', 0.25)} deltaLabel={delta(trend.scoreDelta)} locale={locale} />
-            <ProgressRow label="WR" baseline={`${formatDecimal(trend.baselineWinRate)}%`} recent={`${formatDecimal(trend.recentWinRate)}%`} trend={signal(trend.winRateDelta, 'up', 1)} deltaLabel={delta(trend.winRateDelta, ' pts')} locale={locale} />
-            <ProgressRow label="Gold@15" baseline={formatInteger(trend.baselineGoldAt15)} recent={formatInteger(trend.recentGoldAt15)} trend={signal(trend.goldAt15Delta, 'up', 120)} deltaLabel={delta(trend.goldAt15Delta, '', 0)} locale={locale} />
-            <ProgressRow label={t(locale, 'Muertes pre14', 'Deaths pre14')} baseline={formatDecimal(trend.baselineDeathsPre14)} recent={formatDecimal(trend.recentDeathsPre14)} trend={signal(trend.deathsPre14Delta, 'down', 0.15)} deltaLabel={delta(trend.deathsPre14Delta)} locale={locale} />
-            <ProgressRow label={t(locale, 'Consistencia', 'Consistency')} baseline={formatDecimal(trend.baselineConsistency)} recent={formatDecimal(trend.recentConsistency)} trend={signal(trend.consistencyDelta, 'up', 1.5)} deltaLabel={delta(trend.consistencyDelta)} locale={locale} />
-          </div>
-        </Card>
-
-        <Card title={t(locale, 'Prioridades del bloque', 'Block priorities')} subtitle={t(locale, 'Menos relleno, más estructura: qué te frena hoy y qué conviene hacer con eso.', 'Less filler, more structure: what is holding you back today and what to do with it.')}>
-          <div style={{ display: 'grid', gap: 12 }}>
-            {visibleProblems.length ? visibleProblems.map((problem, index) => (
-              <div key={problem.id} style={{ ...panelStyle, borderColor: problem.priority === 'high' ? 'rgba(255,107,107,0.18)' : problem.priority === 'low' ? 'rgba(103,214,164,0.16)' : 'rgba(255,255,255,0.05)' }}>
+      <Card title={t(locale, 'Sesión de revisión', 'Review session')} subtitle={t(locale, 'Abrí pocos replays, pero con una pregunta concreta. La idea es entender rápido qué mirar y para qué mirarlo.', 'Open only a few replays, but with a concrete question. The goal is to understand quickly what to watch and why.')}>
+        {reviewAgenda.length ? (
+          <div className="coaching-review-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, alignItems: 'stretch' }}>
+            {reviewAgenda.map((item) => (
+              <div key={item.matchId} style={reviewCardStyle}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ color: '#8e9cb0', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{t(locale, `Bloque ${index + 1}`, `Block ${index + 1}`)}</div>
-                    <div style={{ color: '#eef4ff', fontSize: 22, fontWeight: 800, lineHeight: 1.15 }}>{problem.problem}</div>
-                    <div style={{ color: '#9aa5b7', lineHeight: 1.6 }}>{problem.title}</div>
-                  </div>
+                  <ChampionIdentity championName={item.championName} version={dataset.ddragonVersion} subtitle={new Date(item.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')} size={52} />
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Badge tone={infoTone(problem.priority)}>{t(locale, `Prioridad ${problem.priority}`, `${problem.priority} priority`)}</Badge>
-                    <Badge>{problem.category}</Badge>
+                    {item.tags.slice(0, 2).map((tag) => <Badge key={tag}>{tag}</Badge>)}
+                    <Badge tone={item.win ? 'low' : 'high'}>{item.win ? t(locale, 'Victoria', 'Win') : t(locale, 'Derrota', 'Loss')}</Badge>
                   </div>
                 </div>
-                <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-                  <InfoBlock title={t(locale, 'Impacto', 'Impact')} info={t(locale, 'Cómo pega este patrón en tus resultados.', 'How hard this pattern hits your results.')}>{problem.impact}</InfoBlock>
-                  <InfoBlock title={t(locale, 'Causa', 'Cause')} info={t(locale, 'Qué está explicando mejor el patrón actual.', 'What best explains the current pattern.')}>{problem.cause}</InfoBlock>
+                <div style={{ color: '#eef4ff', fontSize: 18, fontWeight: 800, lineHeight: 1.2 }}>{item.title}</div>
+                <div style={{ color: '#9aa5b7', lineHeight: 1.65 }}>{item.reason}</div>
+                <div className="review-metric-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 10 }}>
+                  <ReviewMetric label="KDA" value={formatKda(item.kills, item.deaths, item.assists)} />
+                  <ReviewMetric label="CS" value={formatInteger(item.cs)} />
+                  <ReviewMetric label={t(locale, 'Daño', 'Damage')} value={formatInteger(item.damageToChampions)} />
+                  <ReviewMetric label="KP" value={`${formatDecimal(item.killParticipation)}%`} />
+                  <ReviewMetric label={t(locale, 'Rend.', 'Perf.')} value={formatDecimal(item.performanceScore)} />
                 </div>
-                <SectionEyebrow title={t(locale, 'Se ve en', 'Shows up in')} />
-                {problem.evidence.slice(0, 2).map((item) => <div key={item} style={listStyle}>{item}</div>)}
-                <SectionEyebrow title={t(locale, 'Qué hacer hoy', 'What to do today')} />
-                {problem.actions.slice(0, 2).map((action) => <div key={action} style={actionStyle}>{action}</div>)}
+                <div style={questionStyle}>
+                  <SectionEyebrow title={t(locale, 'Pregunta de review', 'Review question')} />
+                  <div style={{ color: '#eff7f2', lineHeight: 1.65 }}>{item.question}</div>
+                </div>
+                <div style={listStyle}>
+                  <strong style={{ color: '#eef4ff' }}>{t(locale, 'Mirá esto:', 'Look at this:')}</strong> {item.focus}
+                </div>
               </div>
-            )) : <div style={emptyStyle}>{t(locale, 'Todavía no hay prioridades claras para este bloque.', 'There are no clear priorities for this block yet.')}</div>}
+            ))}
           </div>
-        </Card>
-      </section>
+        ) : <div style={emptyStyle}>{t(locale, 'Todavía no hay una sesión de review clara.', 'There is no clear review session yet.')}</div>}
+      </Card>
 
       <Card title={t(locale, 'Referencias challenger del rol', 'Challenger role references')} subtitle={t(locale, 'Usalas para poner en contexto tu bloque: qué métricas ya están cerca, cuáles todavía marcan distancia y qué baseline competitivo vale la pena imitar.', 'Use them to contextualize your block: which metrics are already close, which still show distance and which competitive baseline is worth imitating.')}>
         {roleReferencesError ? <div style={errorStyle}>{roleReferencesError}</div> : null}
@@ -583,6 +626,19 @@ function MetaStat({ label, value, caption }: { label: string; value: string; cap
       <div style={{ color: '#8c98ad', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
       <div style={{ color: '#eef4ff', fontSize: 20, fontWeight: 800, lineHeight: 1.15 }}>{value}</div>
       {caption ? <div style={{ color: '#8e9cb0', fontSize: 13, lineHeight: 1.55 }}>{caption}</div> : null}
+    </div>
+  );
+}
+
+function AnchorMetric({ label, value, detail, trend }: { label: string; value: string; detail: string; trend: TrendSignal }) {
+  return (
+    <div style={anchorMetricStyle}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
+        <div style={{ color: '#8897ab', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</div>
+        <TrendIndicator direction={trend.direction} tone={trend.tone} />
+      </div>
+      <div style={{ color: '#eef4ff', fontSize: 18, fontWeight: 800, lineHeight: 1.12 }}>{value}</div>
+      <div style={{ color: '#8594a8', fontSize: 12, lineHeight: 1.45 }}>{detail}</div>
     </div>
   );
 }
@@ -662,8 +718,8 @@ function ReferencePlayerCard({ reference, dataset, locale }: { reference: RoleRe
 }
 
 const panelStyle = { display: 'grid', gap: 12, padding: '16px 16px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;
-const tileStyle = { display: 'grid', gap: 8, padding: '15px 16px', borderRadius: 16, background: 'linear-gradient(180deg, rgba(11, 15, 24, 0.98), rgba(7, 10, 16, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;
-const metaStyle = { display: 'grid', gap: 8, padding: '14px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' } as const;
+const tileStyle = { display: 'grid', gap: 8, padding: '15px 16px', borderRadius: 16, minHeight: 128, alignContent: 'start', background: 'linear-gradient(180deg, rgba(11, 15, 24, 0.98), rgba(7, 10, 16, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;
+const metaStyle = { display: 'grid', gap: 8, padding: '14px 14px', borderRadius: 16, minHeight: 108, alignContent: 'start', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' } as const;
 const infoStyle = { padding: 15, borderRadius: 16, background: 'linear-gradient(180deg, rgba(11, 15, 24, 0.98), rgba(7, 10, 16, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;
 const stepStyle = { display: 'grid', gridTemplateColumns: '28px minmax(0, 1fr)', gap: 10, alignItems: 'start', padding: '11px 12px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' } as const;
 const stepIndexStyle = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 999, background: 'rgba(216,253,241,0.08)', border: '1px solid rgba(216,253,241,0.12)', color: '#d8fdf1', fontSize: 13, fontWeight: 800 } as const;
@@ -679,4 +735,8 @@ const chipStyle = { display: 'inline-flex', alignItems: 'center', gap: 7, paddin
 const buttonStyle = { border: 0, padding: '12px 14px', borderRadius: 12, background: '#d8fdf1', color: '#05111e', fontWeight: 800, cursor: 'pointer' } as const;
 const feedbackStyle = { border: '1px solid rgba(255,255,255,0.08)', padding: '9px 11px', borderRadius: 10, background: '#0a0f18', color: '#dfe8f6', fontWeight: 700, cursor: 'pointer' } as const;
 const reviewMetricStyle = { display: 'grid', gap: 6, padding: '10px 11px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' } as const;
+const anchorMetricStyle = { display: 'grid', gap: 7, padding: '11px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', alignContent: 'start' } as const;
+const strengthItemStyle = { display: 'grid', gap: 10, padding: '14px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)', alignContent: 'start' } as const;
+const compactListStyle = { padding: '10px 11px', borderRadius: 12, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)', color: '#dfe7f4', lineHeight: 1.55 } as const;
+const reviewCardStyle = { display: 'grid', gap: 12, padding: '16px 16px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))', border: '1px solid rgba(255,255,255,0.05)', alignContent: 'start', height: '100%' } as const;
 const referenceCardStyle = { display: 'grid', gap: 12, padding: '16px 16px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;

@@ -50,6 +50,12 @@ button:disabled:hover {
 .coaching-hero-grid,
 .coaching-signal-grid,
 .coaching-meta-grid,
+.coaching-overview-grid,
+.coaching-review-grid,
+.coaching-strength-grid,
+.review-metric-grid,
+.reference-metric-grid,
+.profile-hero-grid,
 .role-pill-grid,
 .tab-grid {
   align-items: start;
@@ -86,6 +92,12 @@ input:focus, select:focus {
   .coaching-hero-grid,
   .coaching-signal-grid,
   .coaching-meta-grid,
+  .coaching-overview-grid,
+  .coaching-review-grid,
+  .coaching-strength-grid,
+  .review-metric-grid,
+  .reference-metric-grid,
+  .profile-hero-grid,
   .four-col-grid,
   .three-col-grid {
     grid-template-columns: 1fr !important;
