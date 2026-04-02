@@ -149,8 +149,25 @@ export interface AICoachContext {
     avgScore: number;
     avgCsAt15: number;
     avgDeathsPre14: number;
-    classification: string;
-  }>;
+      classification: string;
+    }>;
+  problematicMatchup: {
+    opponentChampionName: string;
+    championName: string;
+    recentGames: number;
+    recentWins: number;
+    recentLosses: number;
+    recentWinRate: number;
+    directGames: number;
+    directWins: number;
+    directWinRate: number | null;
+    avgCsAt15: number;
+    avgGoldDiffAt15: number;
+    avgLevelDiffAt15: number;
+    avgDeathsPre14: number;
+    summary: string;
+    adjustments: string[];
+  } | null;
   matchupAlert: {
     opponentChampionName: string;
     games: number;

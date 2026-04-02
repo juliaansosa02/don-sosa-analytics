@@ -6,8 +6,8 @@ export function Shell({ sidebar, children }) {
 export function Card({ title, subtitle, children }) {
     return (_jsxs("section", { style: { background: 'linear-gradient(180deg, rgba(8,12,20,0.98), rgba(5,8,14,0.98))', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 20, padding: 20, boxShadow: '0 18px 50px rgba(0,0,0,0.18)' }, children: [_jsxs("div", { style: { marginBottom: 18, display: 'grid', gap: 8 }, children: [_jsx("h3", { style: { margin: 0, fontSize: 18, letterSpacing: '-0.02em' }, children: title }), subtitle ? _jsx("p", { style: { margin: 0, color: '#7f8898', lineHeight: 1.6 }, children: subtitle }) : null] }), children] }));
 }
-export function KPI({ label, value, hint, info }) {
-    return (_jsxs("div", { style: { padding: 15, borderRadius: 16, background: '#070b12', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gap: 6 }, children: [_jsxs("div", { style: { color: '#7f8898', fontSize: 12, display: 'flex', alignItems: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }, children: [label, info ? _jsx(InfoHint, { text: info }) : null] }), _jsx("div", { style: { fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em' }, children: value }), hint ? _jsx("div", { style: { color: '#7f8898', fontSize: 12, lineHeight: 1.5 }, children: hint }) : null] }));
+export function KPI({ label, value, hint, info, trend }) {
+    return (_jsxs("div", { style: { padding: 15, borderRadius: 16, background: '#070b12', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gap: 6 }, children: [_jsxs("div", { style: { color: '#7f8898', fontSize: 12, display: 'flex', alignItems: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }, children: [label, info ? _jsx(InfoHint, { text: info }) : null] }), _jsx("div", { style: { fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em' }, children: value }), hint || trend ? (_jsxs("div", { style: { color: '#7f8898', fontSize: 12, lineHeight: 1.5, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }, children: [hint ? _jsx("span", { children: hint }) : null, trend ? _jsx(TrendIndicator, { direction: trend.direction, tone: trend.tone, label: trend.label }) : null] })) : null] }));
 }
 export function Badge({ children, tone = 'default' }) {
     const tones = {
@@ -37,6 +37,37 @@ export function ChampionIdentity({ championName, version, subtitle, meta, size =
 }
 export function InfoHint({ text }) {
     return (_jsxs("span", { className: "info-hint", style: hintWrapperStyle, title: text, children: [_jsx("span", { style: hintIconStyle, children: "?" }), _jsx("span", { className: "info-hint-tooltip", style: hintTooltipStyle, children: text })] }));
+}
+export function TrendIndicator({ direction, tone, label }) {
+    const color = tone === 'positive'
+        ? '#7ef5c7'
+        : tone === 'negative'
+            ? '#ff8f8f'
+            : '#8ea0bb';
+    const markerStyle = direction === 'steady'
+        ? {
+            width: 8,
+            height: 8,
+            borderRadius: 2,
+            background: color,
+            transform: 'rotate(45deg)'
+        }
+        : direction === 'up'
+            ? {
+                width: 0,
+                height: 0,
+                borderLeft: '5px solid transparent',
+                borderRight: '5px solid transparent',
+                borderBottom: `8px solid ${color}`
+            }
+            : {
+                width: 0,
+                height: 0,
+                borderLeft: '5px solid transparent',
+                borderRight: '5px solid transparent',
+                borderTop: `8px solid ${color}`
+            };
+    return (_jsxs("span", { style: { display: 'inline-flex', alignItems: 'center', gap: 6, color, fontWeight: 700 }, children: [_jsx("span", { "aria-hidden": "true", style: markerStyle }), label ? _jsx("span", { children: label }) : null] }));
 }
 const hintWrapperStyle = {
     position: 'relative',

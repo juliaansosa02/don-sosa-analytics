@@ -1,5 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { Card, Badge, InfoHint, ChampionIdentity } from '../../components/ui';
+import { Card, Badge, InfoHint, ChampionIdentity, TrendIndicator } from '../../components/ui';
 import { formatDecimal, formatSignedNumber } from '../../lib/format';
 import { buildCs15ProgressionBenchmark, buildLevel15ProgressionBenchmark } from '../../lib/benchmarks';
 import { formatChampionName, getQueueBucket, getRoleLabel } from '../../lib/lol';
@@ -174,7 +174,7 @@ function InsightRow({ label, value, note, tone }) {
         : tone === 'negative'
             ? 'rgba(255,107,107,0.16)'
             : 'rgba(255,255,255,0.06)';
-    return (_jsxs("div", { style: { ...insightRowStyle, borderColor }, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#edf2ff', fontWeight: 700 }, children: label }), _jsx("div", { style: { color: '#8592a8', fontSize: 12 }, children: note })] }), _jsx("div", { style: { fontSize: 22, fontWeight: 800 }, children: value })] }));
+    return (_jsxs("div", { style: { ...insightRowStyle, borderColor }, children: [_jsxs("div", { style: { display: 'grid', gap: 3 }, children: [_jsx("div", { style: { color: '#edf2ff', fontWeight: 700 }, children: label }), _jsx("div", { style: { color: '#8592a8', fontSize: 12 }, children: note })] }), _jsxs("div", { style: { display: 'grid', justifyItems: 'end', gap: 6 }, children: [_jsx("div", { style: { fontSize: 22, fontWeight: 800 }, children: value }), _jsx(TrendIndicator, { direction: tone === 'neutral' ? 'steady' : tone === 'positive' ? 'up' : 'down', tone: tone })] })] }));
 }
 function ContextChip({ label, value }) {
     return (_jsxs("div", { style: contextChipStyle, children: [_jsx("div", { style: { color: '#7f8ca1', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: label }), _jsx("div", { style: { color: '#edf2ff', fontSize: 15, fontWeight: 800 }, children: value })] }));

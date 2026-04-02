@@ -75,12 +75,15 @@ function scorePatchRelevance(card: KnowledgeCard) {
 function scoreCard(card: KnowledgeCard, context: AICoachContext) {
   let score = 0;
   const anchorChampion = context.player.anchorChampion?.toLowerCase();
-  const matchupChampion = context.matchupAlert?.opponentChampionName?.toLowerCase();
-  const role = context.player.roleFilter;
+  const matchupChampion = context.problematicMatchup?.opponentChampionName?.toLowerCase()
+    ?? context.matchupAlert?.opponentChampionName?.toLowerCase();
+  const scopedRoles = context.player.coachRoles.length
+    ? context.player.coachRoles
+    : [context.player.primaryRole ?? context.player.roleFilter];
   const preferredPhase = inferPreferredPhase(context);
   const topProblemText = context.coaching.topProblems.map((problem) => `${problem.problem} ${problem.title} ${problem.cause}`).join(' ').toLowerCase();
 
-  if (card.role === role) score += 40;
+  if (scopedRoles.includes(card.role)) score += 40;
   else if (card.role === 'ALL') score += 12;
 
   if (card.phase === preferredPhase) score += 16;

@@ -1,6 +1,9 @@
 import type { CSSProperties, PropsWithChildren, ReactNode } from 'react';
 import { formatChampionName, getChampionIconUrl } from '../lib/lol';
 
+export type TrendDirection = 'up' | 'down' | 'steady';
+export type TrendTone = 'positive' | 'negative' | 'neutral';
+
 export function Shell({ sidebar, children }: PropsWithChildren<{ sidebar?: ReactNode }>) {
   return (
     <div className="app-shell" style={{ display: 'grid', gridTemplateColumns: sidebar ? 'minmax(280px, 320px) minmax(0, 1fr)' : '1fr', minHeight: '100vh', background: 'radial-gradient(circle at top left, rgba(56, 44, 116, 0.16), transparent 28%), #04070c' }}>
@@ -22,7 +25,23 @@ export function Card({ title, subtitle, children }: PropsWithChildren<{ title: s
   );
 }
 
-export function KPI({ label, value, hint, info }: { label: string; value: string; hint?: string; info?: string }) {
+export function KPI({
+  label,
+  value,
+  hint,
+  info,
+  trend
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  info?: string;
+  trend?: {
+    direction: TrendDirection;
+    tone: TrendTone;
+    label?: string;
+  };
+}) {
   return (
     <div style={{ padding: 15, borderRadius: 16, background: '#070b12', border: '1px solid rgba(255,255,255,0.06)', display: 'grid', gap: 6 }}>
       <div style={{ color: '#7f8898', fontSize: 12, display: 'flex', alignItems: 'center', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
@@ -30,7 +49,12 @@ export function KPI({ label, value, hint, info }: { label: string; value: string
         {info ? <InfoHint text={info} /> : null}
       </div>
       <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.04em' }}>{value}</div>
-      {hint ? <div style={{ color: '#7f8898', fontSize: 12, lineHeight: 1.5 }}>{hint}</div> : null}
+      {hint || trend ? (
+        <div style={{ color: '#7f8898', fontSize: 12, lineHeight: 1.5, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {hint ? <span>{hint}</span> : null}
+          {trend ? <TrendIndicator direction={trend.direction} tone={trend.tone} label={trend.label} /> : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -127,6 +151,53 @@ export function InfoHint({ text }: { text: string }) {
     <span className="info-hint" style={hintWrapperStyle} title={text}>
       <span style={hintIconStyle}>?</span>
       <span className="info-hint-tooltip" style={hintTooltipStyle}>{text}</span>
+    </span>
+  );
+}
+
+export function TrendIndicator({
+  direction,
+  tone,
+  label
+}: {
+  direction: TrendDirection;
+  tone: TrendTone;
+  label?: string;
+}) {
+  const color = tone === 'positive'
+    ? '#7ef5c7'
+    : tone === 'negative'
+      ? '#ff8f8f'
+      : '#8ea0bb';
+
+  const markerStyle = direction === 'steady'
+    ? {
+        width: 8,
+        height: 8,
+        borderRadius: 2,
+        background: color,
+        transform: 'rotate(45deg)'
+      }
+    : direction === 'up'
+      ? {
+          width: 0,
+          height: 0,
+          borderLeft: '5px solid transparent',
+          borderRight: '5px solid transparent',
+          borderBottom: `8px solid ${color}`
+        }
+      : {
+          width: 0,
+          height: 0,
+          borderLeft: '5px solid transparent',
+          borderRight: '5px solid transparent',
+          borderTop: `8px solid ${color}`
+        };
+
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color, fontWeight: 700 }}>
+      <span aria-hidden="true" style={markerStyle} />
+      {label ? <span>{label}</span> : null}
     </span>
   );
 }

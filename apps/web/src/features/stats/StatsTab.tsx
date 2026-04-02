@@ -1,4 +1,4 @@
-import { Card, Badge, InfoHint, ChampionIdentity } from '../../components/ui';
+import { Card, Badge, InfoHint, ChampionIdentity, TrendIndicator } from '../../components/ui';
 import type { BenchmarkAggregateRecord, Dataset } from '../../types';
 import { formatDecimal, formatSignedNumber } from '../../lib/format';
 import { buildCs15ProgressionBenchmark, buildLevel15ProgressionBenchmark, type TierProgressionBenchmark } from '../../lib/benchmarks';
@@ -283,7 +283,13 @@ function InsightRow({ label, value, note, tone }: { label: string; value: string
         <div style={{ color: '#edf2ff', fontWeight: 700 }}>{label}</div>
         <div style={{ color: '#8592a8', fontSize: 12 }}>{note}</div>
       </div>
-      <div style={{ fontSize: 22, fontWeight: 800 }}>{value}</div>
+      <div style={{ display: 'grid', justifyItems: 'end', gap: 6 }}>
+        <div style={{ fontSize: 22, fontWeight: 800 }}>{value}</div>
+        <TrendIndicator
+          direction={tone === 'neutral' ? 'steady' : tone === 'positive' ? 'up' : 'down'}
+          tone={tone}
+        />
+      </div>
     </div>
   );
 }

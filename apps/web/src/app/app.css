@@ -47,6 +47,9 @@ button:disabled:hover {
 .five-col-grid,
 .six-col-grid,
 .seven-col-grid,
+.coaching-hero-grid,
+.coaching-signal-grid,
+.coaching-meta-grid,
 .role-pill-grid,
 .tab-grid {
   align-items: start;
@@ -80,6 +83,9 @@ input:focus, select:focus {
   .five-col-grid,
   .six-col-grid,
   .seven-col-grid,
+  .coaching-hero-grid,
+  .coaching-signal-grid,
+  .coaching-meta-grid,
   .four-col-grid,
   .three-col-grid {
     grid-template-columns: 1fr !important;

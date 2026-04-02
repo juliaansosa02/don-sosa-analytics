@@ -723,12 +723,18 @@ function AppShell() {
 
   const coachScopeKey = useMemo(() => serializeCoachRoles(coachRoles), [coachRoles]);
   const coachScopeLabel = useMemo(() => formatCoachScopeLabel(coachRoles, locale), [coachRoles, locale]);
-  const coachScopeSummary = useMemo(() => {
+  const coachDataset = useMemo(() => {
     if (!dataset) return null;
+    if (!coachRoles.length) return dataset;
+
     const scopedMatches = filterMatchesByRoles(dataset, coachRoles);
-    if (!scopedMatches.length) return dataset.summary;
-    return buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, scopedMatches, locale);
+    return {
+      ...dataset,
+      matches: scopedMatches,
+      summary: buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, scopedMatches, locale)
+    };
   }, [dataset, coachRoles, locale]);
+  const coachHasSample = (coachDataset?.summary.matches ?? 0) > 0;
   useEffect(() => {
     if (!planEntitlements) return;
     if (matchCount > planEntitlements.maxStoredMatchesPerProfile) {
@@ -752,8 +758,6 @@ function AppShell() {
     if (buckets.has('OTHER')) options.push('OTHER');
     return options;
   }, [dataset]);
-
-  const coachDataset = dataset;
 
   const viewDataset = useMemo(() => {
     if (!dataset) return null;
@@ -783,7 +787,7 @@ function AppShell() {
   }, [dataset, roleFilter, queueFilter, windowFilter, locale]);
 
   const coachRequestKey = useMemo(() => {
-    if (!coachDataset || !gameName || !tagLine || !coachScopeKey || !platform) return null;
+    if (!coachDataset || !coachHasSample || !gameName || !tagLine || !coachScopeKey || !platform) return null;
     return [
       gameName.trim().toLowerCase(),
       tagLine.trim().toLowerCase(),
@@ -793,7 +797,7 @@ function AppShell() {
       coachDataset.summary.matches,
       coachDataset.matches[0]?.matchId ?? 'no-latest-match'
     ].join('|');
-  }, [coachDataset, gameName, tagLine, platform, locale, coachScopeKey]);
+  }, [coachDataset, coachHasSample, gameName, tagLine, platform, locale, coachScopeKey]);
 
   const coachScopeDirty = useMemo(() => {
     if (!coachScopeKey) return false;
@@ -813,7 +817,7 @@ function AppShell() {
           generatingAICoach={aiCoachLoading}
           aiCoachError={aiCoachError}
           onGenerateAICoach={() => void handleGenerateAICoach(true)}
-          onSendFeedback={(verdict) => void handleAICoachFeedback(verdict)}
+          onSendFeedback={(verdict: 'useful' | 'mixed' | 'generic' | 'incorrect') => void handleAICoachFeedback(verdict)}
         />
       );
     }
@@ -848,6 +852,10 @@ function AppShell() {
   const needsSampleBackfill = useMemo(() => {
     if (!dataset) return false;
     return dataset.matches.length < matchCount;
+  }, [dataset, matchCount]);
+  const missingMatchesToTarget = useMemo(() => {
+    if (!dataset) return 0;
+    return Math.max(0, matchCount - dataset.matches.length);
   }, [dataset, matchCount]);
 
   const targetCountOptions = useMemo(
@@ -1052,11 +1060,18 @@ function AppShell() {
   }
 
   async function handleGenerateAICoach(force = false) {
-    if (!gameName || !tagLine || !platform || !coachRequestKey) return;
+    if (!gameName || !tagLine || !platform) return;
     if (!coachRoles.length) {
       setAICoachError(locale === 'en' ? 'Choose at least one role for coaching before generating the analysis.' : 'Elegí al menos un rol para coaching antes de generar el análisis.');
       return;
     }
+    if (!coachHasSample) {
+      setAICoachError(locale === 'en'
+        ? 'The current coaching scope has no valid matches yet. Pick a role with sample or refresh the account first.'
+        : 'El scope actual de coaching todavía no tiene partidas válidas. Elegí un rol con muestra o refrescá la cuenta primero.');
+      return;
+    }
+    if (!coachRequestKey) return;
     if (!force && lastAICoachRequestKey === coachRequestKey) return;
 
     setLastAICoachRequestKey(coachRequestKey);
@@ -1398,21 +1413,21 @@ function AppShell() {
                     {dataset.rank ? <RankBadge rank={dataset.rank} compact locale={locale} /> : null}
                     <div style={heroMetaChipStyle}>
                       <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Scope sample' : 'Muestra del scope'}</div>
-                      <div style={heroMetaValueStyle}>{coachScopeSummary?.matches ?? dataset.summary.matches}</div>
+                      <div style={heroMetaValueStyle}>{coachDataset?.summary.matches ?? dataset.summary.matches}</div>
                       <div style={heroMetaSubtleStyle}>{coachRoles.length ? coachScopeLabel : (locale === 'en' ? 'all saved roles' : 'todos los roles guardados')}</div>
                     </div>
                     <div style={heroMetaChipStyle}>
                       <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Win rate' : 'WR'}</div>
-                      <div style={heroMetaValueStyle}>{coachScopeSummary?.winRate ?? dataset.summary.winRate}%</div>
-                      <div style={heroMetaSubtleStyle}>{`${coachScopeSummary?.wins ?? dataset.summary.wins}-${coachScopeSummary?.losses ?? dataset.summary.losses}`}</div>
+                      <div style={heroMetaValueStyle}>{coachDataset?.summary.winRate ?? dataset.summary.winRate}%</div>
+                      <div style={heroMetaSubtleStyle}>{`${coachDataset?.summary.wins ?? dataset.summary.wins}-${coachDataset?.summary.losses ?? dataset.summary.losses}`}</div>
                     </div>
                     <div style={heroMetaChipStyle}>
                       <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Performance' : 'Rendimiento'}</div>
-                      <div style={heroMetaValueStyle}>{coachScopeSummary?.avgPerformanceScore ?? dataset.summary.avgPerformanceScore}</div>
+                      <div style={heroMetaValueStyle}>{coachDataset?.summary.avgPerformanceScore ?? dataset.summary.avgPerformanceScore}</div>
                       <div style={heroMetaSubtleStyle}>
                         {locale === 'en'
-                          ? `CS@15 ${coachScopeSummary?.avgCsAt15 ?? dataset.summary.avgCsAt15}`
-                          : `CS@15 ${coachScopeSummary?.avgCsAt15 ?? dataset.summary.avgCsAt15}`}
+                          ? `CS@15 ${coachDataset?.summary.avgCsAt15 ?? dataset.summary.avgCsAt15}`
+                          : `CS@15 ${coachDataset?.summary.avgCsAt15 ?? dataset.summary.avgCsAt15}`}
                       </div>
                     </div>
                   </div>
@@ -1665,7 +1680,9 @@ function AppShell() {
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       <Badge tone="default">{coachScopeLabel}</Badge>
                       {dataset?.remakesExcluded ? <Badge tone="medium">{locale === 'en' ? `${dataset.remakesExcluded} remakes excluded` : `${dataset.remakesExcluded} remakes excluidos`}</Badge> : null}
-                      {needsSampleBackfill ? <Badge tone="medium">{locale === 'en' ? 'Needs backfill' : 'Le falta backfill'}</Badge> : <Badge tone="low">{locale === 'en' ? 'Only new matches' : 'Solo nuevas partidas'}</Badge>}
+                      {needsSampleBackfill
+                        ? <Badge tone="medium">{locale === 'en' ? `${missingMatchesToTarget} matches left to complete the block` : `Faltan ${missingMatchesToTarget} partidas para completar el bloque`}</Badge>
+                        : <Badge tone="low">{locale === 'en' ? 'Block already complete' : 'Bloque ya completo'}</Badge>}
                       {currentPlatformInfo ? <Badge tone="default">{currentPlatformInfo.platform}</Badge> : null}
                       {planEntitlements ? <Badge tone="default">{`${dataset.matches.length}/${planEntitlements.maxStoredMatchesPerProfile}`}</Badge> : null}
                     </div>
@@ -1676,7 +1693,7 @@ function AppShell() {
                     {loading
                       ? (locale === 'en' ? 'Analyzing...' : 'Analizando...')
                       : needsSampleBackfill
-                        ? (locale === 'en' ? `Backfill to ${matchCount} matches` : `Completar a ${matchCount} partidas`)
+                        ? (locale === 'en' ? `Complete to ${matchCount} matches` : `Completar hasta ${matchCount} partidas`)
                         : (locale === 'en' ? 'Check for new matches' : 'Buscar nuevas partidas')}
                   </button>
                   <button type="button" style={secondaryButtonStyle} onClick={() => setShowAccountControls(true)}>{locale === 'en' ? 'Switch account' : 'Cambiar cuenta'}</button>
@@ -1858,9 +1875,9 @@ function AppShell() {
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {activeTab === 'coach' ? (
                   <>
-                    <Badge>{locale === 'en' ? `${dataset?.summary.matches ?? 0} matches in the saved coaching block` : `${dataset?.summary.matches ?? 0} partidas en el bloque guardado de coaching`}</Badge>
+                    <Badge>{locale === 'en' ? `${coachDataset?.summary.matches ?? 0} matches in coaching scope` : `${coachDataset?.summary.matches ?? 0} partidas en el scope de coaching`}</Badge>
                     <Badge>{coachScopeLabel}</Badge>
-                    <Badge tone="low">{locale === 'en' ? 'Filters do not spend AI here' : 'Acá los filtros no gastan IA'}</Badge>
+                    <Badge tone="low">{locale === 'en' ? 'AI uses only this saved role scope' : 'La IA usa solo este scope guardado de roles'}</Badge>
                   </>
                 ) : (
                   <>

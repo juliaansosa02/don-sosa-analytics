@@ -1,10 +1,14 @@
-import { Card, Badge, InfoHint } from '../../components/ui';
+import { Card, Badge, InfoHint, TrendIndicator } from '../../components/ui';
 import type { Dataset } from '../../types';
 import { useMemo, useState } from 'react';
 import { formatChampionName, getChampionIconUrl, getRoleLabel } from '../../lib/lol';
 import { formatDecimal, formatInteger, formatPercent, formatSignedNumber } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
 import { translateRole } from '../../lib/i18n';
+
+function average(values: number[]) {
+  return values.length ? values.reduce((total, value) => total + value, 0) / values.length : 0;
+}
 
 function matchupDiffLabel(value: number, unit: string, locale: Locale) {
   if (value > 0) return locale === 'en' ? `${formatSignedNumber(value, unit === 'lvl' ? 1 : 0)} ahead` : `${formatSignedNumber(value, unit === 'lvl' ? 1 : 0)} a favor`;
@@ -78,13 +82,24 @@ export function MatchupsTab({ dataset, locale = 'es' }: { dataset: Dataset; loca
       matches: dataset.matches.filter((match) => match.championName === championFilter)
     };
   }, [championFilter, dataset]);
+  const filteredBaseline = useMemo(() => {
+    const matches = filteredDataset.matches;
+    if (!matches.length) {
+      return {
+        winRate: dataset.summary.winRate,
+        avgDeathsPre14: dataset.summary.avgDeathsPre14
+      };
+    }
+
+    return {
+      winRate: Number((((matches.filter((match) => match.win).length / Math.max(matches.length, 1)) * 100)).toFixed(1)),
+      avgDeathsPre14: Number(average(matches.map((match) => match.timeline.deathsPre14)).toFixed(1))
+    };
+  }, [filteredDataset.matches, dataset.summary.winRate, dataset.summary.avgDeathsPre14]);
 
   const matchups = useMemo(() => {
     const entries = aggregateMatchups(filteredDataset);
-    return entries.sort((a, b) => {
-      const direction = sortKey === 'games' || sortKey === 'winRate' || sortKey === 'performance' || sortKey === 'avgGoldDiffAt15' || sortKey === 'avgLevelDiffAt15' ? -1 : -1;
-      return ((a[sortKey] as number) - (b[sortKey] as number)) * direction;
-    });
+    return entries.sort((a, b) => (b[sortKey] as number) - (a[sortKey] as number));
   }, [filteredDataset, sortKey]);
 
   return (
@@ -113,7 +128,7 @@ export function MatchupsTab({ dataset, locale = 'es' }: { dataset: Dataset; loca
             </select>
           </div>
         </div>
-        {matchups.map((matchup) => {
+        {matchups.length ? matchups.map((matchup) => {
           const iconUrl = getChampionIconUrl(matchup.opponent, dataset.ddragonVersion);
 
           return (
@@ -134,22 +149,41 @@ export function MatchupsTab({ dataset, locale = 'es' }: { dataset: Dataset; loca
 
               <div className="seven-col-grid" style={metricGridStyle}>
                 <MetricBlock label={locale === 'en' ? 'Games' : 'Partidas'} value={formatInteger(matchup.games)} info={locale === 'en' ? 'How many times you faced this champion inside the current sample.' : 'Cantidad de veces que enfrentaste a este campeón en la muestra actual.'} />
-                <MetricBlock label="Win rate" value={formatPercent(matchup.winRate)} info={locale === 'en' ? 'Your win rate against this opponent.' : 'Tu porcentaje de victorias contra este rival.'} />
+                <MetricBlock label="Win rate" value={formatPercent(matchup.winRate)} info={locale === 'en' ? 'Your win rate against this opponent.' : 'Tu porcentaje de victorias contra este rival.'} trend={{ direction: matchup.winRate > filteredBaseline.winRate ? 'up' : matchup.winRate < filteredBaseline.winRate ? 'down' : 'steady', tone: matchup.winRate > filteredBaseline.winRate ? 'positive' : matchup.winRate < filteredBaseline.winRate ? 'negative' : 'neutral' }} />
                 <MetricBlock label="Performance" value={formatDecimal(matchup.performance)} info={locale === 'en' ? 'Average internal execution score against this matchup.' : 'Promedio del índice interno de ejecución contra este matchup.'} />
                 <MetricBlock label={locale === 'en' ? 'CS at 15' : 'CS a los 15'} value={formatDecimal(matchup.avgCsAt15)} info={locale === 'en' ? 'Your average economy at minute 15 against this opponent.' : 'Tu economía media a los 15 contra este rival.'} />
-                <MetricBlock label={locale === 'en' ? 'Gold vs opponent' : 'Oro vs rival'} value={matchupDiffLabel(matchup.avgGoldDiffAt15, 'gold', locale)} info={locale === 'en' ? "If the value ends in 'ahead', you reach minute 15 with an average gold lead. If it ends in 'behind', you are behind your direct lane or role opponent." : "Si el valor termina 'a favor', llegás con ventaja media de oro al 15. Si termina 'en contra', llegás por detrás frente al rival directo."} />
-                <MetricBlock label={locale === 'en' ? 'Level vs opponent' : 'Nivel vs rival'} value={matchupDiffLabel(matchup.avgLevelDiffAt15, 'lvl', locale)} info={locale === 'en' ? "If the value ends in 'ahead', your average level at 15 is above the opponent. If it ends in 'behind', you are trailing in experience." : "Si el valor termina 'a favor', tu nivel medio al 15 está por encima del rival. Si termina 'en contra', llegás con desventaja de experiencia."} />
-                <MetricBlock label={locale === 'en' ? 'Deaths pre 14' : 'Muertes pre 14'} value={formatDecimal(matchup.avgDeathsPre14)} info={locale === 'en' ? 'How often these matchups punish you early, on average.' : 'Cuántas veces te castigan temprano, en promedio, estos cruces.'} />
+                <MetricBlock label={locale === 'en' ? 'Gold vs opponent' : 'Oro vs rival'} value={matchupDiffLabel(matchup.avgGoldDiffAt15, 'gold', locale)} info={locale === 'en' ? "If the value ends in 'ahead', you reach minute 15 with an average gold lead. If it ends in 'behind', you are behind your direct lane or role opponent." : "Si el valor termina 'a favor', llegás con ventaja media de oro al 15. Si termina 'en contra', llegás por detrás frente al rival directo."} trend={{ direction: matchup.avgGoldDiffAt15 > 0 ? 'up' : matchup.avgGoldDiffAt15 < 0 ? 'down' : 'steady', tone: matchup.avgGoldDiffAt15 > 0 ? 'positive' : matchup.avgGoldDiffAt15 < 0 ? 'negative' : 'neutral' }} />
+                <MetricBlock label={locale === 'en' ? 'Level vs opponent' : 'Nivel vs rival'} value={matchupDiffLabel(matchup.avgLevelDiffAt15, 'lvl', locale)} info={locale === 'en' ? "If the value ends in 'ahead', your average level at 15 is above the opponent. If it ends in 'behind', you are trailing in experience." : "Si el valor termina 'a favor', tu nivel medio al 15 está por encima del rival. Si termina 'en contra', llegás con desventaja de experiencia."} trend={{ direction: matchup.avgLevelDiffAt15 > 0 ? 'up' : matchup.avgLevelDiffAt15 < 0 ? 'down' : 'steady', tone: matchup.avgLevelDiffAt15 > 0 ? 'positive' : matchup.avgLevelDiffAt15 < 0 ? 'negative' : 'neutral' }} />
+                <MetricBlock label={locale === 'en' ? 'Deaths pre 14' : 'Muertes pre 14'} value={formatDecimal(matchup.avgDeathsPre14)} info={locale === 'en' ? 'How often these matchups punish you early, on average.' : 'Cuántas veces te castigan temprano, en promedio, estos cruces.'} trend={{ direction: matchup.avgDeathsPre14 < filteredBaseline.avgDeathsPre14 ? 'down' : matchup.avgDeathsPre14 > filteredBaseline.avgDeathsPre14 ? 'up' : 'steady', tone: matchup.avgDeathsPre14 < filteredBaseline.avgDeathsPre14 ? 'positive' : matchup.avgDeathsPre14 > filteredBaseline.avgDeathsPre14 ? 'negative' : 'neutral' }} />
               </div>
             </div>
           );
-        })}
+        }) : (
+          <div style={emptyStateStyle}>
+            {locale === 'en'
+              ? 'There are no direct-opponent samples inside this filter yet.'
+              : 'Todavía no hay muestra de rivales directos dentro de este filtro.'}
+          </div>
+        )}
       </div>
     </Card>
   );
 }
 
-function MetricBlock({ label, value, info }: { label: string; value: string; info: string }) {
+function MetricBlock({
+  label,
+  value,
+  info,
+  trend
+}: {
+  label: string;
+  value: string;
+  info: string;
+  trend?: {
+    direction: 'up' | 'down' | 'steady';
+    tone: 'positive' | 'negative' | 'neutral';
+  };
+}) {
   return (
     <div style={metricBlockStyle}>
       <div style={{ ...metricLabelStyle, display: 'flex', alignItems: 'center' }}>
@@ -157,6 +191,7 @@ function MetricBlock({ label, value, info }: { label: string; value: string; inf
         <InfoHint text={info} />
       </div>
       <div style={metricValueStyle}>{value}</div>
+      {trend ? <TrendIndicator direction={trend.direction} tone={trend.tone} /> : null}
     </div>
   );
 }
@@ -207,4 +242,13 @@ const filterSelectStyle = {
   border: '1px solid rgba(255,255,255,0.08)',
   background: '#070b12',
   color: '#edf2ff'
+} as const;
+
+const emptyStateStyle = {
+  padding: '16px 18px',
+  borderRadius: 14,
+  background: '#090e16',
+  border: '1px solid rgba(255,255,255,0.05)',
+  color: '#c7d4ea',
+  lineHeight: 1.65
 } as const;

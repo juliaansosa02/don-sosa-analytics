@@ -130,6 +130,30 @@ export interface PerformanceTrend {
   baselineWinRate: number;
   recentWinRate: number;
   winRateDelta: number;
+  baselineCsAt15: number;
+  recentCsAt15: number;
+  csAt15Delta: number;
+  baselineDeathsPre14: number;
+  recentDeathsPre14: number;
+  deathsPre14Delta: number;
+}
+
+export interface ProblematicMatchupSummary {
+  opponentChampionName: string;
+  championName: string;
+  recentGames: number;
+  recentWins: number;
+  recentLosses: number;
+  recentWinRate: number;
+  directGames: number;
+  directWins: number;
+  directWinRate: number | null;
+  avgCsAt15: number;
+  avgGoldDiffAt15: number;
+  avgLevelDiffAt15: number;
+  avgDeathsPre14: number;
+  summary: string;
+  adjustments: string[];
 }
 
 export interface CoachingSummary {
@@ -166,6 +190,7 @@ export interface AggregateSummary {
   championPool: ChampionAggregate[];
   insights: CoachInsight[];
   coaching: CoachingSummary;
+  problematicMatchup: ProblematicMatchupSummary | null;
 }
 
 export {
@@ -562,6 +587,137 @@ function getChampionPoolShare(games: number, total: number) {
   return games / Math.max(total, 1);
 }
 
+function pickMostPlayedRecentChampion(matches: ParticipantSnapshot[]) {
+  const recentWindow = [...matches]
+    .sort((a, b) => b.gameCreation - a.gameCreation)
+    .slice(0, Math.min(12, matches.length));
+
+  const grouped = new Map<string, { games: number; latestGameCreation: number }>();
+  for (const match of recentWindow) {
+    const current = grouped.get(match.championName) ?? { games: 0, latestGameCreation: 0 };
+    current.games += 1;
+    current.latestGameCreation = Math.max(current.latestGameCreation, match.gameCreation);
+    grouped.set(match.championName, current);
+  }
+
+  return Array.from(grouped.entries())
+    .sort((a, b) => b[1].games - a[1].games || b[1].latestGameCreation - a[1].latestGameCreation)[0]?.[0] ?? null;
+}
+
+function buildProblematicMatchupSummary(matches: ParticipantSnapshot[], locale: SummaryLocale = 'es'): ProblematicMatchupSummary | null {
+  if (!matches.length) return null;
+
+  const primaryRole = findPrimaryRole(matches);
+  const roleProfile = getRoleProfile(primaryRole, locale);
+  const recentWindow = [...matches]
+    .sort((a, b) => b.gameCreation - a.gameCreation)
+    .slice(0, Math.min(12, matches.length));
+  const championName = pickMostPlayedRecentChampion(matches);
+
+  if (!championName) return null;
+
+  const grouped = new Map<string, ParticipantSnapshot[]>();
+  for (const match of recentWindow) {
+    if (!match.opponentChampionName) continue;
+    const list = grouped.get(match.opponentChampionName) ?? [];
+    list.push(match);
+    grouped.set(match.opponentChampionName, list);
+  }
+
+  const worstOpponent = Array.from(grouped.entries())
+    .map(([opponentChampionName, list]) => ({
+      opponentChampionName,
+      list,
+      recentLosses: list.filter((match) => !match.win).length,
+      recentWins: list.filter((match) => match.win).length,
+      recentWinRate: round(percent(list.filter((match) => match.win).length, list.length), 1),
+      avgGoldDiffAt15: avg(list.map((match) => match.timeline.goldDiffAt15 ?? 0))
+    }))
+    .sort((a, b) => b.recentLosses - a.recentLosses || a.recentWinRate - b.recentWinRate || b.list.length - a.list.length || a.avgGoldDiffAt15 - b.avgGoldDiffAt15)[0];
+
+  if (!worstOpponent) return null;
+
+  const directMatches = matches.filter((match) =>
+    match.championName === championName &&
+    match.opponentChampionName === worstOpponent.opponentChampionName
+  );
+  const guidanceSample = directMatches.length ? directMatches : worstOpponent.list;
+  const directWins = directMatches.filter((match) => match.win).length;
+  const directWinRate = directMatches.length ? round(percent(directWins, directMatches.length), 1) : null;
+  const avgCsAt15 = round(avg(guidanceSample.map((match) => match.timeline.csAt15)), 1);
+  const avgGoldDiffAt15 = round(avg(guidanceSample.map((match) => match.timeline.goldDiffAt15 ?? 0)), 0);
+  const avgLevelDiffAt15 = round(avg(guidanceSample.map((match) => match.timeline.levelDiffAt15 ?? 0)), 1);
+  const avgDeathsPre14 = round(avg(guidanceSample.map((match) => match.timeline.deathsPre14)), 1);
+
+  let summary: string;
+  if (locale === 'en') {
+    summary = `${worstOpponent.opponentChampionName} is the opponent pick hurting you the most in the recent scope: ${recordLabel(worstOpponent.recentWins, worstOpponent.list.length, locale)}. ${championName} is your most played recent champion in the same scope${directMatches.length ? ` and the direct sample into this matchup sits at ${recordLabel(directWins, directMatches.length, locale)}.` : ', even though you still have little direct sample into this exact cross.'}`;
+  } else {
+    summary = `${worstOpponent.opponentChampionName} es el pick rival que más te está castigando en el scope reciente: ${recordLabel(worstOpponent.recentWins, worstOpponent.list.length, locale)}. ${championName} es tu campeón más jugado reciente en el mismo scope${directMatches.length ? ` y la muestra directa en este cruce hoy queda en ${recordLabel(directWins, directMatches.length, locale)}.` : ', aunque todavía tenés poca muestra directa en este cruce exacto.'}`;
+  }
+
+  let adjustments: string[];
+  if (avgDeathsPre14 > roleProfile.stableDeathsPre14 + 0.5) {
+    adjustments = [
+      locale === 'en'
+        ? `With ${championName} into ${worstOpponent.opponentChampionName}, your first rule is to protect the early game: do not force the first contested window unless your setup is clearly winning.`
+        : `Con ${championName} contra ${worstOpponent.opponentChampionName}, la primera regla es proteger el early: no fuerces la primera ventana peleada si tu setup no está claramente ganado.`,
+      roleProfile.disciplineActions[0],
+      locale === 'en'
+        ? `Review the first death or failed contest in this matchup and ask what information or resource state was missing before you committed.`
+        : `Revisá la primera muerte o pelea fallida de este cruce y marcá qué información o recurso te faltaba antes de comprometerte.`
+    ];
+  } else if (avgGoldDiffAt15 <= -250 || avgLevelDiffAt15 <= -0.5) {
+    adjustments = [
+      locale === 'en'
+        ? `The matchup is putting you behind before minute 15, so play it to preserve tempo first and only open fights when the wave, camps or reset already work in your favor.`
+        : `El cruce te está dejando atrás antes del 15, así que jugalo primero para preservar tempo y abrí peleas solo cuando la wave, los camps o el reset ya estén a tu favor.`,
+      roleProfile.farmActions[0],
+      locale === 'en'
+        ? `Use ${championName} as the review lens: compare one playable game and one bad one into ${worstOpponent.opponentChampionName}, then isolate the first tempo break.`
+        : `Usá a ${championName} como lente de review: compará una partida jugable y una mala contra ${worstOpponent.opponentChampionName}, y aislá el primer quiebre de tempo.`
+    ];
+  } else if (avgCsAt15 < roleProfile.csAt15Target - 8) {
+    adjustments = [
+      locale === 'en'
+        ? `This cross is cutting your income too early. Prioritize the line that lets ${championName} reach minute 15 with gold instead of trading away full waves or camps for low-return pressure.`
+        : `Este cruce te está cortando el ingreso demasiado temprano. Priorizá la línea que deja a ${championName} llegar al 15 con oro en vez de cambiar waves o camps completos por presión de poco retorno.`,
+      roleProfile.farmActions[1],
+      locale === 'en'
+        ? `Review the first reset, detour or skirmish that drops your economy below the normal floor for this role.`
+        : `Revisá el primer reset, desvío o escaramuza que te baja la economía por debajo del piso normal de este rol.`
+    ];
+  } else {
+    adjustments = [
+      locale === 'en'
+        ? `Do not treat ${worstOpponent.opponentChampionName} as a random bad game. Queue this matchup with a simpler plan on ${championName}: cleaner entry, clearer reset timing and fewer low-certainty fights.`
+        : `No trates a ${worstOpponent.opponentChampionName} como una mala partida random. Entrá a este cruce con un plan más simple sobre ${championName}: entrada más limpia, mejor timing de reset y menos peleas de baja certeza.`,
+      roleProfile.macroActions[0],
+      locale === 'en'
+        ? `After each game into this pick, save one note about the first moment the matchup stopped feeling playable.`
+        : `Después de cada partida contra este pick, guardá una nota sobre el primer momento en que el cruce dejó de sentirse jugable.`
+    ];
+  }
+
+  return {
+    opponentChampionName: worstOpponent.opponentChampionName,
+    championName,
+    recentGames: worstOpponent.list.length,
+    recentWins: worstOpponent.recentWins,
+    recentLosses: worstOpponent.recentLosses,
+    recentWinRate: worstOpponent.recentWinRate,
+    directGames: directMatches.length,
+    directWins,
+    directWinRate,
+    avgCsAt15,
+    avgGoldDiffAt15,
+    avgLevelDiffAt15,
+    avgDeathsPre14,
+    summary,
+    adjustments
+  };
+}
+
 export function calculateScore(participant: Omit<ParticipantSnapshot, 'score'>): ParticipantSnapshot['score'] {
   const lane = clamp(40 + participant.timeline.csAt10 * 0.5 + (participant.timeline.goldAt10 / 100) - participant.timeline.laneDeathsPre10 * 12);
   const economy = clamp(30 + participant.csPerMinute * 8 + participant.goldPerMinute * 0.08 + (participant.timeline.goldAt15 / 150));
@@ -942,6 +1098,12 @@ export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: C
   const recentWinRate = round((recentWindow.filter((match) => match.win).length / Math.max(recentWindow.length, 1)) * 100);
   const scoreDelta = round(recentScore - baselineScore, 1);
   const winRateDelta = round(recentWinRate - baselineWinRate, 1);
+  const baselineCsAt15 = round(avg(baselineWindow.map((match) => match.timeline.csAt15)));
+  const recentCsAt15 = round(avg(recentWindow.map((match) => match.timeline.csAt15)));
+  const csAt15Delta = round(recentCsAt15 - baselineCsAt15, 1);
+  const baselineDeathsPre14 = round(avg(baselineWindow.map((match) => match.timeline.deathsPre14)));
+  const recentDeathsPre14 = round(avg(recentWindow.map((match) => match.timeline.deathsPre14)));
+  const deathsPre14Delta = round(recentDeathsPre14 - baselineDeathsPre14, 1);
 
   let activePlan: ImprovementCycle | null = null;
   if (measurableProblem) {
@@ -1003,7 +1165,13 @@ export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: C
       scoreDelta,
       baselineWinRate,
       recentWinRate,
-      winRateDelta
+      winRateDelta,
+      baselineCsAt15,
+      recentCsAt15,
+      csAt15Delta,
+      baselineDeathsPre14,
+      recentDeathsPre14,
+      deathsPre14Delta
     }
   };
 }
@@ -1015,6 +1183,7 @@ export function buildAggregateSummary(player: string, tagLine: string, region: s
   const championPool = buildChampionPool(eligibleMatches);
   const insights = buildInsights(eligibleMatches, championPool, locale);
   const coaching = buildCoachingSummary(eligibleMatches, insights, locale);
+  const problematicMatchup = buildProblematicMatchupSummary(eligibleMatches, locale);
 
   return {
     player,
@@ -1041,6 +1210,7 @@ export function buildAggregateSummary(player: string, tagLine: string, region: s
     remakesExcluded: matches.length - eligibleMatches.length,
     championPool,
     insights,
-    coaching
+    coaching,
+    problematicMatchup
   };
 }

@@ -289,6 +289,30 @@ function buildMatchupAlert(matches: StoredDataset['matches']) {
   return risky ?? null;
 }
 
+function resolvePrimaryCoachRole(context: AICoachContext) {
+  return context.player.primaryRole
+    ?? context.player.coachRoles[0]
+    ?? context.player.roleFilter.split('+')[0]
+    ?? 'ALL';
+}
+
+function getRoleTargets(role: string) {
+  switch (role) {
+    case 'JUNGLE':
+      return { csAt15Target: 95, stableDeathsPre14: 1 };
+    case 'TOP':
+      return { csAt15Target: 102, stableDeathsPre14: 1 };
+    case 'MIDDLE':
+      return { csAt15Target: 105, stableDeathsPre14: 1 };
+    case 'BOTTOM':
+      return { csAt15Target: 108, stableDeathsPre14: 1 };
+    case 'UTILITY':
+      return { csAt15Target: 22, stableDeathsPre14: 2 };
+    default:
+      return { csAt15Target: 100, stableDeathsPre14: 1 };
+  }
+}
+
 async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest): Promise<AICoachContext> {
   const matches = filterMatches(dataset, input);
   const coachRoles = normalizeCoachRoles(input);
@@ -296,7 +320,15 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
   const summary = buildAggregateSummary(dataset.player, dataset.tagLine, dataset.summary.region, dataset.summary.platform, matches, input.locale);
   const primaryRole = summary.primaryRole ?? coachRoles[0] ?? undefined;
   const anchorChampion = summary.championPool[0]?.championName ?? null;
-  const matchupAlert = buildMatchupAlert(matches);
+  const matchupAlert = summary.problematicMatchup
+    ? {
+        opponentChampionName: summary.problematicMatchup.opponentChampionName,
+        games: summary.problematicMatchup.recentGames,
+        winRate: summary.problematicMatchup.recentWinRate,
+        avgGoldDiffAt15: summary.problematicMatchup.avgGoldDiffAt15,
+        avgLevelDiffAt15: summary.problematicMatchup.avgLevelDiffAt15
+      }
+    : buildMatchupAlert(matches);
   const avgGoldDiffAt15 = matches.length
     ? Number((matches.reduce((total, match) => total + (match.timeline.goldDiffAt15 ?? 0), 0) / matches.length).toFixed(0))
     : 0;
@@ -374,6 +406,23 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       avgDeathsPre14: champion.avgDeathsPre14,
       classification: champion.classification
     })),
+    problematicMatchup: summary.problematicMatchup ? {
+      opponentChampionName: summary.problematicMatchup.opponentChampionName,
+      championName: summary.problematicMatchup.championName,
+      recentGames: summary.problematicMatchup.recentGames,
+      recentWins: summary.problematicMatchup.recentWins,
+      recentLosses: summary.problematicMatchup.recentLosses,
+      recentWinRate: summary.problematicMatchup.recentWinRate,
+      directGames: summary.problematicMatchup.directGames,
+      directWins: summary.problematicMatchup.directWins,
+      directWinRate: summary.problematicMatchup.directWinRate,
+      avgCsAt15: summary.problematicMatchup.avgCsAt15,
+      avgGoldDiffAt15: summary.problematicMatchup.avgGoldDiffAt15,
+      avgLevelDiffAt15: summary.problematicMatchup.avgLevelDiffAt15,
+      avgDeathsPre14: summary.problematicMatchup.avgDeathsPre14,
+      summary: summary.problematicMatchup.summary,
+      adjustments: summary.problematicMatchup.adjustments
+    } : null,
     matchupAlert,
     recentMatches: matches.slice(0, 8).map((match) => ({
       matchId: match.matchId,
@@ -414,6 +463,7 @@ function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: 
   const secondProblem = context.coaching.topProblems[1];
   const topCards = knowledgeCards.slice(0, 3).map((entry) => entry.card);
   const championPatchAlert = context.patchContext.relevantChampionUpdates[0] ?? null;
+  const problematicMatchup = context.problematicMatchup;
 
   return {
     summary: topProblem
@@ -429,10 +479,12 @@ function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: 
       : 'La muestra todavía es demasiado chica o demasiado mezclada como para aislar una causa raíz real.'),
     whatToReview: [
       ...(topProblem?.evidence.slice(0, 2) ?? []),
+      ...(problematicMatchup ? [problematicMatchup.summary] : []),
       ...(topCards[0] ? [topCards[0].body] : []),
       ...(secondProblem ? [secondProblem.problem] : [])
     ].slice(0, 4),
     whatToDoNext3Games: [
+      ...(problematicMatchup?.adjustments.slice(0, 1) ?? []),
       ...(topProblem?.actions.slice(0, 2) ?? []),
       ...topCards.flatMap((card) => card.actionables).slice(0, 3)
     ].slice(0, 4),
@@ -445,18 +497,21 @@ function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: 
           ? `${context.player.anchorChampion} es tu pick ancla actual, y el parche ${context.patchContext.currentPatch} lo tocó hace poco: ${championPatchAlert.summary}`
           : `${context.player.anchorChampion} es tu pick ancla actual. Usalo como referencia para recalls, tempo y setup de objetivos antes de abrir más el pool.`)
       : null,
-    matchupSpecificNote: context.matchupAlert
+    matchupSpecificNote: problematicMatchup
+      ? problematicMatchup.summary
+      : context.matchupAlert
       ? (context.player.locale === 'en'
         ? `${context.matchupAlert.opponentChampionName} deserves explicit preparation: the pattern is recurring enough to justify review before you queue again.`
         : `${context.matchupAlert.opponentChampionName} merece preparación explícita: el patrón se repite lo suficiente como para justificar review antes de volver a jugar.`)
       : null,
     grounding: [
       topProblem?.impact,
+      problematicMatchup?.summary,
       ...context.patchContext.relevantChampionUpdates.slice(0, 1).map((update) => `${update.championName}: ${update.summary}`),
       ...topCards.map((card) => card.title)
     ].filter(Boolean).slice(0, 4) as string[],
     knowledgeCardIds: topCards.map((card) => card.id),
-    confidence: topProblem ? 0.56 : 0.28
+    confidence: topProblem ? 0.62 : 0.32
   };
 }
 
@@ -485,6 +540,7 @@ function getRoleLabel(roleFilter: string, locale: 'es' | 'en') {
 function buildPersonalizedMainLeak(context: AICoachContext, coach: AICoachOutput) {
   const locale = context.player.locale;
   const topProblem = context.coaching.topProblems[0];
+  const roleTargets = getRoleTargets(resolvePrimaryCoachRole(context));
   const anchorChampion = context.player.anchorChampion;
   const championText = anchorChampion
     ? anchorChampion
@@ -498,24 +554,24 @@ function buildPersonalizedMainLeak(context: AICoachContext, coach: AICoachOutput
   switch (topProblem.focusMetric) {
     case 'deaths_pre_14':
       return locale === 'en'
-        ? `${championText} is entering the game too unstable: you are losing too much before minute 14 and that is breaking your plan before you reach your strong window.`
-        : `${championText} está entrando demasiado inestable a la partida: estás perdiendo demasiado antes del minuto 14 y eso te rompe el plan antes de llegar a tu zona fuerte.`;
+        ? `${championText} is entering games too unstable: you are averaging ${context.performance.avgDeathsPre14} deaths before minute 14 when this block needs ${roleTargets.stableDeathsPre14} or fewer.`
+        : `${championText} está entrando demasiado inestable a las partidas: promediás ${context.performance.avgDeathsPre14} muertes antes del 14 cuando este bloque necesita ${roleTargets.stableDeathsPre14} o menos.`;
     case 'cs_at_15':
       return locale === 'en'
-        ? `Your biggest leak is early income on ${roleText}: you are leaving too much gold on the map before the game reaches a playable mid game.`
-        : `Tu mayor fuga hoy es de ingresos tempranos en ${roleText}: estás dejando demasiado oro en el mapa antes de que la partida llegue a un mid game jugable.`;
+        ? `Your biggest leak is early income on ${roleText}: you are averaging ${context.performance.avgCsAt15} CS at 15 when the current block needs to be closer to ${roleTargets.csAt15Target}.`
+        : `Tu mayor fuga hoy es de ingresos tempranos en ${roleText}: promediás ${context.performance.avgCsAt15} CS al 15 cuando el bloque actual necesita acercarse más a ${roleTargets.csAt15Target}.`;
     case 'objective_fight_deaths':
       return locale === 'en'
         ? `You are not mainly losing one random fight. You are arriving badly to objective windows and giving away control before the real play starts.`
         : `No estás perdiendo por una teamfight aislada. Estás llegando mal a las ventanas de objetivo y regalando el control antes de que empiece la jugada real.`;
     case 'gold_diff_at_15':
       return locale === 'en'
-        ? `Your current block is leaking too much state before minute 15: you are often entering the real game already behind in gold or levels on ${roleText}.`
-        : `Tu bloque actual está cediendo demasiado estado antes del minuto 15: estás entrando demasiadas veces a la partida real ya abajo en oro o niveles en ${roleText}.`;
+        ? `Your current block is leaking too much state before minute 15: you are averaging ${context.performance.avgGoldDiffAt15} gold diff and ${context.performance.avgLevelDiffAt15} levels by minute 15 on ${roleText}.`
+        : `Tu bloque actual está cediendo demasiado estado antes del minuto 15: estás promediando ${context.performance.avgGoldDiffAt15} de diff. de oro y ${context.performance.avgLevelDiffAt15} niveles al 15 en ${roleText}.`;
     case 'kill_participation':
       return locale === 'en'
-        ? `The issue is not just execution. You are connecting too late or too poorly to the plays that really move the map for ${roleText}.`
-        : `El problema no es solo de ejecución. Te estás conectando tarde o mal a las jugadas que realmente mueven el mapa para ${roleText}.`;
+        ? `The issue is not just execution. You are only averaging ${context.performance.avgKillParticipation}% KP, which says you are reaching too few of the plays that really move the map for ${roleText}.`
+        : `El problema no es solo de ejecución. Estás en ${context.performance.avgKillParticipation}% de KP, y eso dice que estás llegando a muy pocas de las jugadas que realmente mueven el mapa para ${roleText}.`;
     case 'champion_pool_stability':
       return locale === 'en'
         ? `Your current pool is too open for the kind of improvement block you want. The sample is spreading your mistakes across too many picks to lock habits fast.`
@@ -525,9 +581,13 @@ function buildPersonalizedMainLeak(context: AICoachContext, coach: AICoachOutput
         ? `You are creating enough early edge to matter, but you are not converting that advantage into stable control of the game often enough.`
         : `Estás generando una ventaja temprana suficiente como para pesar, pero no la estás convirtiendo lo bastante seguido en control estable de la partida.`;
     case 'matchup_review':
-      return locale === 'en'
-        ? `${coach.mainLeak}. This is already specific enough to justify targeted matchup prep before you queue again.`
-        : `${coach.mainLeak}. El patrón ya es lo bastante específico como para justificar preparación puntual del matchup antes de volver a jugar.`;
+      return context.problematicMatchup
+        ? (locale === 'en'
+          ? `${context.problematicMatchup.opponentChampionName} is the matchup that is currently punishing you the most, and ${context.problematicMatchup.championName} is the recent pick that needs a cleaner plan into it.`
+          : `${context.problematicMatchup.opponentChampionName} es el matchup que hoy más te está castigando, y ${context.problematicMatchup.championName} es el pick reciente que necesita un plan más limpio para jugarlo.`)
+        : (locale === 'en'
+          ? `${coach.mainLeak}. This is already specific enough to justify targeted matchup prep before you queue again.`
+          : `${coach.mainLeak}. El patrón ya es lo bastante específico como para justificar preparación puntual del matchup antes de volver a jugar.`);
     default:
       return locale === 'en'
         ? `${coach.mainLeak}. Right now this is the cleanest explanation for why your current block is not converting.`
@@ -583,6 +643,12 @@ function buildPersonalizedSummary(context: AICoachContext, coach: AICoachOutput)
       : `Ya estás abriendo bien algunas partidas. El próximo salto pasa por aprender a proteger y convertir esas aperturas en vez de dejar que el mapa se reseteé gratis.`;
   }
 
+  if (topProblem.focusMetric === 'matchup_review' && context.problematicMatchup) {
+    return locale === 'en'
+      ? `${context.problematicMatchup.summary} Use that cross as preparation material, not as background noise.`
+      : `${context.problematicMatchup.summary} Usá ese cruce como material de preparación, no como ruido de fondo.`;
+  }
+
   return coach.summary;
 }
 
@@ -608,6 +674,8 @@ Rules:
 - Differentiate clearly between lane state, income, deaths, map connection, lead conversion, champion mastery and objective setup.
 - Do not default to objective setup if another leak is better supported by the evidence.
 - Use the provided role fundamentals to decide what matters most for this player before you speak.
+- If the scope is role-specific, stay inside that role. Do not bring champions from other roles unless you explicitly explain why they are relevant.
+- If a problematic matchup is provided, use the exact champion names and explain the matchup in concrete terms instead of falling back to a reusable generic leak.
 - Always turn the diagnosis into review instructions and next-game habits.
 - Write with the tone of a high-level analyst coaching a serious player.
 - If the evidence is weak, say so and lower confidence.
@@ -638,8 +706,8 @@ function buildUserPrompt(
         }
       : null,
     instruction: context.player.locale === 'en'
-      ? 'Use the diagnosis, role fundamentals, patch context and retrieved coaching knowledge to produce the next coaching block. Write only in English, make the main leak concrete and personalized, avoid generic labels, and if previous coaching exists, update the guidance with continuity instead of restarting from zero.'
-      : 'Usá el diagnóstico, los fundamentos del rol, el contexto de parche y el conocimiento recuperado para producir el siguiente bloque de coaching. Escribí solo en español, hacé que el problema principal sea concreto y personalizado, evitá etiquetas genéricas y, si existe coaching previo, actualizá la guía con continuidad en vez de reiniciarla desde cero.'
+      ? 'Use the diagnosis, role fundamentals, patch context and retrieved coaching knowledge to produce the next coaching block. Write only in English, make the main leak concrete and personalized, keep the read inside the scoped role and picks unless the connection is explicit, and if previous coaching exists, update the guidance with continuity instead of restarting from zero.'
+      : 'Usá el diagnóstico, los fundamentos del rol, el contexto de parche y el conocimiento recuperado para producir el siguiente bloque de coaching. Escribí solo en español, hacé que el problema principal sea concreto y personalizado, mantené la lectura dentro del rol y de los picks del scope salvo conexión explícita, y si existe coaching previo, actualizá la guía con continuidad en vez de reiniciarla desde cero.'
   });
 }
 
