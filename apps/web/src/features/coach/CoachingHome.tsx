@@ -199,6 +199,23 @@ function evidenceLabel(value?: 'high' | 'medium' | 'low', locale: Locale = 'es')
   return null;
 }
 
+function readStrengthLabel(
+  value?: 'high' | 'medium' | 'low' | null,
+  interpretation?: 'structural' | 'situational' | 'observational' | null,
+  locale: Locale = 'es'
+) {
+  if (interpretation === 'observational' || value === 'low') return locale === 'en' ? 'Tentative read' : 'Lectura tentativa';
+  if (value === 'high') return locale === 'en' ? 'Firm read' : 'Lectura firme';
+  if (value === 'medium') return locale === 'en' ? 'Read in validation' : 'Lectura en validación';
+  return null;
+}
+
+function readStrengthTone(value?: 'high' | 'medium' | 'low' | null) {
+  if (value === 'high') return 'low' as const;
+  if (value === 'medium') return 'default' as const;
+  return 'medium' as const;
+}
+
 export function CoachingHome({
   dataset,
   locale = 'es',
@@ -257,6 +274,7 @@ export function CoachingHome({
   };
   const championReference = buildScopedChampionReference(dataset);
   const problematicMatchup = summary.problematicMatchup;
+  const primaryInsight = summary.coaching.primaryInsight;
   const topProblems = summary.coaching.topProblems;
   const activePlan = summary.coaching.activePlan;
   const fallbackPositives = summary.insights.filter((insight) => insight.category === 'positive');
@@ -279,18 +297,33 @@ export function CoachingHome({
   const stableMatches = dataset.matches.filter((match) => match.timeline.deathsPre14 <= summary.avgDeathsPre14 && match.timeline.csAt15 >= summary.avgCsAt15);
   const stableWinRate = stableMatches.length ? (stableMatches.filter((match) => match.win).length / stableMatches.length) * 100 : null;
   const mainProblem = topProblems[0] ?? null;
-  const mainTitle = aiCoach?.coach.mainLeak ?? mainProblem?.problem ?? summary.coaching.headline;
-  const mainSummary = aiCoach?.coach.summary ?? mainProblem?.title ?? summary.coaching.subheadline;
-  const mainCause = aiCoach?.coach.whyItHappens ?? mainProblem?.cause ?? null;
-  const todayActions = (aiCoach?.coach.whatToDoNext3Games?.length ? aiCoach.coach.whatToDoNext3Games : mainProblem?.actions ?? []).slice(0, 3);
+  const secondaryProblem = topProblems[1] ?? null;
+  const secondaryFocus = primaryInsight?.nextFocus ?? (secondaryProblem ? {
+    headline: secondaryProblem.problem,
+    summary: secondaryProblem.interpretation === 'observational'
+      ? t(locale, 'Seguilo como segundo foco: todavía suma más confirmarlo que convertirlo en headline.', 'Keep tracking it as the second focus: it still adds more value as a monitored signal than as the headline.')
+      : t(locale, 'Cuando la lectura central se estabilice, este es el siguiente ajuste con más retorno.', 'Once the central read settles, this is the next adjustment with the best upside.'),
+    action: secondaryProblem.actions[0] ?? null,
+    evidenceStrength: secondaryProblem.evidenceStrength ?? null
+  } : null);
+  const mainTitle = aiCoach?.coach.mainLeak ?? primaryInsight?.headline ?? mainProblem?.problem ?? summary.coaching.headline;
+  const mainSummary = aiCoach?.coach.summary ?? primaryInsight?.summary ?? mainProblem?.title ?? summary.coaching.subheadline;
+  const mainImpact = primaryInsight?.whyItMatters ?? mainProblem?.impact ?? null;
+  const mainCause = aiCoach?.coach.whyItHappens ?? primaryInsight?.whyItHappens ?? mainProblem?.cause ?? null;
+  const mainEvidence = (primaryInsight?.evidence?.length ? primaryInsight.evidence : mainProblem?.evidence ?? []).slice(0, 2);
+  const mainCaution = primaryInsight?.caution ?? mainProblem?.sampleWarning ?? null;
+  const mainPriority = primaryInsight?.priority ?? mainProblem?.priority ?? null;
+  const mainEvidenceStrength = primaryInsight?.evidenceStrength ?? mainProblem?.evidenceStrength ?? null;
+  const mainInterpretation = primaryInsight?.interpretation ?? mainProblem?.interpretation ?? null;
+  const mainSampleSize = mainProblem?.sampleSize ?? null;
+  const todayActions = (aiCoach?.coach.whatToDoNext3Games?.length ? aiCoach.coach.whatToDoNext3Games : primaryInsight?.actions?.length ? primaryInsight.actions : mainProblem?.actions ?? []).slice(0, 3);
   const steadyLabel = t(locale, 'estable', 'stable');
-  const visibleProblems = aiCoach ? topProblems.slice(0, 1) : topProblems.slice(0, 2);
   const performanceTrend = signal(trend.scoreDelta, 'up', 0.25);
   const changeSummary = performanceTrend.tone === 'positive'
-    ? t(locale, 'El tramo reciente realmente está mejorando contra el bloque anterior.', 'The recent stretch is genuinely improving against the previous block.')
+    ? t(locale, 'El tramo reciente ya está empujando el bloque hacia arriba frente a la base anterior.', 'The recent stretch is already pushing the block upward against the previous baseline.')
     : performanceTrend.tone === 'negative'
-      ? t(locale, 'El tramo reciente cedió frente al bloque anterior y conviene frenarlo rápido.', 'The recent stretch slipped versus the previous block and should be stabilized quickly.')
-      : t(locale, 'No hay un salto fuerte ni una caída fuerte: la diferencia con el bloque anterior es chica.', 'There is no major jump or drop: the difference against the previous block is small.');
+      ? t(locale, 'El tramo reciente cedió frente al bloque anterior y conviene estabilizarlo antes de abrir más variables.', 'The recent stretch slipped versus the previous block and should be stabilized before adding more variables.')
+      : t(locale, 'No aparece un salto ni una caída clara: el bloque sigue pidiendo consistencia antes que conclusiones rápidas.', 'There is no clear jump or drop: the block is still asking for consistency before quick conclusions.');
 
   const metricCards = [
     {
@@ -367,11 +400,13 @@ export function CoachingHome({
     <div style={{ display: 'grid', gap: 16 }}>
       <CoachPremiumWorkspace dataset={dataset} locale={locale} />
 
-      <Card title={t(locale, 'Lectura principal', 'Core coaching read')} subtitle={t(locale, 'Una lectura más clara del bloque actual: qué cambió de verdad, qué se sostiene y qué conviene corregir hoy.', 'A clearer read of the current block: what truly changed, what is holding and what you should correct today.')}>
+      <Card title={t(locale, 'Lectura central del bloque', 'Central block read')} subtitle={t(locale, 'Una sola lectura para decidir qué corregir primero, por qué confiar en ella y qué dejar para después.', 'One read to decide what to correct first, why it deserves trust and what should wait.')}>
         <div className="coaching-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.45fr) minmax(320px, 0.95fr)', gap: 16, alignItems: 'start' }}>
           <div style={{ display: 'grid', gap: 14 }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {mainProblem ? <Badge tone={infoTone(mainProblem.priority)}>{t(locale, `Prioridad ${mainProblem.priority}`, `${mainProblem.priority} priority`)}</Badge> : null}
+              {mainPriority ? <Badge tone={infoTone(mainPriority)}>{t(locale, `Prioridad ${mainPriority}`, `${mainPriority} priority`)}</Badge> : null}
+              {mainEvidenceStrength ? <Badge tone={readStrengthTone(mainEvidenceStrength)}>{readStrengthLabel(mainEvidenceStrength, mainInterpretation, locale)}</Badge> : null}
+              {mainSampleSize ? <Badge tone="default">{t(locale, `${mainSampleSize} partidas del scope`, `${mainSampleSize} scoped games`)}</Badge> : null}
               {aiCoach ? <Badge tone="default">{`${Math.round(aiCoach.coach.confidence * 100)}% ${t(locale, 'confianza', 'confidence')}`}</Badge> : null}
               {aiCoach ? <Badge tone={aiCoach.context.player.profileStrength === 'elite' ? 'low' : aiCoach.context.player.profileStrength === 'advanced' ? 'default' : 'medium'}>{buildProfileStrengthLabel(aiCoach.context.player.profileStrength, locale)}</Badge> : null}
               {aiCoach?.continuity.mode === 'reused' ? <Badge tone="default">{t(locale, 'Bloque reutilizado', 'Reused block')}</Badge> : null}
@@ -379,10 +414,37 @@ export function CoachingHome({
             </div>
             <div style={{ color: '#eef4ff', fontSize: 32, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.05 }}>{mainTitle}</div>
             <div style={{ color: '#a6b3c6', fontSize: 15, lineHeight: 1.75 }}>{mainSummary}</div>
-            {mainCause ? <div style={panelStyle}><SectionEyebrow title={t(locale, 'Por qué aparece', 'Why it shows up')} /><div style={{ color: '#dfe7f4', lineHeight: 1.7 }}>{mainCause}</div></div> : null}
+            {(mainImpact || mainCause) ? (
+              <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+                {mainImpact ? (
+                  <InfoBlock title={t(locale, 'Por qué pesa hoy', 'Why it matters now')} info={t(locale, 'El costo competitivo de seguir jugando con este patrón abierto.', 'The competitive cost of leaving this pattern open.')}>
+                    {mainImpact}
+                  </InfoBlock>
+                ) : null}
+                {mainCause ? (
+                  <InfoBlock title={t(locale, 'Qué lo está provocando', 'What is driving it')} info={t(locale, 'La explicación más probable detrás de la lectura central.', 'The most likely explanation behind the central read.')}>
+                    {mainCause}
+                  </InfoBlock>
+                ) : null}
+              </div>
+            ) : null}
+            {mainEvidence.length ? (
+              <div style={panelStyle}>
+                <SectionEyebrow title={t(locale, 'Lo que sostiene esta lectura', 'What supports this read')} />
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {mainEvidence.map((entry) => <div key={entry} style={compactListStyle}>{entry}</div>)}
+                </div>
+              </div>
+            ) : null}
+            {mainCaution ? (
+              <div style={{ ...panelStyle, borderColor: 'rgba(255,214,102,0.2)', background: 'linear-gradient(180deg, rgba(24,19,9,0.82), rgba(12,10,6,0.94))' }}>
+                <SectionEyebrow title={t(locale, 'Límite de la lectura', 'Read boundary')} />
+                <div style={{ color: '#f5dfab', lineHeight: 1.65 }}>{mainCaution}</div>
+              </div>
+            ) : null}
             {aiCoachError ? <div style={errorStyle}>{aiCoachError}</div> : null}
             <div style={{ display: 'grid', gap: 8 }}>
-              <SectionEyebrow title={t(locale, 'Qué hago hoy', 'What to do today')} />
+              <SectionEyebrow title={t(locale, 'Qué corregir primero', 'What to correct first')} />
               {todayActions.length ? todayActions.map((action, index) => (
                 <div key={action} style={stepStyle}>
                   <div style={stepIndexStyle}>{index + 1}</div>
@@ -407,6 +469,19 @@ export function CoachingHome({
               ) : <div style={{ color: '#d7dfec', lineHeight: 1.7 }}>{t(locale, 'Todavía no hay un ciclo suficientemente claro. Conviene sumar muestra limpia o cerrar más el scope.', 'There is not a clear enough cycle yet. Add cleaner sample or narrow the scope further.')}</div>}
               <button type="button" style={buttonStyle} onClick={onGenerateAICoach} disabled={!onGenerateAICoach || generatingAICoach}>{generatingAICoach ? t(locale, 'Actualizando coaching...', 'Refreshing coaching...') : t(locale, 'Actualizar coaching', 'Refresh coaching')}</button>
             </div>
+            {secondaryFocus ? (
+              <div style={panelStyle}>
+                <SectionEyebrow title={t(locale, 'Después de estabilizar esto', 'After this is stable')} />
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div style={{ color: '#eef4ff', fontSize: 18, fontWeight: 800, lineHeight: 1.25 }}>{secondaryFocus.headline}</div>
+                    {secondaryFocus.evidenceStrength ? <Badge tone={readStrengthTone(secondaryFocus.evidenceStrength)}>{readStrengthLabel(secondaryFocus.evidenceStrength, null, locale)}</Badge> : null}
+                  </div>
+                  <div style={{ color: '#9aa5b7', lineHeight: 1.6 }}>{secondaryFocus.summary}</div>
+                  {secondaryFocus.action ? <div style={actionStyle}>{secondaryFocus.action}</div> : null}
+                </div>
+              </div>
+            ) : null}
             <div className="coaching-meta-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12, alignItems: 'start' }}>
               <MetaStat label={t(locale, 'Muestra', 'Sample')} value={`${summary.matches}`} caption={t(locale, 'partidas del scope', 'games in scope')} />
               <MetaStat label={t(locale, 'Tramo reciente', 'Recent block')} value={`${trend.recentMatches}`} caption={t(locale, 'partidas comparadas ahora', 'games compared now')} />
@@ -431,7 +506,7 @@ export function CoachingHome({
         </div>
       </Card>
 
-      <section className="coaching-overview-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
+      <section className="coaching-overview-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
         <Card title={t(locale, 'Base que ya te sostiene hoy', 'What is already holding you up')} subtitle={t(locale, 'Fusionamos tu pick de referencia con lo que ya te da nivel para que la lectura sea más directa y menos redundante.', 'We merge your reference pick with what is already giving you level so the read feels stronger and less redundant.')}>
           <div style={{ display: 'grid', gap: 12 }}>
             {championReference ? (
@@ -485,7 +560,7 @@ export function CoachingHome({
           </div>
         </Card>
 
-        <Card title={t(locale, 'Qué cambió de verdad', 'What actually changed')} subtitle={t(locale, 'Tramo reciente contra bloque anterior. Esa comparación muestra mejor si hoy hay mejora, deterioro o un patrón estable.', 'Recent stretch against the previous block. That comparison shows much more clearly whether you are improving, slipping or staying flat.')}>
+        <Card title={t(locale, 'Qué cambió de verdad', 'What actually changed')} subtitle={t(locale, 'No es otra lectura: es la evidencia comparativa de si el bloque realmente mejora, cae o sigue plano.', 'This is not another read: it is the comparative evidence for whether the block is really improving, slipping or staying flat.')}>
           <div style={{ display: 'grid', gap: 10 }}>
             <div style={panelStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
@@ -501,50 +576,6 @@ export function CoachingHome({
             <ProgressRow label="Gold@15" baseline={formatInteger(trend.baselineGoldAt15)} recent={formatInteger(trend.recentGoldAt15)} trend={signal(trend.goldAt15Delta, 'up', 120)} deltaLabel={delta(trend.goldAt15Delta, '', 0)} locale={locale} />
             <ProgressRow label={t(locale, 'Muertes pre14', 'Deaths pre14')} baseline={formatDecimal(trend.baselineDeathsPre14)} recent={formatDecimal(trend.recentDeathsPre14)} trend={signal(trend.deathsPre14Delta, 'down', 0.15)} deltaLabel={delta(trend.deathsPre14Delta)} locale={locale} />
             <ProgressRow label={t(locale, 'Consistencia', 'Consistency')} baseline={formatDecimal(trend.baselineConsistency)} recent={formatDecimal(trend.recentConsistency)} trend={signal(trend.consistencyDelta, 'up', 1.5)} deltaLabel={delta(trend.consistencyDelta)} locale={locale} />
-          </div>
-        </Card>
-
-        <Card title={t(locale, 'Prioridades del bloque', 'Block priorities')} subtitle={t(locale, 'Qué te frena hoy y qué conviene hacer con eso, con menos relleno y mejor jerarquía.', 'What is holding you back today and what to do with it, with less filler and better hierarchy.')}>
-          <div style={{ display: 'grid', gap: 12 }}>
-            {visibleProblems.length ? visibleProblems.map((problem, index) => (
-              <div key={problem.id} style={{ ...panelStyle, borderColor: problem.priority === 'high' ? 'rgba(255,107,107,0.18)' : problem.priority === 'low' ? 'rgba(103,214,164,0.16)' : 'rgba(255,255,255,0.05)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={{ color: '#8e9cb0', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{t(locale, `Bloque ${index + 1}`, `Block ${index + 1}`)}</div>
-                    <div style={{ color: '#eef4ff', fontSize: 21, fontWeight: 800, lineHeight: 1.15 }}>{problem.problem}</div>
-                    <div style={{ color: '#9aa5b7', lineHeight: 1.6 }}>{problem.title}</div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Badge tone={infoTone(problem.priority)}>{t(locale, `Prioridad ${problem.priority}`, `${problem.priority} priority`)}</Badge>
-                    <Badge>{problem.category}</Badge>
-                    {problem.interpretation ? <Badge tone={problem.interpretation === 'structural' ? 'high' : problem.interpretation === 'situational' ? 'default' : 'medium'}>{interpretationLabel(problem.interpretation, locale)}</Badge> : null}
-                    {problem.evidenceStrength ? <Badge tone={problem.evidenceStrength === 'high' ? 'low' : problem.evidenceStrength === 'medium' ? 'default' : 'medium'}>{evidenceLabel(problem.evidenceStrength, locale)}</Badge> : null}
-                  </div>
-                </div>
-                <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-                  <InfoBlock title={t(locale, 'Impacto', 'Impact')} info={t(locale, 'Cómo pega este patrón en tus resultados.', 'How hard this pattern hits your results.')}>{problem.impact}</InfoBlock>
-                  <InfoBlock title={t(locale, 'Causa', 'Cause')} info={t(locale, 'Qué está explicando mejor el patrón actual.', 'What best explains the current pattern.')}>{problem.cause}</InfoBlock>
-                </div>
-                {problem.evidence[0] ? (
-                  <>
-                    <SectionEyebrow title={t(locale, 'Se ve en', 'Shows up in')} />
-                    <div style={listStyle}>{problem.evidence[0]}</div>
-                  </>
-                ) : null}
-                {problem.sampleWarning ? (
-                  <>
-                    <SectionEyebrow title={t(locale, 'Cautela', 'Caution')} />
-                    <div style={listStyle}>{problem.sampleWarning}</div>
-                  </>
-                ) : null}
-                {problem.actions.length ? (
-                  <>
-                    <SectionEyebrow title={t(locale, 'Qué hacer hoy', 'What to do today')} />
-                    {problem.actions.slice(0, 2).map((action) => <div key={action} style={actionStyle}>{action}</div>)}
-                  </>
-                ) : null}
-              </div>
-            )) : <div style={emptyStyle}>{t(locale, 'Todavía no hay prioridades claras para este bloque.', 'There are no clear priorities for this block yet.')}</div>}
           </div>
         </Card>
       </section>

@@ -495,6 +495,25 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
     coaching: {
       headline: summary.coaching.headline,
       subheadline: summary.coaching.subheadline,
+      primaryInsight: summary.coaching.primaryInsight
+        ? {
+          problemId: summary.coaching.primaryInsight.problemId,
+          headline: summary.coaching.primaryInsight.headline,
+          summary: summary.coaching.primaryInsight.summary,
+          whyItHappens: summary.coaching.primaryInsight.whyItHappens,
+          whyItMatters: summary.coaching.primaryInsight.whyItMatters,
+          evidence: summary.coaching.primaryInsight.evidence,
+          actions: summary.coaching.primaryInsight.actions,
+          caution: summary.coaching.primaryInsight.caution,
+          priority: summary.coaching.primaryInsight.priority,
+          evidenceStrength: summary.coaching.primaryInsight.evidenceStrength,
+          evidenceScore: summary.coaching.primaryInsight.evidenceScore,
+          interpretation: summary.coaching.primaryInsight.interpretation,
+          supportingProblemIds: summary.coaching.primaryInsight.supportingProblemIds,
+          nextFocus: summary.coaching.primaryInsight.nextFocus,
+          scope: summary.coaching.primaryInsight.scope
+        }
+        : null,
       topProblems: summary.coaching.topProblems.map((problem) => ({
         id: problem.id,
         problem: problem.problem,

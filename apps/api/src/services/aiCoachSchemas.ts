@@ -126,6 +126,33 @@ export interface AICoachContext {
   coaching: {
     headline: string;
     subheadline: string;
+    primaryInsight: {
+      problemId: string;
+      headline: string;
+      summary: string;
+      whyItHappens: string | null;
+      whyItMatters: string;
+      evidence: string[];
+      actions: string[];
+      caution: string | null;
+      priority: 'high' | 'medium' | 'low';
+      evidenceStrength: 'high' | 'medium' | 'low' | null;
+      evidenceScore: number | null;
+      interpretation: 'structural' | 'situational' | 'observational' | null;
+      supportingProblemIds: string[];
+      nextFocus: {
+        problemId: string;
+        headline: string;
+        summary: string;
+        action: string | null;
+        evidenceStrength: 'high' | 'medium' | 'low' | null;
+      } | null;
+      scope: {
+        role: string | null;
+        champion: string | null;
+        elo: string | null;
+      };
+    } | null;
     topProblems: Array<{
       id: string;
       problem: string;

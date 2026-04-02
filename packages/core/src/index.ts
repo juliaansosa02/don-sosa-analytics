@@ -208,6 +208,33 @@ export interface ReferenceAuditEntry {
 export interface CoachingSummary {
   headline: string;
   subheadline: string;
+  primaryInsight: {
+    problemId: string;
+    headline: string;
+    summary: string;
+    whyItHappens: string | null;
+    whyItMatters: string;
+    evidence: string[];
+    actions: string[];
+    caution: string | null;
+    priority: 'high' | 'medium' | 'low';
+    evidenceStrength: 'high' | 'medium' | 'low' | null;
+    evidenceScore: number | null;
+    interpretation: 'structural' | 'situational' | 'observational' | null;
+    supportingProblemIds: string[];
+    nextFocus: {
+      problemId: string;
+      headline: string;
+      summary: string;
+      action: string | null;
+      evidenceStrength: 'high' | 'medium' | 'low' | null;
+    } | null;
+    scope: {
+      role: string | null;
+      champion: string | null;
+      elo: string | null;
+    };
+  } | null;
   topProblems: CoachInsight[];
   activePlan: ImprovementCycle | null;
   trend: PerformanceTrend;
@@ -2205,7 +2232,9 @@ export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: C
   if (!recentWindow.length) recentWindow = sortedByDate.slice(-1);
   if (!baselineWindow.length) baselineWindow = sortedByDate.slice(0, Math.max(1, sortedByDate.length - 1));
   if (!baselineWindow.length) baselineWindow = recentWindow;
-  const topProblem = insights[0] ?? null;
+  const rankedProblems = insights.filter((insight) => insight.category !== 'positive').slice(0, 3);
+  const topProblem = rankedProblems[0] ?? null;
+  const secondProblem = rankedProblems[1] ?? null;
   const measurableProblem = insights.find((insight) => ['deaths_pre_10', 'cs_at_15', 'deaths_pre_14', 'gold_diff_at_15', 'kill_participation', 'objective_fight_deaths', 'lead_conversion'].includes(insight.focusMetric ?? '')) ?? null;
   const baselineScore = round(avg(baselineWindow.map((match) => match.score.total)));
   const recentScore = round(avg(recentWindow.map((match) => match.score.total)));
@@ -2274,25 +2303,76 @@ export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: C
     };
   }
 
-  const headline = topProblem
-    ? topProblem.problem
-    : text(locale, 'Tu perfil ya tiene una base estable de mejora', 'Your profile already has a stable improvement baseline');
-  const subheadline = topProblem
-    ? text(
-      locale,
-      `${topProblem.impact} ${topProblem.interpretation === 'observational'
-        ? 'Por ahora conviene leerlo como señal a comprobar, no como sentencia cerrada.'
-        : 'La prioridad del bloque actual es corregir esto antes de abrir nuevas variables.'}${topProblem.sampleWarning ? ` ${topProblem.sampleWarning}` : ''}`,
-      `${topProblem.impact} ${topProblem.interpretation === 'observational'
-        ? 'For now it should be read as a signal to test, not as a closed verdict.'
-        : 'The priority of the current block is to correct this before adding new variables.'}${topProblem.sampleWarning ? ` ${topProblem.sampleWarning}` : ''}`
-    )
+  const primaryInsight = topProblem
+    ? {
+      problemId: topProblem.id,
+      headline: topProblem.problem,
+      summary: topProblem.interpretation === 'observational'
+        ? text(
+          locale,
+          `${topProblem.impact} Hoy conviene leerlo como una hipótesis seria del bloque, no como una fuga cerrada todavía.`,
+          `${topProblem.impact} For now, this should be read as a serious block hypothesis, not as a closed leak yet.`
+        )
+        : topProblem.evidenceStrength === 'high'
+          ? text(
+            locale,
+            `${topProblem.impact} Es la palanca con más retorno del bloque y merece ir antes que cualquier ajuste secundario.`,
+            `${topProblem.impact} It is the highest-return lever in the block and deserves attention before any secondary adjustment.`
+          )
+          : text(
+            locale,
+            `${topProblem.impact} Hoy es la mejor lectura disponible, aunque todavía conviene seguir validándola mientras sumás muestra limpia.`,
+            `${topProblem.impact} It is the best read available right now, although it still benefits from more clean sample before becoming a firm call.`
+          ),
+      whyItHappens: topProblem.cause ?? null,
+      whyItMatters: topProblem.impact,
+      evidence: topProblem.evidence.slice(0, 2),
+      actions: topProblem.actions.slice(0, 3),
+      caution: topProblem.sampleWarning ?? null,
+      priority: topProblem.priority,
+      evidenceStrength: topProblem.evidenceStrength ?? null,
+      evidenceScore: topProblem.evidenceScore ?? null,
+      interpretation: topProblem.interpretation ?? null,
+      supportingProblemIds: [topProblem.id, secondProblem?.id].filter(Boolean) as string[],
+      nextFocus: secondProblem
+        ? {
+          problemId: secondProblem.id,
+          headline: secondProblem.problem,
+          summary: secondProblem.interpretation === 'observational'
+            ? text(
+              locale,
+              'Guardalo como segundo foco: vale la pena seguirlo, pero todavía no compite con la lectura central.',
+              'Keep it as the second focus: it is worth tracking, but it does not outrank the central read yet.'
+            )
+            : text(
+              locale,
+              'Cuando estabilices la lectura central, este es el siguiente ajuste con retorno real.',
+              'Once the central read is stable, this is the next adjustment with real upside.'
+            ),
+          action: secondProblem.actions[0] ?? null,
+          evidenceStrength: secondProblem.evidenceStrength ?? null
+        }
+        : null,
+      scope: {
+        role: findPrimaryRole(matches),
+        champion: pickMostPlayedRecentChampion(matches),
+        elo: null
+      }
+    }
+    : null;
+
+  const headline = primaryInsight?.headline
+    ?? topProblem?.problem
+    ?? text(locale, 'Tu perfil ya tiene una base estable de mejora', 'Your profile already has a stable improvement baseline');
+  const subheadline = primaryInsight
+    ? `${primaryInsight.summary}${primaryInsight.caution ? ` ${primaryInsight.caution}` : ''}`
     : text(locale, 'El siguiente paso es sostener consistencia y revisar tus picks con mejor retorno.', 'The next step is to hold consistency and review the picks that give you the best return.');
 
   return {
     headline,
     subheadline,
-    topProblems: insights.filter((insight) => insight.category !== 'positive').slice(0, 3),
+    primaryInsight,
+    topProblems: rankedProblems,
     activePlan,
     trend: {
       baselineMatches: baselineWindow.length,
