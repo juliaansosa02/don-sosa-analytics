@@ -4,6 +4,7 @@ import type { AICoachResult, Dataset, RoleReferenceProfile } from '../../types';
 import { formatDecimal, formatInteger } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
 import { formatChampionName, getProfileIconUrl } from '../../lib/lol';
+import { CoachPremiumWorkspace } from './CoachPremiumWorkspace';
 
 type TrendSignal = { direction: TrendDirection; tone: TrendTone; label?: string };
 type MatchEntry = Dataset['matches'][number];
@@ -364,6 +365,8 @@ export function CoachingHome({
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
+      <CoachPremiumWorkspace dataset={dataset} locale={locale} />
+
       <Card title={t(locale, 'Lectura principal', 'Core coaching read')} subtitle={t(locale, 'Una lectura más clara del bloque actual: qué cambió de verdad, qué se sostiene y qué conviene corregir hoy.', 'A clearer read of the current block: what truly changed, what is holding and what you should correct today.')}>
         <div className="coaching-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.45fr) minmax(320px, 0.95fr)', gap: 16, alignItems: 'start' }}>
           <div style={{ display: 'grid', gap: 14 }}>

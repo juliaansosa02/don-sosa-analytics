@@ -310,6 +310,9 @@ function AppShell() {
   const [coachRoster, setCoachRoster] = useState<CoachRosterEntry[]>([]);
   const [coachRosterLoading, setCoachRosterLoading] = useState(false);
   const [coachPlayerEmail, setCoachPlayerEmail] = useState('');
+  const [coachPlayerGameName, setCoachPlayerGameName] = useState('');
+  const [coachPlayerTagLine, setCoachPlayerTagLine] = useState('');
+  const [coachPlayerPlatform, setCoachPlayerPlatform] = useState<RiotPlatform>(() => guessDefaultRiotPlatform(detectLocale()));
   const [coachPlayerNote, setCoachPlayerNote] = useState('');
   const currentPlan = membership?.plan ?? null;
   const planEntitlements = currentPlan?.entitlements ?? null;
@@ -320,7 +323,7 @@ function AppShell() {
     [adminUsers]
   );
   const safeCoachRoster = useMemo(
-    () => coachRoster.filter((entry) => entry?.user && entry.assignmentId),
+    () => coachRoster.filter((entry) => entry?.assignmentId && (entry?.user || entry?.profile)),
     [coachRoster]
   );
   const billingReady = membershipCatalog?.billing.ready ?? false;
@@ -1185,13 +1188,29 @@ function AppShell() {
     }
   }
 
-  async function handleAddCoachPlayer() {
-    if (!coachPlayerEmail.trim()) return;
+  async function handleAddCoachPlayer(mode: 'email' | 'riot') {
     setCoachRosterLoading(true);
     setAuthError(null);
     try {
-      await addCoachPlayer({ playerEmail: coachPlayerEmail.trim(), note: coachPlayerNote.trim() || undefined });
-      setCoachPlayerEmail('');
+      if (mode === 'email') {
+        if (!coachPlayerEmail.trim()) return;
+        await addCoachPlayer({
+          playerEmail: coachPlayerEmail.trim(),
+          note: coachPlayerNote.trim() || undefined
+        });
+        setCoachPlayerEmail('');
+      } else {
+        if (!coachPlayerGameName.trim() || !coachPlayerTagLine.trim()) return;
+        await addCoachPlayer({
+          gameName: coachPlayerGameName.trim(),
+          tagLine: coachPlayerTagLine.trim(),
+          platform: coachPlayerPlatform,
+          note: coachPlayerNote.trim() || undefined
+        });
+        setCoachPlayerGameName('');
+        setCoachPlayerTagLine('');
+      }
+
       setCoachPlayerNote('');
       await refreshCoachRoster();
     } catch (err) {
@@ -1201,11 +1220,11 @@ function AppShell() {
     }
   }
 
-  async function handleRemoveCoachRosterPlayer(userId: string) {
+  async function handleRemoveCoachRosterPlayer(assignmentId: string) {
     setCoachRosterLoading(true);
     setAuthError(null);
     try {
-      await removeCoachPlayer(userId);
+      await removeCoachPlayer(assignmentId);
       await refreshCoachRoster();
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : 'Unknown error');
@@ -1439,20 +1458,26 @@ function AppShell() {
           membershipError={membershipError}
           adminLoading={adminLoading}
           safeAdminUsers={safeAdminUsers}
-          coachRosterLoading={coachRosterLoading}
-          safeCoachRoster={safeCoachRoster}
-          coachPlayerEmail={coachPlayerEmail}
-          coachPlayerNote={coachPlayerNote}
+            coachRosterLoading={coachRosterLoading}
+            safeCoachRoster={safeCoachRoster}
+            coachPlayerEmail={coachPlayerEmail}
+            coachPlayerGameName={coachPlayerGameName}
+            coachPlayerTagLine={coachPlayerTagLine}
+            coachPlayerPlatform={coachPlayerPlatform}
+            coachPlayerNote={coachPlayerNote}
           onClose={() => setAccountPanelOpen(false)}
           onTabChange={setAccountPanelTab}
           onAuthModeChange={setAuthMode}
           onAuthEmailChange={setAuthEmail}
           onAuthPasswordChange={setAuthPassword}
           onAuthDisplayNameChange={setAuthDisplayName}
-          onResetTokenChange={setResetToken}
-          onNewPasswordChange={setNewPassword}
-          onCoachPlayerEmailChange={setCoachPlayerEmail}
-          onCoachPlayerNoteChange={setCoachPlayerNote}
+            onResetTokenChange={setResetToken}
+            onNewPasswordChange={setNewPassword}
+            onCoachPlayerEmailChange={setCoachPlayerEmail}
+            onCoachPlayerGameNameChange={setCoachPlayerGameName}
+            onCoachPlayerTagLineChange={setCoachPlayerTagLine}
+            onCoachPlayerPlatformChange={(value) => setCoachPlayerPlatform(value as RiotPlatform)}
+            onCoachPlayerNoteChange={setCoachPlayerNote}
           onAuthSubmit={handleAuthSubmit}
           onResetPasswordConfirm={handleResetPasswordConfirm}
           onLogout={handleLogout}

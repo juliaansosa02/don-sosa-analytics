@@ -389,18 +389,24 @@ export async function fetchCoachPlayers() {
   return response.json() as Promise<CoachRosterResponse>;
 }
 
-export async function addCoachPlayer(input: { playerEmail: string; note?: string }) {
+export async function addCoachPlayer(input: {
+  playerEmail?: string;
+  gameName?: string;
+  tagLine?: string;
+  platform?: string;
+  note?: string;
+}) {
   const response = await apiFetch(`${API_BASE}/coach/players`, {
     method: 'POST',
     headers: apiHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input)
   });
   if (!response.ok) throw new Error(await readErrorMessage(response));
-  return response.json() as Promise<{ ok: true }>;
+  return response.json() as Promise<{ ok: true; target: { targetType: 'account' | 'riot_profile' } }>;
 }
 
-export async function removeCoachPlayer(playerUserId: string) {
-  const response = await apiFetch(`${API_BASE}/coach/players/${encodeURIComponent(playerUserId)}`, {
+export async function removeCoachPlayer(assignmentId: string) {
+  const response = await apiFetch(`${API_BASE}/coach/players/${encodeURIComponent(assignmentId)}`, {
     method: 'DELETE',
     headers: apiHeaders()
   });

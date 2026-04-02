@@ -297,8 +297,8 @@ export async function addCoachPlayer(input) {
         throw new Error(await readErrorMessage(response));
     return response.json();
 }
-export async function removeCoachPlayer(playerUserId) {
-    const response = await apiFetch(`${API_BASE}/coach/players/${encodeURIComponent(playerUserId)}`, {
+export async function removeCoachPlayer(assignmentId) {
+    const response = await apiFetch(`${API_BASE}/coach/players/${encodeURIComponent(assignmentId)}`, {
         method: 'DELETE',
         headers: apiHeaders()
     });

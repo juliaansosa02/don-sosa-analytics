@@ -10,6 +10,7 @@ import type {
   UserRole
 } from '../../types';
 import type { Locale } from '../../lib/i18n';
+import { getRiotPlatformInfo, supportedRiotPlatforms } from '../../lib/lol';
 
 export type AccountPanelTab = 'auth' | 'profile' | 'membership' | 'security' | 'coach' | 'admin';
 export type AccountAuthMode = 'login' | 'signup' | 'reset';
@@ -48,6 +49,9 @@ interface AccountCenterProps {
   coachRosterLoading: boolean;
   safeCoachRoster: CoachRosterEntry[];
   coachPlayerEmail: string;
+  coachPlayerGameName: string;
+  coachPlayerTagLine: string;
+  coachPlayerPlatform: string;
   coachPlayerNote: string;
   onClose: () => void;
   onTabChange: (tab: AccountPanelTab) => void;
@@ -58,6 +62,9 @@ interface AccountCenterProps {
   onResetTokenChange: (value: string) => void;
   onNewPasswordChange: (value: string) => void;
   onCoachPlayerEmailChange: (value: string) => void;
+  onCoachPlayerGameNameChange: (value: string) => void;
+  onCoachPlayerTagLineChange: (value: string) => void;
+  onCoachPlayerPlatformChange: (value: string) => void;
   onCoachPlayerNoteChange: (value: string) => void;
   onAuthSubmit: (event: FormEvent) => Promise<void> | void;
   onResetPasswordConfirm: (event: FormEvent) => Promise<void> | void;
@@ -67,8 +74,8 @@ interface AccountCenterProps {
   onCheckout: (planId: UpgradePlanId) => Promise<void> | void;
   onDevPlanChange: (planId: DevPlanId) => Promise<void> | void;
   onStopImpersonation: () => Promise<void> | void;
-  onAddCoachPlayer: () => Promise<void> | void;
-  onRemoveCoachPlayer: (userId: string) => Promise<void> | void;
+  onAddCoachPlayer: (mode: 'email' | 'riot') => Promise<void> | void;
+  onRemoveCoachPlayer: (assignmentId: string) => Promise<void> | void;
   onAdminRoleChange: (userId: string, role: UserRole) => Promise<void> | void;
   onAdminPlanChange: (userId: string, planId: DevPlanId) => Promise<void> | void;
   onAdminImpersonation: (userId: string) => Promise<void> | void;
@@ -418,40 +425,94 @@ function renderSecuritySection(props: AccountCenterProps) {
 }
 
 function renderCoachSection(props: AccountCenterProps) {
-  const { authUser, accountPanelTab, canManageCoachRoster, locale, coachRosterLoading, coachPlayerEmail, coachPlayerNote, safeCoachRoster, membership } = props;
+  const {
+    authUser,
+    accountPanelTab,
+    canManageCoachRoster,
+    locale,
+    coachRosterLoading,
+    coachPlayerEmail,
+    coachPlayerGameName,
+    coachPlayerTagLine,
+    coachPlayerPlatform,
+    coachPlayerNote,
+    safeCoachRoster,
+    membership
+  } = props;
   if (!authUser || accountPanelTab !== 'coach' || !canManageCoachRoster) return null;
 
   return (
-    <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '0.95fr 1.05fr', gap: 12 }}>
-      <form onSubmit={async (event) => { event.preventDefault(); await props.onAddCoachPlayer(); }} style={panelCardStyle}>
-        <div style={panelTitleStyle}>{locale === 'en' ? 'Add player by account email' : 'Agregar jugador por email de cuenta'}</div>
+    <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
+      <form onSubmit={async (event) => { event.preventDefault(); await props.onAddCoachPlayer('email'); }} style={panelCardStyle}>
+        <div style={panelTitleStyle}>{locale === 'en' ? 'Add by account email' : 'Agregar por email de cuenta'}</div>
         <div style={panelBodyStyle}>
           {locale === 'en'
-            ? 'The coach-player relation is stored independently from Riot profiles so you can manage people, not only accounts.'
-            : 'La relación coach-jugador se guarda separada de los perfiles de Riot para que puedas gestionar personas, no solo cuentas.'}
+            ? 'Use this when you know the player account and want the roster to follow the person, not just one Riot profile.'
+            : 'Usalo cuando conocés la cuenta del jugador y querés que el roster siga a la persona, no solo a un perfil puntual.'}
         </div>
         <input type="email" value={coachPlayerEmail} onChange={(e) => props.onCoachPlayerEmailChange(e.target.value)} style={inputStyle} placeholder="player@email.com" />
         <textarea value={coachPlayerNote} onChange={(e) => props.onCoachPlayerNoteChange(e.target.value)} style={{ ...inputStyle, minHeight: 94, resize: 'vertical' }} placeholder={locale === 'en' ? 'Optional note about this player' : 'Nota opcional sobre este jugador'} />
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <button type="submit" style={buttonStyle} disabled={coachRosterLoading}>
-            {coachRosterLoading ? (locale === 'en' ? 'Saving...' : 'Guardando...') : (locale === 'en' ? 'Link player' : 'Vincular jugador')}
+            {coachRosterLoading ? (locale === 'en' ? 'Saving...' : 'Guardando...') : (locale === 'en' ? 'Link account' : 'Vincular cuenta')}
           </button>
-          {membership ? <Badge tone="low">{`${safeCoachRoster.length}/${membership.plan.entitlements.maxManagedPlayers}`}</Badge> : null}
+          <Badge tone="default">{locale === 'en' ? 'Person-level link' : 'Vínculo por persona'}</Badge>
         </div>
       </form>
+
+      <form onSubmit={async (event) => { event.preventDefault(); await props.onAddCoachPlayer('riot'); }} style={panelCardStyle}>
+        <div style={panelTitleStyle}>{locale === 'en' ? 'Add by Riot ID' : 'Agregar por Riot ID'}</div>
+        <div style={panelBodyStyle}>
+          {locale === 'en'
+            ? 'Best when you do not have the email. If that Riot profile is already linked to a product account, we resolve it automatically.'
+            : 'Ideal cuando no tenés el email. Si ese perfil Riot ya está ligado a una cuenta del producto, lo resolvemos automáticamente.'}
+        </div>
+        <input value={coachPlayerGameName} onChange={(e) => props.onCoachPlayerGameNameChange(e.target.value)} style={inputStyle} placeholder={locale === 'en' ? 'Game name' : 'Game name / nombre de invocador'} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(120px, .8fr)', gap: 10 }}>
+          <input value={coachPlayerTagLine} onChange={(e) => props.onCoachPlayerTagLineChange(e.target.value)} style={inputStyle} placeholder={locale === 'en' ? 'Tag line' : 'Tag'} />
+          <select value={coachPlayerPlatform} onChange={(e) => props.onCoachPlayerPlatformChange(e.target.value)} style={selectStyle}>
+            {supportedRiotPlatforms.map((platform) => (
+              <option key={platform} value={platform}>
+                {getRiotPlatformInfo(platform)?.shortLabel ?? platform}
+              </option>
+            ))}
+          </select>
+        </div>
+        <textarea value={coachPlayerNote} onChange={(e) => props.onCoachPlayerNoteChange(e.target.value)} style={{ ...inputStyle, minHeight: 94, resize: 'vertical' }} placeholder={locale === 'en' ? 'Optional scouting or staff note' : 'Nota opcional de scouting o staff'} />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <button type="submit" style={buttonStyle} disabled={coachRosterLoading}>
+            {coachRosterLoading ? (locale === 'en' ? 'Saving...' : 'Guardando...') : (locale === 'en' ? 'Track Riot ID' : 'Trackear Riot ID')}
+          </button>
+          <Badge tone="low">{locale === 'en' ? 'Profile-level tracking' : 'Tracking por perfil'}</Badge>
+        </div>
+      </form>
+
       <div style={{ ...panelCardStyle, alignContent: 'start' }}>
-        <div style={panelTitleStyle}>{locale === 'en' ? 'Current roster' : 'Roster actual'}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start', flexWrap: 'wrap' }}>
+          <div style={panelTitleStyle}>{locale === 'en' ? 'Current roster' : 'Roster actual'}</div>
+          {membership ? <Badge tone="low">{`${safeCoachRoster.length}/${membership.plan.entitlements.maxManagedPlayers}`}</Badge> : null}
+        </div>
         {coachRosterLoading ? <div style={panelBodyStyle}>{locale === 'en' ? 'Loading roster...' : 'Cargando roster...'}</div> : null}
         {!coachRosterLoading && !safeCoachRoster.length ? <div style={softPanelStyle}>{locale === 'en' ? 'No linked players yet.' : 'Todavía no hay jugadores vinculados.'}</div> : null}
         <div style={{ display: 'grid', gap: 10 }}>
           {safeCoachRoster.map((entry) => (
             <div key={entry.assignmentId} style={adminRowStyle}>
               <div style={{ display: 'grid', gap: 4 }}>
-                <div style={{ color: '#eef4ff', fontWeight: 700 }}>{entry.user.displayName}</div>
-                <div style={{ color: '#8f9bad', fontSize: 12 }}>{entry.user.email}</div>
+                <div style={{ color: '#eef4ff', fontWeight: 700 }}>
+                  {entry.user?.displayName ?? `${entry.profile?.gameName ?? '—'}#${entry.profile?.tagLine ?? '—'}`}
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Badge tone={entry.targetType === 'account' ? 'default' : 'medium'}>
+                    {entry.targetType === 'account'
+                      ? (locale === 'en' ? 'Account link' : 'Vínculo de cuenta')
+                      : (locale === 'en' ? 'Riot profile' : 'Perfil Riot')}
+                  </Badge>
+                  {entry.profile ? <Badge tone="low">{`${entry.profile.gameName}#${entry.profile.tagLine} · ${entry.profile.platform}`}</Badge> : null}
+                </div>
+                {entry.user?.email ? <div style={{ color: '#8f9bad', fontSize: 12 }}>{entry.user.email}</div> : null}
                 {entry.note ? <div style={{ color: '#cdd8ea', fontSize: 13 }}>{entry.note}</div> : null}
               </div>
-              <button type="button" style={secondaryButtonStyle} disabled={coachRosterLoading} onClick={() => void props.onRemoveCoachPlayer(entry.user.id)}>
+              <button type="button" style={secondaryButtonStyle} disabled={coachRosterLoading} onClick={() => void props.onRemoveCoachPlayer(entry.assignmentId)}>
                 {locale === 'en' ? 'Remove' : 'Quitar'}
               </button>
             </div>

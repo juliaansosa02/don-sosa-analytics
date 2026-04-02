@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { Pool } from 'pg';
 import type { MembershipPlanId, MembershipStatus } from '@don-sosa/core';
 import { env } from '../config/env.js';
+import { buildProfileStorageKey } from '../lib/riotRouting.js';
 import { ensureWrite } from '../utils/fs.js';
 
 const accountsDir = fileURLToPath(new URL('../../data/membership/accounts', import.meta.url));
@@ -354,4 +355,58 @@ export async function transferMembershipState(fromViewerId: string, toViewerId: 
       platform: entry.platform
     });
   }
+}
+
+export async function findViewerProfileLink(input: {
+  gameName: string;
+  tagLine: string;
+  platform: string;
+}) {
+  const profileKey = buildProfileStorageKey(input.gameName, input.tagLine, input.platform);
+
+  if (!pool) {
+    try {
+      const files = await readdir(linksDir);
+      for (const file of files.filter((entry) => entry.endsWith('.json'))) {
+        try {
+          const raw = await readFile(`${linksDir}/${file}`, 'utf8');
+          const entries = JSON.parse(raw) as ViewerProfileLinkRecord[];
+          const match = entries.find((entry) => entry.profileKey === profileKey);
+          if (match) return match;
+        } catch {
+          continue;
+        }
+      }
+    } catch {
+      return null;
+    }
+
+    return null;
+  }
+
+  await ensureTables();
+  const result = await pool.query<{
+    id: string;
+    viewer_id: string;
+    profile_key: string;
+    game_name: string;
+    tag_line: string;
+    platform: string;
+    last_seen_at: string;
+  }>(
+    `SELECT * FROM membership_profile_links WHERE profile_key = $1 ORDER BY last_seen_at DESC LIMIT 1`,
+    [profileKey]
+  );
+
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    viewerId: row.viewer_id,
+    profileKey: row.profile_key,
+    gameName: row.game_name,
+    tagLine: row.tag_line,
+    platform: row.platform,
+    lastSeenAt: row.last_seen_at
+  } satisfies ViewerProfileLinkRecord;
 }

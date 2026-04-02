@@ -9,6 +9,7 @@ const usersDir = fileURLToPath(new URL('../../data/auth/users', import.meta.url)
 const sessionsDir = fileURLToPath(new URL('../../data/auth/sessions', import.meta.url));
 const passwordResetDir = fileURLToPath(new URL('../../data/auth/password-reset', import.meta.url));
 const coachAssignmentsDir = fileURLToPath(new URL('../../data/auth/coach-assignments', import.meta.url));
+const coachProfileAssignmentsDir = fileURLToPath(new URL('../../data/auth/coach-profile-assignments', import.meta.url));
 const pool = env.DATABASE_URL ? new Pool({ connectionString: env.DATABASE_URL }) : null;
 let tableReady: Promise<void> | null = null;
 
@@ -50,6 +51,17 @@ export interface CoachPlayerAssignmentRecord {
   id: string;
   coachUserId: string;
   playerUserId: string;
+  note?: string | null;
+  createdAt: string;
+}
+
+export interface CoachProfileAssignmentRecord {
+  id: string;
+  coachUserId: string;
+  profileKey: string;
+  gameName: string;
+  tagLine: string;
+  platform: string;
   note?: string | null;
   createdAt: string;
 }
@@ -102,6 +114,19 @@ async function ensureTables() {
           created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
           UNIQUE(coach_user_id, player_user_id)
         )
+      `),
+      pool.query(`
+        CREATE TABLE IF NOT EXISTS coach_profile_assignments (
+          id TEXT PRIMARY KEY,
+          coach_user_id TEXT NOT NULL,
+          profile_key TEXT NOT NULL,
+          game_name TEXT NOT NULL,
+          tag_line TEXT NOT NULL,
+          platform TEXT NOT NULL,
+          note TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          UNIQUE(coach_user_id, profile_key)
+        )
       `)
     ]).then(() => undefined);
   }
@@ -123,6 +148,10 @@ function passwordResetPath(tokenId: string) {
 
 function coachAssignmentsPath(coachUserId: string) {
   return `${coachAssignmentsDir}/${coachUserId}.json`;
+}
+
+function coachProfileAssignmentsPath(coachUserId: string) {
+  return `${coachProfileAssignmentsDir}/${coachUserId}.json`;
 }
 
 async function readJsonFile<T>(path: string) {
@@ -556,5 +585,123 @@ export async function removeCoachPlayerAssignment(coachUserId: string, playerUse
   await pool.query(
     `DELETE FROM coach_player_assignments WHERE coach_user_id = $1 AND player_user_id = $2`,
     [coachUserId, playerUserId]
+  );
+}
+
+export async function removeCoachPlayerAssignmentById(coachUserId: string, assignmentId: string) {
+  if (!pool) {
+    const current = await listCoachPlayerAssignments(coachUserId);
+    await ensureWrite(
+      coachAssignmentsPath(coachUserId),
+      JSON.stringify(current.filter((entry) => entry.id !== assignmentId), null, 2)
+    );
+    return;
+  }
+
+  await ensureTables();
+  await pool.query(
+    `DELETE FROM coach_player_assignments WHERE coach_user_id = $1 AND id = $2`,
+    [coachUserId, assignmentId]
+  );
+}
+
+export async function saveCoachProfileAssignment(input: {
+  coachUserId: string;
+  profileKey: string;
+  gameName: string;
+  tagLine: string;
+  platform: string;
+  note?: string | null;
+}) {
+  const payload: CoachProfileAssignmentRecord = {
+    id: randomUUID(),
+    coachUserId: input.coachUserId,
+    profileKey: input.profileKey,
+    gameName: input.gameName,
+    tagLine: input.tagLine,
+    platform: input.platform,
+    note: input.note ?? null,
+    createdAt: new Date().toISOString()
+  };
+
+  if (!pool) {
+    const current = await listCoachProfileAssignments(input.coachUserId);
+    const merged = [payload, ...current.filter((entry) => entry.profileKey !== input.profileKey)];
+    await ensureWrite(coachProfileAssignmentsPath(input.coachUserId), JSON.stringify(merged, null, 2));
+    return payload;
+  }
+
+  await ensureTables();
+  await pool.query(
+    `INSERT INTO coach_profile_assignments (
+      id, coach_user_id, profile_key, game_name, tag_line, platform, note, created_at
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+    ON CONFLICT (coach_user_id, profile_key)
+    DO UPDATE SET
+      game_name = EXCLUDED.game_name,
+      tag_line = EXCLUDED.tag_line,
+      platform = EXCLUDED.platform,
+      note = EXCLUDED.note`,
+    [
+      payload.id,
+      payload.coachUserId,
+      payload.profileKey,
+      payload.gameName,
+      payload.tagLine,
+      payload.platform,
+      payload.note ?? null,
+      payload.createdAt
+    ]
+  );
+  return payload;
+}
+
+export async function listCoachProfileAssignments(coachUserId: string) {
+  if (!pool) {
+    const entries = await readJsonFile<CoachProfileAssignmentRecord[]>(coachProfileAssignmentsPath(coachUserId));
+    return entries ?? [];
+  }
+
+  await ensureTables();
+  const result = await pool.query<{
+    id: string;
+    coach_user_id: string;
+    profile_key: string;
+    game_name: string;
+    tag_line: string;
+    platform: string;
+    note: string | null;
+    created_at: string;
+  }>(
+    `SELECT * FROM coach_profile_assignments WHERE coach_user_id = $1 ORDER BY created_at DESC`,
+    [coachUserId]
+  );
+
+  return result.rows.map((row) => ({
+    id: row.id,
+    coachUserId: row.coach_user_id,
+    profileKey: row.profile_key,
+    gameName: row.game_name,
+    tagLine: row.tag_line,
+    platform: row.platform,
+    note: row.note,
+    createdAt: row.created_at
+  } satisfies CoachProfileAssignmentRecord));
+}
+
+export async function removeCoachProfileAssignment(coachUserId: string, assignmentId: string) {
+  if (!pool) {
+    const current = await listCoachProfileAssignments(coachUserId);
+    await ensureWrite(
+      coachProfileAssignmentsPath(coachUserId),
+      JSON.stringify(current.filter((entry) => entry.id !== assignmentId), null, 2)
+    );
+    return;
+  }
+
+  await ensureTables();
+  await pool.query(
+    `DELETE FROM coach_profile_assignments WHERE coach_user_id = $1 AND id = $2`,
+    [coachUserId, assignmentId]
   );
 }

@@ -1,20 +1,25 @@
 import { createHash, randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import type { NextFunction, Request, Response } from 'express';
+import { getMembershipPlan } from '@don-sosa/core';
 import { env } from '../config/env.js';
 import { clearCookie, readCookies, setCookie } from '../lib/cookies.js';
 import { HttpError } from '../lib/http.js';
+import { buildProfileStorageKey, normalizeRiotPlatform } from '../lib/riotRouting.js';
 import { transferAICoachViewerState } from './aiCoachStore.js';
 import {
   deleteSession,
   listCoachPlayerAssignments,
+  listCoachProfileAssignments,
   listUsers,
   loadPasswordResetTokenByHash,
   loadSessionByTokenHash,
   loadUserByEmail,
   loadUserById,
-  removeCoachPlayerAssignment,
+  removeCoachPlayerAssignmentById,
+  removeCoachProfileAssignment,
   saveCoachPlayerAssignment,
+  saveCoachProfileAssignment,
   savePasswordResetToken,
   saveSession,
   saveUser,
@@ -22,7 +27,7 @@ import {
   type AuthUserRecord,
   type UserRole
 } from './authStore.js';
-import { loadMembershipAccount, saveMembershipAccount, transferMembershipState } from './membershipStore.js';
+import { findViewerProfileLink, listViewerProfileLinks, loadMembershipAccount, saveMembershipAccount, transferMembershipState } from './membershipStore.js';
 
 const scrypt = promisify(scryptCallback);
 const authContextKey = Symbol.for('don-sosa.auth-context');
@@ -259,6 +264,25 @@ export function requireRole(req: Request, roles: UserRole[]) {
     throw new HttpError(403, 'auth://forbidden', 'No tenés permisos para usar esta función.');
   }
   return auth;
+}
+
+function extractUserIdFromViewerId(viewerId?: string | null) {
+  if (!viewerId?.startsWith('user:')) return null;
+  return viewerId.slice('user:'.length);
+}
+
+async function resolveCoachWorkspacePlan(userId: string, actorRole?: UserRole | null) {
+  if (actorRole === 'admin') return getMembershipPlan('pro_coach');
+  const account = await loadMembershipAccount(buildUserSubjectId(userId));
+  return getMembershipPlan(account?.planId ?? 'free');
+}
+
+async function assertCoachWorkspaceAccess(userId: string, actorRole?: UserRole | null) {
+  const plan = await resolveCoachWorkspacePlan(userId, actorRole);
+  if (!plan.entitlements.canUseCoachWorkspace) {
+    throw new HttpError(403, 'coach://workspace-disabled', 'Tu plan actual no incluye el espacio coach.');
+  }
+  return plan;
 }
 
 function validatePassword(password: string) {
@@ -530,50 +554,195 @@ export async function listCoachRoster(req: Request) {
     throw new HttpError(403, 'coach://forbidden', 'Esta función es solo para coaches o admins.');
   }
 
-  const assignments = await listCoachPlayerAssignments(auth.effectiveUser!.id);
-  const players = await Promise.all(assignments.map(async (assignment) => {
+  await assertCoachWorkspaceAccess(auth.effectiveUser!.id, actorRole);
+
+  const [userAssignments, profileAssignments] = await Promise.all([
+    listCoachPlayerAssignments(auth.effectiveUser!.id),
+    listCoachProfileAssignments(auth.effectiveUser!.id)
+  ]);
+
+  const userEntries = await Promise.all(userAssignments.map(async (assignment) => {
     const user = await loadUserById(assignment.playerUserId);
-    return user ? {
+    if (!user) return null;
+    const linkedProfiles = await listViewerProfileLinks(buildUserSubjectId(user.id));
+    const latestProfile = linkedProfiles[0] ?? null;
+    return {
       assignmentId: assignment.id,
+      targetType: 'account' as const,
       note: assignment.note ?? null,
       linkedAt: assignment.createdAt,
-      user: sanitizeUser(user)
-    } : null;
+      user: sanitizeUser(user),
+      profile: latestProfile ? {
+        profileKey: latestProfile.profileKey,
+        gameName: latestProfile.gameName,
+        tagLine: latestProfile.tagLine,
+        platform: latestProfile.platform
+      } : null
+    };
   }));
 
-  return players.filter((entry): entry is NonNullable<typeof entry> => Boolean(entry));
+  const profileEntries = await Promise.all(profileAssignments.map(async (assignment) => {
+    const linkedProfile = await findViewerProfileLink({
+      gameName: assignment.gameName,
+      tagLine: assignment.tagLine,
+      platform: assignment.platform
+    });
+    const userId = extractUserIdFromViewerId(linkedProfile?.viewerId);
+    const linkedUser = userId ? await loadUserById(userId) : null;
+    return {
+      assignmentId: assignment.id,
+      targetType: 'riot_profile' as const,
+      note: assignment.note ?? null,
+      linkedAt: assignment.createdAt,
+      user: linkedUser ? sanitizeUser(linkedUser) : null,
+      profile: {
+        profileKey: assignment.profileKey,
+        gameName: assignment.gameName,
+        tagLine: assignment.tagLine,
+        platform: assignment.platform
+      }
+    };
+  }));
+
+  return [...userEntries, ...profileEntries]
+    .filter((entry): entry is NonNullable<typeof entry> => Boolean(entry))
+    .sort((a, b) => Date.parse(b.linkedAt) - Date.parse(a.linkedAt));
 }
 
-export async function addCoachPlayer(req: Request, playerEmail: string, note?: string) {
+export async function addCoachPlayer(req: Request, input: {
+  playerEmail?: string;
+  gameName?: string;
+  tagLine?: string;
+  platform?: string;
+  note?: string;
+}) {
   const auth = requireAuthenticatedUser(req);
   const actorRole = auth.actorUser?.role;
   if (actorRole !== 'coach' && actorRole !== 'admin') {
     throw new HttpError(403, 'coach://forbidden', 'Esta función es solo para coaches o admins.');
   }
 
-  const player = await loadUserByEmail(playerEmail.trim().toLowerCase());
-  if (!player) {
-    throw new HttpError(404, 'coach://player-not-found', 'No encontramos un jugador con ese email.');
+  const coachUserId = auth.effectiveUser!.id;
+  const plan = await assertCoachWorkspaceAccess(coachUserId, actorRole);
+  const [existingUserAssignments, existingProfileAssignments] = await Promise.all([
+    listCoachPlayerAssignments(coachUserId),
+    listCoachProfileAssignments(coachUserId)
+  ]);
+
+  const normalizedNote = input.note?.trim() || undefined;
+  const normalizedEmail = input.playerEmail?.trim().toLowerCase();
+  const normalizedGameName = input.gameName?.trim();
+  const normalizedTagLine = input.tagLine?.replace(/^#+/, '').trim();
+  const normalizedPlatform = normalizeRiotPlatform(input.platform);
+
+  if (normalizedEmail) {
+    const player = await loadUserByEmail(normalizedEmail);
+    if (!player) {
+      throw new HttpError(404, 'coach://player-not-found', 'No encontramos un jugador con ese email.');
+    }
+
+    const alreadyLinked = existingUserAssignments.some((assignment) => assignment.playerUserId === player.id);
+    if (!alreadyLinked && existingUserAssignments.length + existingProfileAssignments.length >= plan.entitlements.maxManagedPlayers) {
+      throw new HttpError(403, 'coach://roster-limit', `Tu plan permite hasta ${plan.entitlements.maxManagedPlayers} jugadores en el roster coach.`);
+    }
+
+    await saveCoachPlayerAssignment({
+      coachUserId,
+      playerUserId: player.id,
+      note: normalizedNote
+    });
+
+    return {
+      targetType: 'account' as const,
+      user: sanitizeUser(player)
+    };
   }
 
-  await saveCoachPlayerAssignment({
-    coachUserId: auth.effectiveUser!.id,
-    playerUserId: player.id,
-    note
+  if (!normalizedGameName || !normalizedTagLine || !normalizedPlatform) {
+    throw new HttpError(400, 'coach://invalid-player-target', 'Para agregar por Riot ID necesitamos game name, tag y platform.');
+  }
+
+  const profileKey = buildProfileStorageKey(normalizedGameName, normalizedTagLine, normalizedPlatform);
+  const linkedProfile = await findViewerProfileLink({
+    gameName: normalizedGameName,
+    tagLine: normalizedTagLine,
+    platform: normalizedPlatform
+  });
+  const linkedUserId = extractUserIdFromViewerId(linkedProfile?.viewerId);
+
+  if (linkedUserId) {
+    const player = await loadUserById(linkedUserId);
+    if (player) {
+      const alreadyLinked = existingUserAssignments.some((assignment) => assignment.playerUserId === player.id);
+      if (!alreadyLinked && existingUserAssignments.length + existingProfileAssignments.length >= plan.entitlements.maxManagedPlayers) {
+        throw new HttpError(403, 'coach://roster-limit', `Tu plan permite hasta ${plan.entitlements.maxManagedPlayers} jugadores en el roster coach.`);
+      }
+
+      await saveCoachPlayerAssignment({
+        coachUserId,
+        playerUserId: player.id,
+        note: normalizedNote
+      });
+
+      return {
+        targetType: 'account' as const,
+        user: sanitizeUser(player)
+      };
+    }
+  }
+
+  const alreadyLinked = existingProfileAssignments.some((assignment) => assignment.profileKey === profileKey);
+  if (!alreadyLinked && existingUserAssignments.length + existingProfileAssignments.length >= plan.entitlements.maxManagedPlayers) {
+    throw new HttpError(403, 'coach://roster-limit', `Tu plan permite hasta ${plan.entitlements.maxManagedPlayers} jugadores en el roster coach.`);
+  }
+
+  await saveCoachProfileAssignment({
+    coachUserId,
+    profileKey,
+    gameName: normalizedGameName,
+    tagLine: normalizedTagLine,
+    platform: normalizedPlatform,
+    note: normalizedNote
   });
 
-  return sanitizeUser(player);
+  return {
+    targetType: 'riot_profile' as const,
+    profile: {
+      profileKey,
+      gameName: normalizedGameName,
+      tagLine: normalizedTagLine,
+      platform: normalizedPlatform
+    }
+  };
 }
 
-export async function removeCoachPlayer(req: Request, playerUserId: string) {
+export async function removeCoachPlayer(req: Request, assignmentId: string) {
   const auth = requireAuthenticatedUser(req);
   const actorRole = auth.actorUser?.role;
   if (actorRole !== 'coach' && actorRole !== 'admin') {
     throw new HttpError(403, 'coach://forbidden', 'Esta función es solo para coaches o admins.');
   }
 
-  await removeCoachPlayerAssignment(auth.effectiveUser!.id, playerUserId);
-  return { ok: true as const };
+  await assertCoachWorkspaceAccess(auth.effectiveUser!.id, actorRole);
+
+  const [userAssignments, profileAssignments] = await Promise.all([
+    listCoachPlayerAssignments(auth.effectiveUser!.id),
+    listCoachProfileAssignments(auth.effectiveUser!.id)
+  ]);
+
+  const userAssignment = userAssignments.find((assignment) => assignment.id === assignmentId);
+  if (userAssignment) {
+    await removeCoachPlayerAssignmentById(auth.effectiveUser!.id, assignmentId);
+    return { ok: true as const };
+  }
+
+  const profileAssignment = profileAssignments.find((assignment) => assignment.id === assignmentId);
+  if (profileAssignment) {
+    await removeCoachProfileAssignment(auth.effectiveUser!.id, assignmentId);
+    return { ok: true as const };
+  }
+
+  throw new HttpError(404, 'coach://assignment-not-found', 'No encontramos ese vínculo dentro del roster coach.');
 }
 
 export function getSafeUserFromAuth(req: Request) {

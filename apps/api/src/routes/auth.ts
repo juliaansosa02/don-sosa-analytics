@@ -55,8 +55,20 @@ const updatePlanSchema = z.object({
 });
 
 const coachLinkSchema = z.object({
-  playerEmail: z.string().email(),
+  playerEmail: z.string().email().optional(),
+  gameName: z.string().trim().min(1).max(32).optional(),
+  tagLine: z.string().trim().transform((value) => value.replace(/^#+/, '')).pipe(z.string().min(1).max(16)).optional(),
+  platform: z.string().trim().toUpperCase().min(2).max(5).optional(),
   note: z.string().trim().max(240).optional()
+}).superRefine((value, ctx) => {
+  const hasEmail = Boolean(value.playerEmail);
+  const hasRiotProfile = Boolean(value.gameName && value.tagLine && value.platform);
+  if (!hasEmail && !hasRiotProfile) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Necesitás enviar playerEmail o gameName, tagLine y platform.'
+    });
+  }
 });
 
 const impersonateSchema = z.object({
@@ -281,17 +293,17 @@ coachRouter.get('/players', async (req, res) => {
 coachRouter.post('/players', async (req, res) => {
   try {
     const input = coachLinkSchema.parse(req.body);
-    const user = await addCoachPlayer(req, input.playerEmail, input.note);
-    res.status(201).json({ ok: true, user });
+    const target = await addCoachPlayer(req, input);
+    res.status(201).json({ ok: true, target });
   } catch (error) {
     const status = error instanceof HttpError ? error.status : 400;
     res.status(status).json({ error: getErrorMessage(error) });
   }
 });
 
-coachRouter.delete('/players/:playerUserId', async (req, res) => {
+coachRouter.delete('/players/:assignmentId', async (req, res) => {
   try {
-    const result = await removeCoachPlayer(req, req.params.playerUserId);
+    const result = await removeCoachPlayer(req, req.params.assignmentId);
     res.json(result);
   } catch (error) {
     const status = error instanceof HttpError ? error.status : 400;

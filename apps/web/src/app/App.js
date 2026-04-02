@@ -233,13 +233,16 @@ function AppShell() {
     const [coachRoster, setCoachRoster] = useState([]);
     const [coachRosterLoading, setCoachRosterLoading] = useState(false);
     const [coachPlayerEmail, setCoachPlayerEmail] = useState('');
+    const [coachPlayerGameName, setCoachPlayerGameName] = useState('');
+    const [coachPlayerTagLine, setCoachPlayerTagLine] = useState('');
+    const [coachPlayerPlatform, setCoachPlayerPlatform] = useState(() => guessDefaultRiotPlatform(detectLocale()));
     const [coachPlayerNote, setCoachPlayerNote] = useState('');
     const currentPlan = membership?.plan ?? null;
     const planEntitlements = currentPlan?.entitlements ?? null;
     const authUser = authMe?.user ?? null;
     const actorUser = authMe?.actorUser ?? null;
     const safeAdminUsers = useMemo(() => adminUsers.filter((entry) => entry?.user && entry?.membership?.plan && entry?.membership?.account && entry?.usage), [adminUsers]);
-    const safeCoachRoster = useMemo(() => coachRoster.filter((entry) => entry?.user && entry.assignmentId), [coachRoster]);
+    const safeCoachRoster = useMemo(() => coachRoster.filter((entry) => entry?.assignmentId && (entry?.user || entry?.profile)), [coachRoster]);
     const billingReady = membershipCatalog?.billing.ready ?? false;
     const currentPlanPriceLabel = currentPlan
         ? currentPlan.monthlyUsd === 0
@@ -1067,14 +1070,31 @@ function AppShell() {
             setAuthActionLoading(false);
         }
     }
-    async function handleAddCoachPlayer() {
-        if (!coachPlayerEmail.trim())
-            return;
+    async function handleAddCoachPlayer(mode) {
         setCoachRosterLoading(true);
         setAuthError(null);
         try {
-            await addCoachPlayer({ playerEmail: coachPlayerEmail.trim(), note: coachPlayerNote.trim() || undefined });
-            setCoachPlayerEmail('');
+            if (mode === 'email') {
+                if (!coachPlayerEmail.trim())
+                    return;
+                await addCoachPlayer({
+                    playerEmail: coachPlayerEmail.trim(),
+                    note: coachPlayerNote.trim() || undefined
+                });
+                setCoachPlayerEmail('');
+            }
+            else {
+                if (!coachPlayerGameName.trim() || !coachPlayerTagLine.trim())
+                    return;
+                await addCoachPlayer({
+                    gameName: coachPlayerGameName.trim(),
+                    tagLine: coachPlayerTagLine.trim(),
+                    platform: coachPlayerPlatform,
+                    note: coachPlayerNote.trim() || undefined
+                });
+                setCoachPlayerGameName('');
+                setCoachPlayerTagLine('');
+            }
             setCoachPlayerNote('');
             await refreshCoachRoster();
         }
@@ -1085,11 +1105,11 @@ function AppShell() {
             setCoachRosterLoading(false);
         }
     }
-    async function handleRemoveCoachRosterPlayer(userId) {
+    async function handleRemoveCoachRosterPlayer(assignmentId) {
         setCoachRosterLoading(true);
         setAuthError(null);
         try {
-            await removeCoachPlayer(userId);
+            await removeCoachPlayer(assignmentId);
             await refreshCoachRoster();
         }
         catch (err) {
@@ -1169,7 +1189,7 @@ function AppShell() {
                 }) })] })) : null;
     return (_jsx(Shell, { children: _jsxs("div", { style: { display: 'grid', gap: 18, maxWidth: 1440, margin: '0 auto' }, children: [_jsxs("section", { style: topBarStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: { color: '#eef4ff', fontSize: 18, fontWeight: 800, letterSpacing: '-0.03em' }, children: "Don Sosa Coach" }), _jsx("div", { style: { color: '#8b96aa', fontSize: 13 }, children: locale === 'en' ? 'Premium coaching, review and progression tracking for League of Legends.' : 'Coaching premium, revisión y seguimiento de progreso para League of Legends.' })] }), _jsx("div", { style: accountAccessStyle, children: authUser ? (_jsxs(_Fragment, { children: [_jsxs("div", { style: { display: 'grid', gap: 6, minWidth: 0 }, children: [_jsx("div", { style: { color: '#7f90a8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Account' : 'Cuenta' }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }, children: [authMe?.isImpersonating ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? 'Impersonating' : 'Suplantando' }) : null, actorUser ? _jsx(Badge, { tone: actorUser.role === 'admin' ? 'medium' : actorUser.role === 'coach' ? 'default' : 'low', children: actorUser.role.toUpperCase() }) : null, currentPlan ? _jsx(Badge, { tone: "default", children: currentPlan.name }) : null] })] }), _jsxs("button", { type: "button", style: accountTriggerStyle, onClick: () => openAccountPanel(), children: [_jsxs("span", { style: { display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }, children: [_jsx("span", { style: accountAvatarStyle, children: (authUser.displayName || authUser.email || 'D').slice(0, 1).toUpperCase() }), _jsxs("span", { style: { display: 'grid', gap: 2, minWidth: 0, textAlign: 'left' }, children: [_jsx("span", { style: { color: '#eef4ff', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis' }, children: authUser.displayName }), _jsx("span", { style: { color: '#8692a7', fontSize: 11 }, children: locale === 'en' ? 'Profile, billing and settings' : 'Perfil, billing y ajustes' })] })] }), _jsx("span", { style: accountTriggerMetaStyle, children: locale === 'en' ? 'Open' : 'Abrir' })] })] })) : (_jsxs(_Fragment, { children: [_jsxs("div", { style: { display: 'grid', gap: 4, minWidth: 0 }, children: [_jsx("div", { style: { color: '#7f90a8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }, children: locale === 'en' ? 'Account' : 'Cuenta' }), _jsx("div", { style: { color: '#95a4b8', fontSize: 13, lineHeight: 1.55, maxWidth: 300 }, children: locale === 'en'
                                                     ? 'Save coaching, plans and profiles under a real account instead of only in this browser.'
-                                                    : 'Guardá coaching, planes y perfiles en una cuenta real y no solo en este navegador.' })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }, children: [_jsx("button", { type: "button", style: secondaryButtonStyle, onClick: () => { setAuthMode('login'); openAccountPanel('auth'); }, children: locale === 'en' ? 'Login' : 'Ingresar' }), _jsx("button", { type: "button", style: buttonStyle, onClick: () => { setAuthMode('signup'); openAccountPanel('auth'); }, children: locale === 'en' ? 'Create account' : 'Crear cuenta' })] })] })) })] }), _jsx(AccountCenter, { open: accountPanelOpen, locale: locale, authUser: authUser, actorUser: actorUser, authMe: authMe, currentPlan: currentPlan, currentPlanPriceLabel: currentPlanPriceLabel, membership: membership, membershipCatalog: membershipCatalog, billingReady: billingReady, canOpenBillingPortal: canOpenBillingPortal, canManageCoachRoster: canManageCoachRoster, isAdmin: isAdmin, accountPanelTab: accountPanelTab, authMode: authMode, authEmail: authEmail, authPassword: authPassword, authDisplayName: authDisplayName, resetToken: resetToken, newPassword: newPassword, resetTokenPreview: resetTokenPreview, resetLinkPreview: resetLinkPreview, authActionLoading: authActionLoading, membershipActionLoading: membershipActionLoading, authError: authError, membershipError: membershipError, adminLoading: adminLoading, safeAdminUsers: safeAdminUsers, coachRosterLoading: coachRosterLoading, safeCoachRoster: safeCoachRoster, coachPlayerEmail: coachPlayerEmail, coachPlayerNote: coachPlayerNote, onClose: () => setAccountPanelOpen(false), onTabChange: setAccountPanelTab, onAuthModeChange: setAuthMode, onAuthEmailChange: setAuthEmail, onAuthPasswordChange: setAuthPassword, onAuthDisplayNameChange: setAuthDisplayName, onResetTokenChange: setResetToken, onNewPasswordChange: setNewPassword, onCoachPlayerEmailChange: setCoachPlayerEmail, onCoachPlayerNoteChange: setCoachPlayerNote, onAuthSubmit: handleAuthSubmit, onResetPasswordConfirm: handleResetPasswordConfirm, onLogout: handleLogout, onPasswordChange: handlePasswordChange, onBillingPortal: handleBillingPortal, onCheckout: handleCheckout, onDevPlanChange: handleDevPlanChange, onStopImpersonation: handleStopImpersonation, onAddCoachPlayer: handleAddCoachPlayer, onRemoveCoachPlayer: handleRemoveCoachRosterPlayer, onAdminRoleChange: handleAdminRoleUpdate, onAdminPlanChange: handleAdminPlanUpdate, onAdminImpersonation: handleAdminImpersonation }), _jsxs("section", { style: heroGridStyle, children: [!dataset ? (_jsx("div", { style: heroIntroPanelStyle, children: _jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsx("div", { style: { color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }, children: "Don Sosa Coach" }), _jsx("h1", { style: { margin: 0, fontSize: 46, letterSpacing: '-0.05em', maxWidth: 760 }, children: locale === 'en'
+                                                    : 'Guardá coaching, planes y perfiles en una cuenta real y no solo en este navegador.' })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }, children: [_jsx("button", { type: "button", style: secondaryButtonStyle, onClick: () => { setAuthMode('login'); openAccountPanel('auth'); }, children: locale === 'en' ? 'Login' : 'Ingresar' }), _jsx("button", { type: "button", style: buttonStyle, onClick: () => { setAuthMode('signup'); openAccountPanel('auth'); }, children: locale === 'en' ? 'Create account' : 'Crear cuenta' })] })] })) })] }), _jsx(AccountCenter, { open: accountPanelOpen, locale: locale, authUser: authUser, actorUser: actorUser, authMe: authMe, currentPlan: currentPlan, currentPlanPriceLabel: currentPlanPriceLabel, membership: membership, membershipCatalog: membershipCatalog, billingReady: billingReady, canOpenBillingPortal: canOpenBillingPortal, canManageCoachRoster: canManageCoachRoster, isAdmin: isAdmin, accountPanelTab: accountPanelTab, authMode: authMode, authEmail: authEmail, authPassword: authPassword, authDisplayName: authDisplayName, resetToken: resetToken, newPassword: newPassword, resetTokenPreview: resetTokenPreview, resetLinkPreview: resetLinkPreview, authActionLoading: authActionLoading, membershipActionLoading: membershipActionLoading, authError: authError, membershipError: membershipError, adminLoading: adminLoading, safeAdminUsers: safeAdminUsers, coachRosterLoading: coachRosterLoading, safeCoachRoster: safeCoachRoster, coachPlayerEmail: coachPlayerEmail, coachPlayerGameName: coachPlayerGameName, coachPlayerTagLine: coachPlayerTagLine, coachPlayerPlatform: coachPlayerPlatform, coachPlayerNote: coachPlayerNote, onClose: () => setAccountPanelOpen(false), onTabChange: setAccountPanelTab, onAuthModeChange: setAuthMode, onAuthEmailChange: setAuthEmail, onAuthPasswordChange: setAuthPassword, onAuthDisplayNameChange: setAuthDisplayName, onResetTokenChange: setResetToken, onNewPasswordChange: setNewPassword, onCoachPlayerEmailChange: setCoachPlayerEmail, onCoachPlayerGameNameChange: setCoachPlayerGameName, onCoachPlayerTagLineChange: setCoachPlayerTagLine, onCoachPlayerPlatformChange: (value) => setCoachPlayerPlatform(value), onCoachPlayerNoteChange: setCoachPlayerNote, onAuthSubmit: handleAuthSubmit, onResetPasswordConfirm: handleResetPasswordConfirm, onLogout: handleLogout, onPasswordChange: handlePasswordChange, onBillingPortal: handleBillingPortal, onCheckout: handleCheckout, onDevPlanChange: handleDevPlanChange, onStopImpersonation: handleStopImpersonation, onAddCoachPlayer: handleAddCoachPlayer, onRemoveCoachPlayer: handleRemoveCoachRosterPlayer, onAdminRoleChange: handleAdminRoleUpdate, onAdminPlanChange: handleAdminPlanUpdate, onAdminImpersonation: handleAdminImpersonation }), _jsxs("section", { style: heroGridStyle, children: [!dataset ? (_jsx("div", { style: heroIntroPanelStyle, children: _jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsx("div", { style: { color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }, children: "Don Sosa Coach" }), _jsx("h1", { style: { margin: 0, fontSize: 46, letterSpacing: '-0.05em', maxWidth: 760 }, children: locale === 'en'
                                             ? 'A competitive read of your play, not just another stats page'
                                             : 'Tu lectura competitiva para jugar mejor, no solo mirar stats' }), _jsx("p", { style: { margin: 0, color: '#9099aa', maxWidth: 760, lineHeight: 1.7 }, children: locale === 'en'
                                             ? 'Clear diagnosis, actionable decisions and an organized view of matchups, runes, champions and review. First you understand what to fix, then you go deeper.'

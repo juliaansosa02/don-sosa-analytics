@@ -305,9 +305,16 @@ export interface AdminUsersResponse {
 
 export interface CoachRosterEntry {
   assignmentId: string;
+  targetType: 'account' | 'riot_profile';
   note: string | null;
   linkedAt: string;
-  user: SafeAuthUser;
+  user: SafeAuthUser | null;
+  profile: {
+    profileKey: string;
+    gameName: string;
+    tagLine: string;
+    platform: string;
+  } | null;
 }
 
 export interface CoachRosterResponse {
