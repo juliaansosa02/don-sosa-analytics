@@ -395,8 +395,34 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
         focusMetric: problem.focusMetric,
         winRateDelta: problem.winRateDelta
       })),
-      activePlan: summary.coaching.activePlan
+      activePlan: summary.coaching.activePlan,
+      trend: summary.coaching.trend
     },
+    positiveSignals: summary.positiveSignals.map((signal) => ({
+      id: signal.id,
+      problem: signal.problem,
+      title: signal.title,
+      category: signal.category,
+      priority: signal.priority,
+      evidence: signal.evidence,
+      impact: signal.impact,
+      cause: signal.cause,
+      actions: signal.actions,
+      focusMetric: signal.focusMetric,
+      winRateDelta: signal.winRateDelta
+    })),
+    reviewAgenda: summary.reviewAgenda.map((item) => ({
+      matchId: item.matchId,
+      championName: item.championName,
+      opponentChampionName: item.opponentChampionName,
+      gameCreation: item.gameCreation,
+      win: item.win,
+      title: item.title,
+      reason: item.reason,
+      question: item.question,
+      focus: item.focus,
+      tags: item.tags
+    })),
     championPool: summary.championPool.slice(0, 4).map((champion) => ({
       championName: champion.championName,
       games: champion.games,
@@ -415,6 +441,7 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       recentWinRate: summary.problematicMatchup.recentWinRate,
       directGames: summary.problematicMatchup.directGames,
       directWins: summary.problematicMatchup.directWins,
+      directLosses: summary.problematicMatchup.directLosses,
       directWinRate: summary.problematicMatchup.directWinRate,
       avgCsAt15: summary.problematicMatchup.avgCsAt15,
       avgGoldDiffAt15: summary.problematicMatchup.avgGoldDiffAt15,
@@ -461,6 +488,8 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
 function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: { id: string; title: string; body: string; actionables: string[] } }>): AICoachOutput {
   const topProblem = context.coaching.topProblems[0];
   const secondProblem = context.coaching.topProblems[1];
+  const topPositive = context.positiveSignals[0];
+  const topReview = context.reviewAgenda[0];
   const topCards = knowledgeCards.slice(0, 3).map((entry) => entry.card);
   const championPatchAlert = context.patchContext.relevantChampionUpdates[0] ?? null;
   const problematicMatchup = context.problematicMatchup;
@@ -478,7 +507,12 @@ function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: 
       ? 'The current sample is still too small or too mixed to isolate a real root cause.'
       : 'La muestra todavía es demasiado chica o demasiado mezclada como para aislar una causa raíz real.'),
     whatToReview: [
-      ...(topProblem?.evidence.slice(0, 2) ?? []),
+      ...(context.reviewAgenda.map((item) =>
+        context.player.locale === 'en'
+          ? `${item.title}: ${item.question}`
+          : `${item.title}: ${item.question}`
+      ) ?? []),
+      ...(topProblem?.evidence.slice(0, 1) ?? []),
       ...(problematicMatchup ? [problematicMatchup.summary] : []),
       ...(topCards[0] ? [topCards[0].body] : []),
       ...(secondProblem ? [secondProblem.problem] : [])
@@ -486,16 +520,17 @@ function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: 
     whatToDoNext3Games: [
       ...(problematicMatchup?.adjustments.slice(0, 1) ?? []),
       ...(topProblem?.actions.slice(0, 2) ?? []),
+      ...(topPositive?.actions.slice(0, 1) ?? []),
       ...topCards.flatMap((card) => card.actionables).slice(0, 3)
     ].slice(0, 4),
     championSpecificNote: context.player.anchorChampion
       ? (context.player.locale === 'en'
         ? championPatchAlert
-          ? `${context.player.anchorChampion} is your current anchor pick, and patch ${context.patchContext.currentPatch} recently touched it: ${championPatchAlert.summary}`
-          : `${context.player.anchorChampion} is your current anchor pick. Use it as the reference for recalls, tempo and objective setup before widening the pool.`
+          ? `${context.player.anchorChampion} is your current reference pick, and patch ${context.patchContext.currentPatch} recently touched it: ${championPatchAlert.summary}`
+          : `${context.player.anchorChampion} is your current reference pick. Use it as the cleanest lens for recalls, tempo and objective setup before widening the pool.`
         : championPatchAlert
-          ? `${context.player.anchorChampion} es tu pick ancla actual, y el parche ${context.patchContext.currentPatch} lo tocó hace poco: ${championPatchAlert.summary}`
-          : `${context.player.anchorChampion} es tu pick ancla actual. Usalo como referencia para recalls, tempo y setup de objetivos antes de abrir más el pool.`)
+          ? `${context.player.anchorChampion} es hoy tu pick de referencia, y el parche ${context.patchContext.currentPatch} lo tocó hace poco: ${championPatchAlert.summary}`
+          : `${context.player.anchorChampion} es hoy tu pick de referencia. Usalo como la lente más limpia para recalls, tempo y setup de objetivos antes de abrir más el pool.`)
       : null,
     matchupSpecificNote: problematicMatchup
       ? problematicMatchup.summary
@@ -506,12 +541,14 @@ function buildDraftCoach(context: AICoachContext, knowledgeCards: Array<{ card: 
       : null,
     grounding: [
       topProblem?.impact,
+      topPositive?.impact,
+      topReview ? `${topReview.title}: ${topReview.reason}` : null,
       problematicMatchup?.summary,
       ...context.patchContext.relevantChampionUpdates.slice(0, 1).map((update) => `${update.championName}: ${update.summary}`),
       ...topCards.map((card) => card.title)
     ].filter(Boolean).slice(0, 4) as string[],
     knowledgeCardIds: topCards.map((card) => card.id),
-    confidence: topProblem ? 0.62 : 0.32
+    confidence: topProblem ? (context.reviewAgenda.length ? 0.68 : 0.62) : (topPositive ? 0.42 : 0.32)
   };
 }
 
@@ -676,6 +713,8 @@ Rules:
 - Use the provided role fundamentals to decide what matters most for this player before you speak.
 - If the scope is role-specific, stay inside that role. Do not bring champions from other roles unless you explicitly explain why they are relevant.
 - If a problematic matchup is provided, use the exact champion names and explain the matchup in concrete terms instead of falling back to a reusable generic leak.
+- If positive signals are provided, surface them only when they are specific and evidence-backed. Do not leave the positive section empty if a real positive pattern exists.
+- If a review agenda is provided, convert it into concrete replay questions instead of generic "review your games" advice.
 - Always turn the diagnosis into review instructions and next-game habits.
 - Write with the tone of a high-level analyst coaching a serious player.
 - If the evidence is weak, say so and lower confidence.
@@ -706,8 +745,8 @@ function buildUserPrompt(
         }
       : null,
     instruction: context.player.locale === 'en'
-      ? 'Use the diagnosis, role fundamentals, patch context and retrieved coaching knowledge to produce the next coaching block. Write only in English, make the main leak concrete and personalized, keep the read inside the scoped role and picks unless the connection is explicit, and if previous coaching exists, update the guidance with continuity instead of restarting from zero.'
-      : 'Usá el diagnóstico, los fundamentos del rol, el contexto de parche y el conocimiento recuperado para producir el siguiente bloque de coaching. Escribí solo en español, hacé que el problema principal sea concreto y personalizado, mantené la lectura dentro del rol y de los picks del scope salvo conexión explícita, y si existe coaching previo, actualizá la guía con continuidad en vez de reiniciarla desde cero.'
+      ? 'Use the diagnosis, role fundamentals, patch context, positive signals, review agenda and retrieved coaching knowledge to produce the next coaching block. Write only in English, make the main leak concrete and personalized, keep the read inside the scoped role and picks unless the connection is explicit, surface real strengths when they exist, and if previous coaching exists, update the guidance with continuity instead of restarting from zero.'
+      : 'Usá el diagnóstico, los fundamentos del rol, el contexto de parche, las señales positivas, la agenda de review y el conocimiento recuperado para producir el siguiente bloque de coaching. Escribí solo en español, hacé que el problema principal sea concreto y personalizado, mantené la lectura dentro del rol y de los picks del scope salvo conexión explícita, mostrà fortalezas reales cuando existan, y si existe coaching previo, actualizá la guía con continuidad en vez de reiniciarla desde cero.'
   });
 }
 

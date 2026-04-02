@@ -124,15 +124,26 @@ export interface ImprovementCycle {
 }
 
 export interface PerformanceTrend {
+  baselineMatches: number;
+  recentMatches: number;
   baselineScore: number;
   recentScore: number;
   scoreDelta: number;
   baselineWinRate: number;
   recentWinRate: number;
   winRateDelta: number;
+  baselineConsistency: number;
+  recentConsistency: number;
+  consistencyDelta: number;
   baselineCsAt15: number;
   recentCsAt15: number;
   csAt15Delta: number;
+  baselineGoldAt15: number;
+  recentGoldAt15: number;
+  goldAt15Delta: number;
+  baselineKillParticipation: number;
+  recentKillParticipation: number;
+  killParticipationDelta: number;
   baselineDeathsPre14: number;
   recentDeathsPre14: number;
   deathsPre14Delta: number;
@@ -147,6 +158,7 @@ export interface ProblematicMatchupSummary {
   recentWinRate: number;
   directGames: number;
   directWins: number;
+  directLosses: number;
   directWinRate: number | null;
   avgCsAt15: number;
   avgGoldDiffAt15: number;
@@ -154,6 +166,19 @@ export interface ProblematicMatchupSummary {
   avgDeathsPre14: number;
   summary: string;
   adjustments: string[];
+}
+
+export interface ReviewAgendaItem {
+  matchId: string;
+  championName: string;
+  opponentChampionName?: string;
+  gameCreation: number;
+  win: boolean;
+  title: string;
+  reason: string;
+  question: string;
+  focus: string;
+  tags: string[];
 }
 
 export interface CoachingSummary {
@@ -189,6 +214,8 @@ export interface AggregateSummary {
   remakesExcluded: number;
   championPool: ChampionAggregate[];
   insights: CoachInsight[];
+  positiveSignals: CoachInsight[];
+  reviewAgenda: ReviewAgendaItem[];
   coaching: CoachingSummary;
   problematicMatchup: ProblematicMatchupSummary | null;
 }
@@ -604,6 +631,12 @@ function pickMostPlayedRecentChampion(matches: ParticipantSnapshot[]) {
     .sort((a, b) => b[1].games - a[1].games || b[1].latestGameCreation - a[1].latestGameCreation)[0]?.[0] ?? null;
 }
 
+function calculateConsistencyIndex(matches: ParticipantSnapshot[]) {
+  if (!matches.length) return 0;
+  const averageScore = avg(matches.map((match) => match.score.total));
+  return round(100 - avg(matches.map((match) => Math.abs(match.score.total - averageScore))), 1);
+}
+
 function buildProblematicMatchupSummary(matches: ParticipantSnapshot[], locale: SummaryLocale = 'es'): ProblematicMatchupSummary | null {
   if (!matches.length) return null;
 
@@ -611,39 +644,112 @@ function buildProblematicMatchupSummary(matches: ParticipantSnapshot[], locale: 
   const roleProfile = getRoleProfile(primaryRole, locale);
   const recentWindow = [...matches]
     .sort((a, b) => b.gameCreation - a.gameCreation)
-    .slice(0, Math.min(12, matches.length));
+    .slice(0, Math.min(20, matches.length));
   const championName = pickMostPlayedRecentChampion(matches);
 
   if (!championName) return null;
 
   const grouped = new Map<string, ParticipantSnapshot[]>();
-  for (const match of recentWindow) {
+  const recentGrouped = new Map<string, ParticipantSnapshot[]>();
+  for (const match of matches) {
     if (!match.opponentChampionName) continue;
     const list = grouped.get(match.opponentChampionName) ?? [];
     list.push(match);
     grouped.set(match.opponentChampionName, list);
   }
 
+  for (const match of recentWindow) {
+    if (!match.opponentChampionName) continue;
+    const list = recentGrouped.get(match.opponentChampionName) ?? [];
+    list.push(match);
+    recentGrouped.set(match.opponentChampionName, list);
+  }
+
   const worstOpponent = Array.from(grouped.entries())
     .map(([opponentChampionName, list]) => ({
       opponentChampionName,
       list,
-      recentLosses: list.filter((match) => !match.win).length,
-      recentWins: list.filter((match) => match.win).length,
-      recentWinRate: round(percent(list.filter((match) => match.win).length, list.length), 1),
-      avgGoldDiffAt15: avg(list.map((match) => match.timeline.goldDiffAt15 ?? 0))
+      overallGames: list.length,
+      overallWins: list.filter((match) => match.win).length,
+      overallLosses: list.filter((match) => !match.win).length,
+      overallWinRate: round(percent(list.filter((match) => match.win).length, list.length), 1),
+      recentList: recentGrouped.get(opponentChampionName) ?? [],
+      avgGoldDiffAt15: avg(list.map((match) => match.timeline.goldDiffAt15 ?? 0)),
+      avgLevelDiffAt15: avg(list.map((match) => match.timeline.levelDiffAt15 ?? 0))
     }))
-    .sort((a, b) => b.recentLosses - a.recentLosses || a.recentWinRate - b.recentWinRate || b.list.length - a.list.length || a.avgGoldDiffAt15 - b.avgGoldDiffAt15)[0];
+    .map((entry) => {
+      const recentWins = entry.recentList.filter((match) => match.win).length;
+      const recentLosses = entry.recentList.filter((match) => !match.win).length;
+      const recentWinRate = round(percent(recentWins, entry.recentList.length), 1);
+      const directMatches = matches.filter((match) =>
+        match.championName === championName &&
+        match.opponentChampionName === entry.opponentChampionName
+      );
+      const directWins = directMatches.filter((match) => match.win).length;
+      const directLosses = directMatches.length - directWins;
+      const severityScore =
+        (entry.overallLosses * 5) +
+        (recentLosses * 6) +
+        (directLosses * 7) +
+        Math.max(0, 55 - entry.overallWinRate) * 0.7 +
+        Math.max(0, -entry.avgGoldDiffAt15) / 110 +
+        Math.max(0, -entry.avgLevelDiffAt15) * 8 +
+        (directMatches.length >= 2 ? 3 : 0);
+
+      return {
+        ...entry,
+        recentWins,
+        recentLosses,
+        recentWinRate,
+        directMatches,
+        directWins,
+        directLosses,
+        severityScore
+      };
+    })
+    .filter((entry) =>
+      entry.overallLosses >= 2 ||
+      entry.recentLosses >= 2 ||
+      entry.directLosses >= 2 ||
+      entry.overallGames >= 4
+    )
+    .sort((a, b) =>
+      b.severityScore - a.severityScore ||
+      b.directLosses - a.directLosses ||
+      b.overallLosses - a.overallLosses ||
+      b.recentLosses - a.recentLosses ||
+      b.overallGames - a.overallGames ||
+      a.avgGoldDiffAt15 - b.avgGoldDiffAt15
+    )[0]
+    ?? Array.from(grouped.entries())
+      .map(([opponentChampionName, list]) => ({
+        opponentChampionName,
+        list,
+        recentList: recentGrouped.get(opponentChampionName) ?? [],
+        overallGames: list.length,
+        overallWins: list.filter((match) => match.win).length,
+        overallLosses: list.filter((match) => !match.win).length,
+        overallWinRate: round(percent(list.filter((match) => match.win).length, list.length), 1),
+        avgGoldDiffAt15: avg(list.map((match) => match.timeline.goldDiffAt15 ?? 0)),
+        avgLevelDiffAt15: avg(list.map((match) => match.timeline.levelDiffAt15 ?? 0)),
+        recentWins: (recentGrouped.get(opponentChampionName) ?? []).filter((match) => match.win).length,
+        recentLosses: (recentGrouped.get(opponentChampionName) ?? []).filter((match) => !match.win).length,
+        recentWinRate: round(percent((recentGrouped.get(opponentChampionName) ?? []).filter((match) => match.win).length, (recentGrouped.get(opponentChampionName) ?? []).length), 1),
+        directMatches: matches.filter((match) => match.championName === championName && match.opponentChampionName === opponentChampionName),
+        directWins: matches.filter((match) => match.championName === championName && match.opponentChampionName === opponentChampionName && match.win).length,
+        directLosses: matches.filter((match) => match.championName === championName && match.opponentChampionName === opponentChampionName && !match.win).length,
+        severityScore: 0
+      }))
+      .sort((a, b) => b.recentLosses - a.recentLosses || b.overallLosses - a.overallLosses || b.overallGames - a.overallGames)[0];
 
   if (!worstOpponent) return null;
 
-  const directMatches = matches.filter((match) =>
-    match.championName === championName &&
-    match.opponentChampionName === worstOpponent.opponentChampionName
-  );
-  const guidanceSample = directMatches.length ? directMatches : worstOpponent.list;
-  const directWins = directMatches.filter((match) => match.win).length;
+  const directMatches = worstOpponent.directMatches;
+  const directWins = worstOpponent.directWins;
   const directWinRate = directMatches.length ? round(percent(directWins, directMatches.length), 1) : null;
+  const guidanceSample = directMatches.length >= 2
+    ? directMatches
+    : (worstOpponent.recentList.length >= 2 ? worstOpponent.recentList : worstOpponent.list);
   const avgCsAt15 = round(avg(guidanceSample.map((match) => match.timeline.csAt15)), 1);
   const avgGoldDiffAt15 = round(avg(guidanceSample.map((match) => match.timeline.goldDiffAt15 ?? 0)), 0);
   const avgLevelDiffAt15 = round(avg(guidanceSample.map((match) => match.timeline.levelDiffAt15 ?? 0)), 1);
@@ -651,9 +757,13 @@ function buildProblematicMatchupSummary(matches: ParticipantSnapshot[], locale: 
 
   let summary: string;
   if (locale === 'en') {
-    summary = `${worstOpponent.opponentChampionName} is the opponent pick hurting you the most in the recent scope: ${recordLabel(worstOpponent.recentWins, worstOpponent.list.length, locale)}. ${championName} is your most played recent champion in the same scope${directMatches.length ? ` and the direct sample into this matchup sits at ${recordLabel(directWins, directMatches.length, locale)}.` : ', even though you still have little direct sample into this exact cross.'}`;
+    summary = directMatches.length >= 2
+      ? `${worstOpponent.opponentChampionName} is the recurring matchup doing the most damage in this scope. Across the full scoped sample it sits at ${recordLabel(worstOpponent.overallWins, worstOpponent.overallGames, locale)}, and the direct sample with ${championName} lands at ${recordLabel(directWins, directMatches.length, locale)}.`
+      : `${worstOpponent.opponentChampionName} is the opponent that most consistently hurts this scope: ${recordLabel(worstOpponent.overallWins, worstOpponent.overallGames, locale)} overall. ${championName} is still your recent reference pick, but direct sample in this exact cross is still short, so treat this as a scoped pattern first and a champion-specific read second.`;
   } else {
-    summary = `${worstOpponent.opponentChampionName} es el pick rival que más te está castigando en el scope reciente: ${recordLabel(worstOpponent.recentWins, worstOpponent.list.length, locale)}. ${championName} es tu campeón más jugado reciente en el mismo scope${directMatches.length ? ` y la muestra directa en este cruce hoy queda en ${recordLabel(directWins, directMatches.length, locale)}.` : ', aunque todavía tenés poca muestra directa en este cruce exacto.'}`;
+    summary = directMatches.length >= 2
+      ? `${worstOpponent.opponentChampionName} es el cruce recurrente que más te está lastimando en este scope. En la muestra completa del scope queda en ${recordLabel(worstOpponent.overallWins, worstOpponent.overallGames, locale)}, y la muestra directa con ${championName} hoy da ${recordLabel(directWins, directMatches.length, locale)}.`
+      : `${worstOpponent.opponentChampionName} es el rival que más consistentemente te está castigando en este scope: ${recordLabel(worstOpponent.overallWins, worstOpponent.overallGames, locale)} en total. ${championName} sigue siendo tu pick reciente de referencia, pero la muestra directa de este cruce exacto todavía es corta, así que primero leelo como patrón del scope y recién después como lectura específica del campeón.`;
   }
 
   let adjustments: string[];
@@ -702,12 +812,13 @@ function buildProblematicMatchupSummary(matches: ParticipantSnapshot[], locale: 
   return {
     opponentChampionName: worstOpponent.opponentChampionName,
     championName,
-    recentGames: worstOpponent.list.length,
+    recentGames: worstOpponent.recentList.length || worstOpponent.overallGames,
     recentWins: worstOpponent.recentWins,
     recentLosses: worstOpponent.recentLosses,
     recentWinRate: worstOpponent.recentWinRate,
     directGames: directMatches.length,
     directWins,
+    directLosses: directMatches.length - directWins,
     directWinRate,
     avgCsAt15,
     avgGoldDiffAt15,
@@ -716,6 +827,189 @@ function buildProblematicMatchupSummary(matches: ParticipantSnapshot[], locale: 
     summary,
     adjustments
   };
+}
+
+function buildPositiveSignals(matches: ParticipantSnapshot[], championPool: ChampionAggregate[], locale: SummaryLocale = 'es'): CoachInsight[] {
+  if (!matches.length) return [];
+
+  const primaryRole = findPrimaryRole(matches);
+  const roleProfile = getRoleProfile(primaryRole, locale);
+  const topChampion = championPool[0];
+  const topChampionMatches = topChampion ? matches.filter((match) => match.championName === topChampion.championName) : [];
+  const otherChampionMatches = topChampion ? matches.filter((match) => match.championName !== topChampion.championName) : [];
+  const positives: CoachInsight[] = [];
+
+  if (topChampion && topChampionMatches.length >= 5) {
+    const topChampionWins = topChampionMatches.filter((match) => match.win).length;
+    const otherWins = otherChampionMatches.filter((match) => match.win).length;
+    const otherWinRate = percent(otherWins, otherChampionMatches.length);
+    const referenceEdge = topChampion.winRate - (otherChampionMatches.length ? otherWinRate : Math.max(50, percent(topChampionWins, topChampionMatches.length) - 6));
+
+    if (topChampion.winRate >= 55 && (referenceEdge >= 6 || topChampion.games >= Math.ceil(matches.length * 0.35))) {
+      positives.push({
+        id: 'reference-pick-positive',
+        title: text(locale, `${topChampion.championName} ya te está dando una base bastante más limpia que el resto del scope.`, `${topChampion.championName} is already giving you a cleaner baseline than the rest of the scope.`),
+        problem: text(locale, `${topChampion.championName} es hoy tu pick de referencia más útil`, `${topChampion.championName} is your clearest reference pick right now`),
+        category: 'positive',
+        severity: 'low',
+        priority: 'low',
+        evidence: [
+          text(locale, `Lo jugaste en ${formatChampionShare(topChampion.games, matches.length, locale)} del bloque.`, `You played it in ${formatChampionShare(topChampion.games, matches.length, locale)} of the block.`),
+          text(locale, `Con ${topChampion.championName} quedás en ${recordLabel(topChampionWins, topChampion.games, locale)}.`, `With ${topChampion.championName} you land at ${recordLabel(topChampionWins, topChampion.games, locale)}.`),
+          text(locale, `Su promedio queda en ${round(topChampion.avgCsAt15, 1)} CS al 15, ${round(topChampion.avgDeathsPre14, 1)} muertes pre14 y score ${round(topChampion.avgScore, 1)}.`, `Its average sits at ${round(topChampion.avgCsAt15, 1)} CS at 15, ${round(topChampion.avgDeathsPre14, 1)} deaths pre14 and ${round(topChampion.avgScore, 1)} score.`)
+        ],
+        impact: text(locale, 'No hace falta inventar una versión nueva de tu juego: ya tenés un pick que ordena mejor tus tiempos y tu entrada al mid game.', 'You do not need to invent a new version of your game: you already have a pick that organizes your timings and your entry into mid game better.'),
+        cause: text(locale, 'Con este campeón tu toma de riesgo, tu economía y tus ventanas de mapa están quedando más alineadas.', 'With this champion, your risk profile, economy and map windows are landing in better alignment.'),
+        actions: [
+          text(locale, `Usá tus mejores partidas de ${topChampion.championName} como review de referencia para recalls, primeras rotaciones y setup de objetivos.`, `Use your best ${topChampion.championName} games as your reference review for recalls, first rotations and objective setup.`),
+          text(locale, `Si querés fijar hábitos rápido, este pick debería cargar más peso que el resto durante este bloque.`, `If you want to lock habits quickly, this pick should carry more weight than the rest during this block.`)
+        ],
+        focusMetric: 'reference_pick_positive'
+      });
+    }
+  }
+
+  const stableMatches = matches.filter((match) =>
+    match.timeline.deathsPre14 <= roleProfile.stableDeathsPre14 &&
+    match.timeline.csAt15 >= Math.max(roleProfile.csAt15Target - 5, 0) &&
+    match.timeline.objectiveFightDeaths === 0
+  );
+  const stableWins = stableMatches.filter((match) => match.win).length;
+  const stableWinRate = percent(stableWins, stableMatches.length);
+
+  if (stableMatches.length >= Math.max(3, Math.floor(matches.length * 0.18)) && stableWinRate >= 55) {
+    positives.push({
+      id: 'stable-pattern-positive',
+      title: text(locale, 'Ya hay un patrón estable en la muestra que conviene repetir casi sin tocarlo.', 'There is already a stable pattern in the sample that should be repeated with very little change.'),
+      problem: text(locale, 'Cuando ordenás early, economía y setup, tu bloque sí convierte', 'When your early game, economy and setup are clean, your block does convert'),
+      category: 'positive',
+      severity: 'low',
+      priority: 'low',
+      evidence: [
+        text(locale, `${stableMatches.length} partidas del bloque cumplen una versión más limpia del plan y ahí quedás en ${recordLabel(stableWins, stableMatches.length, locale)}.`, `${stableMatches.length} games in the block meet a cleaner version of the plan and there you land at ${recordLabel(stableWins, stableMatches.length, locale)}.`),
+        text(locale, 'Esas partidas combinan menos muertes tempranas, economía más sana y mejor llegada a la primera ventana grande.', 'Those games combine fewer early deaths, healthier economy and cleaner arrival to the first big window.')
+      ],
+      impact: text(locale, 'Esto demuestra que no te falta “otra identidad”: te falta sostener más seguido la versión que ya funciona.', 'This proves you do not need a different identity: you need to hold the version that already works more often.'),
+      cause: text(locale, 'Cuando el plan no se rompe temprano, tu ejecución se vuelve bastante más jugable y la partida deja de depender de compensaciones forzadas.', 'When the plan does not break early, your execution becomes much more playable and the game stops depending on forced compensation.'),
+      actions: [
+        text(locale, 'Tomá una de esas partidas limpias como partida espejo antes de cada sesión de ranked.', 'Use one of those clean games as a mirror review before each ranked session.'),
+        text(locale, 'La pregunta no es “qué invento”, sino “qué hice ahí para entrar limpio al minuto 15 y cómo lo repito”.', 'The question is not “what do I invent,” but “what did I do there to enter minute 15 cleanly, and how do I repeat it?”')
+      ],
+      focusMetric: 'stable_pattern_positive'
+    });
+  }
+
+  return positives.slice(0, 2);
+}
+
+function buildReviewAgenda(matches: ParticipantSnapshot[], locale: SummaryLocale = 'es'): ReviewAgendaItem[] {
+  if (!matches.length) return [];
+
+  const primaryRole = findPrimaryRole(matches);
+  const roleProfile = getRoleProfile(primaryRole, locale);
+  const leadTarget = getLeadMetricTarget(primaryRole);
+  const sorted = [...matches].sort((a, b) => b.gameCreation - a.gameCreation);
+
+  const stressed = sorted
+    .filter((match) => !match.win || match.timeline.deathsPre14 >= 2 || match.timeline.objectiveFightDeaths > 0)
+    .map((match) => {
+      const csGap = roleProfile.csAt15Target - match.timeline.csAt15;
+      const goldDiff = match.timeline.goldDiffAt15 ?? 0;
+      const levelDiff = match.timeline.levelDiffAt15 ?? 0;
+      const lostLead = !match.win && goldDiff >= leadTarget.goldDiffAt15;
+
+      let title = text(locale, 'Revisá esta partida', 'Review this game');
+      let reason = text(locale, 'Hay una fuga visible que conviene aislar.', 'There is a visible leak worth isolating.');
+      let question = text(locale, '¿Cuál fue la primera decisión que volvió incómodo el mapa?', 'What was the first decision that made the map uncomfortable?');
+      let focus = text(locale, 'Tempo y calidad de decisión antes de la jugada clave.', 'Tempo and decision quality before the key play.');
+      const tags: string[] = [];
+      let priorityScore = 0;
+
+      if (match.timeline.objectiveFightDeaths > 0) {
+        title = text(locale, 'Revisá el minuto previo al objetivo', 'Review the minute before the objective');
+        reason = text(locale, 'La partida se rompe alrededor del setup, no solo durante la pelea.', 'The game breaks around the setup, not only during the fight.');
+        question = text(locale, '¿Qué te faltó hacer 45-60 segundos antes para no llegar corriendo a la ventana?', 'What did you fail to do 45-60 seconds earlier so you would not arrive rushing the window?');
+        focus = text(locale, 'Reset, visión, orden de llegada y quién tenía prioridad real.', 'Reset, vision, arrival order and who had real priority.');
+        tags.push(text(locale, 'Objetivo', 'Objective setup'));
+        priorityScore += 8 + match.timeline.objectiveFightDeaths * 3;
+      }
+
+      if (match.timeline.deathsPre14 >= roleProfile.stableDeathsPre14 + 1) {
+        title = text(locale, 'Encontrá la primera muerte evitable', 'Find the first avoidable death');
+        reason = text(locale, 'El early se desordenó demasiado pronto y eso achicó tu margen de juego.', 'The early game became unstable too soon and shrank your playable margin.');
+        question = text(locale, '¿Qué información, recurso o cobertura faltaba antes de comprometerte?', 'What information, resource or coverage was missing before you committed?');
+        focus = text(locale, 'Primera muerte, estado del mapa y qué te obligó a jugar desde atrás.', 'First death, map state and what forced you to play from behind.');
+        tags.push(text(locale, 'Early', 'Early'));
+        priorityScore += 7 + match.timeline.deathsPre14 * 2;
+      }
+
+      if (csGap >= 10 || goldDiff <= -250 || levelDiff <= -0.5) {
+        title = text(locale, 'Aislá dónde se cortó tu economía', 'Isolate where your economy got cut');
+        reason = text(locale, 'La partida ya llega más débil al 15 de lo que tu rol necesita.', 'The game is already reaching minute 15 weaker than your role needs.');
+        question = text(locale, '¿Qué reset, desvío o pelea te sacó del piso económico normal del rol?', 'What reset, detour or fight pulled you off the normal economy floor for the role?');
+        focus = text(locale, 'CS@15, diff. de oro, camps o waves que dejaste por una jugada de poco retorno.', 'CS@15, gold diff, camps or waves you dropped for a low-return play.');
+        tags.push(text(locale, 'Economía', 'Economy'));
+        priorityScore += 6 + Math.max(0, Math.ceil(csGap / 6));
+      }
+
+      if (lostLead) {
+        title = text(locale, 'Marcá el momento donde dejaste de jugar desde ventaja', 'Mark the moment you stopped playing from advantage');
+        reason = text(locale, 'Había una apertura favorable y aun así la partida no se convirtió.', 'There was a favorable opening and the game still failed to convert.');
+        question = text(locale, '¿En qué minuto dejaste de jugar desde tempo/visión y empezaste a regalar reinicio al rival?', 'At which minute did you stop playing from tempo/vision and start giving free reset to the enemy?');
+        focus = text(locale, 'Conversión de ventaja: reset, objetivo siguiente y pelea que nunca necesitabas tomar.', 'Lead conversion: reset, next objective and the fight you never actually needed to take.');
+        tags.push(text(locale, 'Conversión', 'Conversion'));
+        priorityScore += 7;
+      }
+
+      if (!tags.length) {
+        tags.push(text(locale, 'Mapa', 'Map'));
+        priorityScore += match.win ? 1 : 4;
+      }
+
+      return {
+        matchId: match.matchId,
+        championName: match.championName,
+        opponentChampionName: match.opponentChampionName,
+        gameCreation: match.gameCreation,
+        win: match.win,
+        title,
+        reason,
+        question,
+        focus,
+        tags,
+        priorityScore
+      };
+    })
+    .sort((a, b) => b.priorityScore - a.priorityScore || b.gameCreation - a.gameCreation)
+    .slice(0, 2);
+
+  const referenceGame = sorted
+    .filter((match) =>
+      match.win &&
+      match.timeline.deathsPre14 <= roleProfile.stableDeathsPre14 &&
+      match.timeline.csAt15 >= Math.max(roleProfile.csAt15Target - 5, 0) &&
+      match.timeline.objectiveFightDeaths === 0
+    )
+    .sort((a, b) => b.score.total - a.score.total || b.gameCreation - a.gameCreation)[0];
+
+  const agenda: ReviewAgendaItem[] = [...stressed];
+
+  if (referenceGame && !agenda.some((item) => item.matchId === referenceGame.matchId)) {
+    agenda.push({
+      matchId: referenceGame.matchId,
+      championName: referenceGame.championName,
+      opponentChampionName: referenceGame.opponentChampionName,
+      gameCreation: referenceGame.gameCreation,
+      win: referenceGame.win,
+      title: text(locale, 'Usala como partida espejo', 'Use it as a mirror game'),
+      reason: text(locale, 'Acá aparece una versión de tu plan que sí entra limpia al mid game.', 'This one shows a version of your plan that actually enters mid game cleanly.'),
+      question: text(locale, '¿Qué hiciste antes del 14 para que esta partida llegara ordenada al primer objetivo?', 'What did you do before minute 14 that let this game reach the first objective in order?'),
+      focus: text(locale, 'Ruta previa al objetivo, tempo de recall y qué decisiones evitaste forzar.', 'Pre-objective route, recall tempo and which decisions you avoided forcing.'),
+      tags: [text(locale, 'Referencia', 'Reference game')]
+    });
+  }
+
+  return agenda.slice(0, 3);
 }
 
 export function calculateScore(participant: Omit<ParticipantSnapshot, 'score'>): ParticipantSnapshot['score'] {
@@ -948,7 +1242,7 @@ export function buildInsights(matches: ParticipantSnapshot[], championPool: Cham
       impact: text(locale, 'No necesariamente estás eligiendo mal picks, pero sí estás haciendo más lento el aprendizaje porque cada campeón te pide tiempos y riesgos distintos.', 'You are not necessarily choosing bad picks, but you are slowing the learning loop because each champion asks for different timings and risk profiles.'),
       cause: text(locale, 'Todavía no hay suficiente concentración de volumen en una referencia fuerte como para convertir hábitos en mejoras medibles rápido.', 'There is not enough volume concentrated in a strong reference yet to turn habits into measurable improvements quickly.'),
       actions: [
-        text(locale, 'Definí un pick ancla y un segundo pick funcional para este bloque, y evitá abrir más variables hasta estabilizar el problema principal.', 'Set one anchor pick and one functional secondary pick for this block, and avoid opening more variables until the main issue is stabilized.'),
+        text(locale, 'Definí un pick de referencia y un segundo pick funcional para este bloque, y evitá abrir más variables hasta estabilizar el problema principal.', 'Set one reference pick and one functional secondary pick for this block, and avoid opening more variables until the main issue is stabilized.'),
         text(locale, 'Usá el resto del pool solo si el draft realmente te lo exige, no como default de práctica.', 'Use the rest of the pool only if draft truly forces it, not as your default practice pattern.'),
         text(locale, 'Medí si la claridad del coaching mejora cuando el volumen deja de dispersarse tanto.', 'Measure whether coaching clarity improves once the volume stops being so dispersed.')
       ],
@@ -1086,10 +1380,12 @@ export function buildInsights(matches: ParticipantSnapshot[], championPool: Cham
 
 export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: CoachInsight[], locale: SummaryLocale = 'es'): CoachingSummary {
   const sortedByDate = [...matches].sort((a, b) => a.gameCreation - b.gameCreation);
-  const recentCount = Math.min(8, sortedByDate.length);
-  const splitIndex = Math.max(1, sortedByDate.length - recentCount);
-  const baselineWindow = sortedByDate.slice(0, splitIndex);
-  const recentWindow = sortedByDate.slice(splitIndex);
+  const suggestedRecentCount = Math.min(8, Math.max(3, Math.ceil(sortedByDate.length * 0.35)));
+  let recentWindow = sortedByDate.slice(-Math.min(suggestedRecentCount, sortedByDate.length));
+  let baselineWindow = sortedByDate.slice(0, Math.max(0, sortedByDate.length - recentWindow.length));
+  if (!recentWindow.length) recentWindow = sortedByDate.slice(-1);
+  if (!baselineWindow.length) baselineWindow = sortedByDate.slice(0, Math.max(1, sortedByDate.length - 1));
+  if (!baselineWindow.length) baselineWindow = recentWindow;
   const topProblem = insights[0] ?? null;
   const measurableProblem = insights.find((insight) => ['deaths_pre_10', 'cs_at_15', 'deaths_pre_14', 'objective_fight_deaths'].includes(insight.focusMetric ?? '')) ?? null;
   const baselineScore = round(avg(baselineWindow.map((match) => match.score.total)));
@@ -1098,9 +1394,18 @@ export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: C
   const recentWinRate = round((recentWindow.filter((match) => match.win).length / Math.max(recentWindow.length, 1)) * 100);
   const scoreDelta = round(recentScore - baselineScore, 1);
   const winRateDelta = round(recentWinRate - baselineWinRate, 1);
+  const baselineConsistency = calculateConsistencyIndex(baselineWindow);
+  const recentConsistency = calculateConsistencyIndex(recentWindow);
+  const consistencyDelta = round(recentConsistency - baselineConsistency, 1);
   const baselineCsAt15 = round(avg(baselineWindow.map((match) => match.timeline.csAt15)));
   const recentCsAt15 = round(avg(recentWindow.map((match) => match.timeline.csAt15)));
   const csAt15Delta = round(recentCsAt15 - baselineCsAt15, 1);
+  const baselineGoldAt15 = round(avg(baselineWindow.map((match) => match.timeline.goldAt15)));
+  const recentGoldAt15 = round(avg(recentWindow.map((match) => match.timeline.goldAt15)));
+  const goldAt15Delta = round(recentGoldAt15 - baselineGoldAt15, 0);
+  const baselineKillParticipation = round(avg(baselineWindow.map((match) => match.killParticipation)));
+  const recentKillParticipation = round(avg(recentWindow.map((match) => match.killParticipation)));
+  const killParticipationDelta = round(recentKillParticipation - baselineKillParticipation, 1);
   const baselineDeathsPre14 = round(avg(baselineWindow.map((match) => match.timeline.deathsPre14)));
   const recentDeathsPre14 = round(avg(recentWindow.map((match) => match.timeline.deathsPre14)));
   const deathsPre14Delta = round(recentDeathsPre14 - baselineDeathsPre14, 1);
@@ -1160,15 +1465,26 @@ export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: C
     topProblems: insights.filter((insight) => insight.category !== 'positive').slice(0, 3),
     activePlan,
     trend: {
+      baselineMatches: baselineWindow.length,
+      recentMatches: recentWindow.length,
       baselineScore,
       recentScore,
       scoreDelta,
       baselineWinRate,
       recentWinRate,
       winRateDelta,
+      baselineConsistency,
+      recentConsistency,
+      consistencyDelta,
       baselineCsAt15,
       recentCsAt15,
       csAt15Delta,
+      baselineGoldAt15,
+      recentGoldAt15,
+      goldAt15Delta,
+      baselineKillParticipation,
+      recentKillParticipation,
+      killParticipationDelta,
       baselineDeathsPre14,
       recentDeathsPre14,
       deathsPre14Delta
@@ -1182,6 +1498,8 @@ export function buildAggregateSummary(player: string, tagLine: string, region: s
   const losses = eligibleMatches.length - wins;
   const championPool = buildChampionPool(eligibleMatches);
   const insights = buildInsights(eligibleMatches, championPool, locale);
+  const positiveSignals = buildPositiveSignals(eligibleMatches, championPool, locale);
+  const reviewAgenda = buildReviewAgenda(eligibleMatches, locale);
   const coaching = buildCoachingSummary(eligibleMatches, insights, locale);
   const problematicMatchup = buildProblematicMatchupSummary(eligibleMatches, locale);
 
@@ -1206,10 +1524,12 @@ export function buildAggregateSummary(player: string, tagLine: string, region: s
     avgLevelDiffAt15: round(avg(eligibleMatches.map((match) => match.timeline.levelDiffAt15 ?? 0))),
     avgDeathsPre14: round(avg(eligibleMatches.map((match) => match.timeline.deathsPre14))),
     avgPerformanceScore: round(avg(eligibleMatches.map((match) => match.score.total))),
-    consistencyIndex: round(100 - avg(eligibleMatches.map((match) => Math.abs(match.score.total - avg(eligibleMatches.map((innerMatch) => innerMatch.score.total))))), 1),
+    consistencyIndex: calculateConsistencyIndex(eligibleMatches),
     remakesExcluded: matches.length - eligibleMatches.length,
     championPool,
     insights,
+    positiveSignals,
+    reviewAgenda,
     coaching,
     problematicMatchup
   };

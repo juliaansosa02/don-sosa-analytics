@@ -141,7 +141,57 @@ export interface AICoachContext {
       progressPercent: number;
       successLabel: string;
     } | null;
+    trend: {
+      baselineMatches: number;
+      recentMatches: number;
+      baselineScore: number;
+      recentScore: number;
+      scoreDelta: number;
+      baselineWinRate: number;
+      recentWinRate: number;
+      winRateDelta: number;
+      baselineConsistency: number;
+      recentConsistency: number;
+      consistencyDelta: number;
+      baselineCsAt15: number;
+      recentCsAt15: number;
+      csAt15Delta: number;
+      baselineGoldAt15: number;
+      recentGoldAt15: number;
+      goldAt15Delta: number;
+      baselineKillParticipation: number;
+      recentKillParticipation: number;
+      killParticipationDelta: number;
+      baselineDeathsPre14: number;
+      recentDeathsPre14: number;
+      deathsPre14Delta: number;
+    };
   };
+  positiveSignals: Array<{
+    id: string;
+    problem: string;
+    title: string;
+    category: string;
+    priority: string;
+    evidence: string[];
+    impact: string;
+    cause: string;
+    actions: string[];
+    focusMetric?: string;
+    winRateDelta?: number;
+  }>;
+  reviewAgenda: Array<{
+    matchId: string;
+    championName: string;
+    opponentChampionName?: string;
+    gameCreation: number;
+    win: boolean;
+    title: string;
+    reason: string;
+    question: string;
+    focus: string;
+    tags: string[];
+  }>;
   championPool: Array<{
     championName: string;
     games: number;
@@ -160,6 +210,7 @@ export interface AICoachContext {
     recentWinRate: number;
     directGames: number;
     directWins: number;
+    directLosses: number;
     directWinRate: number | null;
     avgCsAt15: number;
     avgGoldDiffAt15: number;
