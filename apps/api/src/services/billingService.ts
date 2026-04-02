@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { getMembershipPlan, type MembershipPlanId } from '@don-sosa/core';
+import { getMembershipPlan, membershipPlanOrder, type MembershipPlanId } from '@don-sosa/core';
 import { env } from '../config/env.js';
 import { HttpError } from '../lib/http.js';
 import { loadUserById, type AuthUserRecord } from './authStore.js';
@@ -12,6 +12,7 @@ import {
 } from './membershipStore.js';
 
 const stripeApiBase = 'https://api.stripe.com/v1';
+const stripePricePlanCache = new Map<string, MembershipPlanId>();
 
 interface StripeListResponse<T> {
   data: T[];
@@ -81,6 +82,9 @@ async function loadStripeSubscription(subscriptionId: string) {
 }
 
 async function resolveStripePriceId(planId: MembershipPlanId) {
+  const cached = [...stripePricePlanCache.entries()].find(([, cachedPlanId]) => cachedPlanId === planId)?.[0];
+  if (cached) return cached;
+
   const plan = getMembershipPlan(planId);
   const prices = await stripeGet<StripeListResponse<StripePrice>>(
     `/prices?lookup_keys[0]=${encodeURIComponent(plan.billing.stripePriceLookupKey)}&active=true&limit=1`
@@ -89,7 +93,25 @@ async function resolveStripePriceId(planId: MembershipPlanId) {
   if (!price?.id) {
     throw new HttpError(500, 'billing://missing-stripe-price', `No encontramos un price activo en Stripe para ${plan.id}.`);
   }
+  stripePricePlanCache.set(price.id, planId);
   return price.id;
+}
+
+async function inferPlanIdFromStripePriceId(stripePriceId: string | null | undefined) {
+  if (!stripePriceId) return null;
+  const cached = stripePricePlanCache.get(stripePriceId);
+  if (cached) return cached;
+
+  for (const planId of membershipPlanOrder) {
+    if (planId === 'free') continue;
+    const knownPriceId = await resolveStripePriceId(planId);
+    if (knownPriceId === stripePriceId) {
+      stripePricePlanCache.set(stripePriceId, planId);
+      return planId;
+    }
+  }
+
+  return null;
 }
 
 async function ensureStripeCustomer(user: AuthUserRecord, stripeCustomerId?: string | null) {
@@ -236,6 +258,7 @@ async function syncStripeMembershipFromObject(object: {
   const customerId = object.customer;
   const metadataPlanId = object.metadata?.planId as MembershipPlanId | undefined;
   const metadataUserId = object.metadata?.userId;
+  const objectPriceId = object.items?.data?.[0]?.price?.id ?? null;
   const subjectId = metadataUserId ? buildUserSubjectId(metadataUserId) : null;
 
   const existingAccount = subjectId
@@ -250,7 +273,11 @@ async function syncStripeMembershipFromObject(object: {
     return;
   }
 
-  const planId = metadataPlanId ?? existingAccount?.planId ?? 'free';
+  const planId = metadataPlanId
+    ?? await inferPlanIdFromStripePriceId(objectPriceId)
+    ?? await inferPlanIdFromStripePriceId(existingAccount?.stripePriceId ?? null)
+    ?? existingAccount?.planId
+    ?? 'free';
   const viewerId = subjectId ?? existingAccount!.viewerId;
   await saveMembershipAccount({
     viewerId,
@@ -260,7 +287,7 @@ async function syncStripeMembershipFromObject(object: {
     billingProvider: 'stripe',
     stripeCustomerId: customerId ?? existingAccount?.stripeCustomerId ?? null,
     stripeSubscriptionId: subscriptionId ?? existingAccount?.stripeSubscriptionId ?? null,
-    stripePriceId: object.items?.data?.[0]?.price?.id ?? existingAccount?.stripePriceId ?? null,
+    stripePriceId: objectPriceId ?? existingAccount?.stripePriceId ?? null,
     currentPeriodEnd: object.current_period_end ? new Date(object.current_period_end * 1000).toISOString() : existingAccount?.currentPeriodEnd ?? null,
     createdAt: existingAccount?.createdAt
   });
