@@ -49,6 +49,12 @@ stripeWebhookRouter.post('/stripe', async (req, res) => {
     const result = await handleStripeWebhook(rawBody, req.header('stripe-signature') ?? undefined);
     res.json(result);
   } catch (error) {
+    console.error('[stripe webhook] failed', {
+      message: error instanceof Error ? error.message : String(error),
+      status: error instanceof HttpError ? error.status : 400,
+      signaturePresent: Boolean(req.header('stripe-signature')),
+      bodyType: Buffer.isBuffer(req.body) ? 'buffer' : typeof req.body
+    });
     const status = error instanceof HttpError ? error.status : 400;
     res.status(status).json({ error: getErrorMessage(error) });
   }
