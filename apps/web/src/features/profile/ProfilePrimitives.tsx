@@ -23,9 +23,9 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
         background: 'rgba(9, 14, 22, 0.86)',
         border: `1px solid ${palette.primary}33`
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '96px minmax(0, 1fr)', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '114px minmax(0, 1fr)', alignItems: 'center', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={100} />
+            <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={118} />
           </div>
           <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
             <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Competitive rank' : 'Rango competitivo'}</div>

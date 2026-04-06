@@ -19,12 +19,17 @@ type MatchupSummary = Dataset['summary']['problematicMatchup'];
 
 export interface ChampionPrepBrief {
   championName: string;
+  relatedPicks: Array<{
+    championName: string;
+    note: string;
+  }>;
   readiness: 'full' | 'partial';
   operatingSummary: string;
   focusNote: string | null;
   matchupSummary: string | null;
   matchupAdjustments: string[];
   runePlan: {
+    championName: string;
     defaultPage: string;
     baselineSummary: string;
     evidenceTier: EvidenceTier | null;
@@ -32,6 +37,7 @@ export interface ChampionPrepBrief {
     supportingChips: string[];
   } | null;
   buildPlan: {
+    championName: string;
     status: 'ready' | 'needs-refresh' | 'missing';
     defaultPath: string | null;
     baselineSummary: string;
@@ -161,6 +167,21 @@ function itemName(dataset: Dataset, itemId: number) {
   return dataset.itemCatalog?.[String(itemId)]?.name ?? `Item ${itemId}`;
 }
 
+function buildRelatedPicks(dataset: Dataset, anchorChampion: AnchorChampion, locale: Locale) {
+  return dataset.summary.championPool
+    .filter((entry) => entry.championName !== anchorChampion.championName)
+    .sort((left, right) => right.games - left.games || right.avgScore - left.avgScore)
+    .slice(0, 2)
+    .map((entry) => ({
+      championName: entry.championName,
+      note: t(
+        locale,
+        `${entry.games} partidas · ${formatPercent(entry.winRate)} WR · ${formatMetric(entry.avgScore)} score medio`,
+        `${entry.games} games · ${formatPercent(entry.winRate)} WR · ${formatMetric(entry.avgScore)} average score`
+      )
+    }));
+}
+
 export function buildChampionPrepBrief({
   dataset,
   locale = 'es',
@@ -191,6 +212,7 @@ export function buildChampionPrepBrief({
     : null;
   const buildComparison = buildChampion?.comparisons[0] ?? null;
   const buildBaseline = buildChampion?.baseline ?? null;
+  const relatedPicks = buildRelatedPicks(dataset, anchorChampion, locale);
 
   const matchupApplies = problematicMatchup?.championName === anchorChampion.championName;
   const matchupSummary = matchupApplies
@@ -198,8 +220,18 @@ export function buildChampionPrepBrief({
     : (aiCoach?.coach.matchupSpecificNote ?? null);
   const matchupAdjustments = matchupApplies ? (problematicMatchup?.adjustments.slice(0, 2) ?? []) : [];
 
+  const rawFocusNote = aiCoach?.coach.championSpecificNote ?? null;
+  const normalizedFocusNote = rawFocusNote?.toLowerCase() ?? '';
+  const focusNote = rawFocusNote && (
+    normalizedFocusNote.includes(anchorChampion.championName.toLowerCase()) ||
+    !relatedPicks.some((entry) => normalizedFocusNote.includes(entry.championName.toLowerCase()))
+  )
+    ? rawFocusNote
+    : null;
+
   const runePlan = runeKeystone
     ? {
+        championName: anchorChampion.championName,
         defaultPage: `${runeKeystone.baseline.keystone} · ${runeKeystone.baseline.compactLabel}`,
         baselineSummary: t(
           locale,
@@ -226,6 +258,7 @@ export function buildChampionPrepBrief({
 
   const buildPlan = buildBaseline
     ? {
+        championName: anchorChampion.championName,
         status: 'ready' as const,
         defaultPath: buildBaseline.label,
         baselineSummary: t(
@@ -252,6 +285,7 @@ export function buildChampionPrepBrief({
       }
     : buildWorkbench.ready
       ? {
+          championName: anchorChampion.championName,
           status: 'missing' as const,
           defaultPath: null,
           baselineSummary: t(
@@ -268,6 +302,7 @@ export function buildChampionPrepBrief({
           supportingChips: []
         }
       : {
+          championName: anchorChampion.championName,
           status: 'needs-refresh' as const,
           defaultPath: null,
           baselineSummary: t(
@@ -301,9 +336,10 @@ export function buildChampionPrepBrief({
 
   return {
     championName: anchorChampion.championName,
+    relatedPicks,
     readiness: runePlan && buildPlan.status === 'ready' ? 'full' : 'partial',
     operatingSummary: buildOperatingSummary(mainProblem, locale),
-    focusNote: aiCoach?.coach.championSpecificNote ?? null,
+    focusNote,
     matchupSummary,
     matchupAdjustments,
     runePlan,

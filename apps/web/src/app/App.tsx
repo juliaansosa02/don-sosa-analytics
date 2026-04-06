@@ -1463,7 +1463,7 @@ function AppShell() {
                   <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
                     <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                      {rankTier ? <RankEmblem tier={rankTier} label={profile.rankLabel ?? ''} size={40} /> : null}
+                      {rankTier ? <RankEmblem tier={rankTier} label={profile.rankLabel ?? ''} size={54} /> : null}
                       <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible')}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -1520,27 +1520,17 @@ function AppShell() {
           <div style={accountAccessStyle}>
             {authUser ? (
               <>
-                <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
+                <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
                   <div style={{ color: '#7f90a8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     {locale === 'en' ? 'Product account' : 'Cuenta del producto'}
                   </div>
-                  <div style={{ color: '#eef4ff', fontSize: 15, fontWeight: 800 }}>
+                  <div style={{ color: '#eef4ff', fontSize: 14, fontWeight: 800 }}>
                     {authUser.displayName}
-                  </div>
-                  <div style={{ color: '#95a4b8', fontSize: 13, lineHeight: 1.55, maxWidth: 360 }}>
-                    {locale === 'en'
-                      ? activeSavedProfile
-                        ? `${linkedProfilesCount} saved profiles, plan continuity and coaching history stay attached to your account while ${activeSavedProfile.gameName}#${activeSavedProfile.tagLine} remains the live base.`
-                        : 'Your saved profiles, plan continuity and coaching history stay attached to this account across sessions.'
-                      : activeSavedProfile
-                        ? `${linkedProfilesCount} perfiles guardados, continuidad del plan e historial de coaching quedan ligados a tu cuenta mientras ${activeSavedProfile.gameName}#${activeSavedProfile.tagLine} sigue siendo la base activa.`
-                        : 'Tus perfiles guardados, la continuidad del plan y el historial de coaching quedan ligados a esta cuenta entre sesiones.'}
                   </div>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {authMe?.isImpersonating ? <Badge tone="medium">{locale === 'en' ? 'Impersonating' : 'Suplantando'}</Badge> : null}
                     {actorUser ? <Badge tone={actorUser.role === 'admin' ? 'medium' : actorUser.role === 'coach' ? 'default' : 'low'}>{actorUser.role.toUpperCase()}</Badge> : null}
                     {currentPlan ? <Badge tone="default">{currentPlan.name}</Badge> : null}
-                    <Badge tone="low">{locale === 'en' ? `${linkedProfilesCount} saved profiles` : `${linkedProfilesCount} perfiles guardados`}</Badge>
                   </div>
                 </div>
                 <button type="button" style={accountTriggerStyle} onClick={() => openAccountPanel()}>
@@ -1549,7 +1539,9 @@ function AppShell() {
                     <span style={{ display: 'grid', gap: 2, minWidth: 0, textAlign: 'left' }}>
                       <span style={{ color: '#eef4ff', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis' }}>{authUser.displayName}</span>
                       <span style={{ color: '#8692a7', fontSize: 11 }}>
-                        {locale === 'en' ? 'Account base, plan and settings' : 'Base de cuenta, plan y ajustes'}
+                        {locale === 'en'
+                          ? `${linkedProfilesCount} saved profiles · ${currentPlan?.name ?? 'Account'}`
+                          : `${linkedProfilesCount} perfiles guardados · ${currentPlan?.name ?? 'Cuenta'}`}
                       </span>
                     </span>
                   </span>
@@ -1562,10 +1554,8 @@ function AppShell() {
                   <div style={{ color: '#7f90a8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                     {locale === 'en' ? 'Product account' : 'Cuenta del producto'}
                   </div>
-                  <div style={{ color: '#95a4b8', fontSize: 13, lineHeight: 1.55, maxWidth: 300 }}>
-                    {locale === 'en'
-                      ? 'Save your competitive base, coaching history and plan continuity under one real account, not only in this browser.'
-                      : 'Guardá tu base competitiva, tu historial de coaching y la continuidad del plan en una cuenta real y no solo en este navegador.'}
+                  <div style={{ color: '#95a4b8', fontSize: 13, lineHeight: 1.55, maxWidth: 220 }}>
+                    {locale === 'en' ? 'Save your base and open the full account hub from here.' : 'Guardá tu base y abrí desde acá el hub completo de cuenta.'}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -2314,15 +2304,15 @@ const topBarStyle: CSSProperties = {
 const accountAccessStyle: CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'minmax(0, 1fr) auto',
-  gap: 14,
+  gap: 10,
   alignItems: 'center',
-  padding: '14px 16px',
-  borderRadius: 24,
-  background: 'radial-gradient(circle at top left, rgba(78, 128, 176, 0.18), transparent 38%), linear-gradient(180deg, rgba(14,18,28,0.97), rgba(8,11,18,0.98))',
+  padding: '10px 12px',
+  borderRadius: 20,
+  background: 'radial-gradient(circle at top left, rgba(78, 128, 176, 0.12), transparent 34%), linear-gradient(180deg, rgba(14,18,28,0.97), rgba(8,11,18,0.98))',
   border: '1px solid rgba(255,255,255,0.08)',
-  width: 'min(100%, 520px)',
-  minHeight: 92,
-  boxShadow: '0 22px 52px rgba(0,0,0,0.18)'
+  width: 'min(100%, 420px)',
+  minHeight: 72,
+  boxShadow: '0 16px 34px rgba(0,0,0,0.16)'
 };
 
 const accountTriggerStyle: CSSProperties = {

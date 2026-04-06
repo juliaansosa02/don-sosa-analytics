@@ -140,6 +140,12 @@ function SummaryBox({ label, value, hint }: { label: string; value: string; hint
 }
 
 function BaselineBuildPanel({ dataset, baseline, locale }: { dataset: Dataset; baseline: BuildFamilyAggregate; locale: Locale }) {
+  const timingMetrics = [
+    ...(baseline.avgFirstItemMinute !== null ? [{ label: locale === 'en' ? '1st item' : '1er item', value: `${formatDecimal(baseline.avgFirstItemMinute)}m` }] : []),
+    ...(baseline.avgSecondItemMinute !== null ? [{ label: locale === 'en' ? '2nd item' : '2do item', value: `${formatDecimal(baseline.avgSecondItemMinute)}m` }] : []),
+    ...(baseline.avgBootsMinute !== null ? [{ label: locale === 'en' ? 'Boots' : 'Botas', value: `${formatDecimal(baseline.avgBootsMinute)}m` }] : [])
+  ];
+
   return (
     <div style={baselineCardStyle}>
       <div style={{ display: 'grid', gap: 6 }}>
@@ -157,9 +163,7 @@ function BaselineBuildPanel({ dataset, baseline, locale }: { dataset: Dataset; b
         <MetricBox label={locale === 'en' ? 'Damage to champs' : 'Daño a champs'} value={formatInteger(baseline.avgDamageToChampions)} />
         <MetricBox label="CS@15" value={formatDecimal(baseline.avgCsAt15)} />
         <MetricBox label="GD@15" value={formatInteger(baseline.avgGoldDiffAt15)} />
-        <MetricBox label={locale === 'en' ? '1st item' : '1er item'} value={baseline.avgFirstItemMinute !== null ? `${formatDecimal(baseline.avgFirstItemMinute)}m` : '—'} />
-        <MetricBox label={locale === 'en' ? '2nd item' : '2do item'} value={baseline.avgSecondItemMinute !== null ? `${formatDecimal(baseline.avgSecondItemMinute)}m` : '—'} />
-        <MetricBox label={locale === 'en' ? 'Boots' : 'Botas'} value={baseline.avgBootsMinute !== null ? `${formatDecimal(baseline.avgBootsMinute)}m` : '—'} />
+        {timingMetrics.map((metric) => <MetricBox key={`${baseline.key}-${metric.label}`} label={metric.label} value={metric.value} />)}
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -322,7 +326,14 @@ function ExampleMatchesPanel({ examples, locale }: { examples: BuildExampleMatch
     <div style={{ display: 'grid', gap: 10 }}>
       <div style={sectionLabelStyle}>{locale === 'en' ? 'Match explorer' : 'Match explorer'}</div>
       <div className="example-match-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-        {examples.map((example) => (
+        {examples.map((example) => {
+          const timingLine = [
+            ...(example.firstItemMinute ? [`1st ${formatDecimal(example.firstItemMinute)}m`] : []),
+            ...(example.secondItemMinute ? [`2nd ${formatDecimal(example.secondItemMinute)}m`] : []),
+            ...(example.bootsMinute ? [`Boots ${formatDecimal(example.bootsMinute)}m`] : [])
+          ].join(' · ');
+
+          return (
           <div key={example.matchId} style={exampleCardStyle}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
               <div style={{ color: '#eef4ff', fontWeight: 800 }}>{example.opponentChampionName ? `vs ${example.opponentChampionName}` : (locale === 'en' ? 'Match sample' : 'Partida muestra')}</div>
@@ -334,12 +345,11 @@ function ExampleMatchesPanel({ examples, locale }: { examples: BuildExampleMatch
             <div style={{ display: 'grid', gap: 5 }}>
               <div style={{ color: '#eef4ff' }}>{`Score ${formatDecimal(example.score)} · ${formatInteger(example.damageToChampions)} dmg`}</div>
               <div style={{ color: '#8ea0b6' }}>{`CS@15 ${formatDecimal(example.csAt15)} · GD@15 ${formatInteger(example.goldDiffAt15)}`}</div>
-              <div style={{ color: '#8ea0b6' }}>
-                {`1st ${example.firstItemMinute ? `${formatDecimal(example.firstItemMinute)}m` : '—'} · 2nd ${example.secondItemMinute ? `${formatDecimal(example.secondItemMinute)}m` : '—'} · Boots ${example.bootsMinute ? `${formatDecimal(example.bootsMinute)}m` : '—'}`}
-              </div>
+              {timingLine ? <div style={{ color: '#8ea0b6' }}>{timingLine}</div> : null}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -1270,12 +1270,19 @@ function buildProblematicMatchupSummary(matches: ParticipantSnapshot[], locale: 
         severityScore
       };
     })
-    .filter((entry) =>
-      entry.overallLosses >= 2 ||
-      entry.recentLosses >= 2 ||
-      entry.directLosses >= 2 ||
-      entry.overallGames >= 4
-    )
+    .filter((entry) => {
+      const reliableSample =
+        entry.directMatches.length >= 2 ||
+        entry.recentList.length >= 3 ||
+        entry.overallGames >= 4;
+      const meaningfulStruggle =
+        entry.directLosses >= 2 ||
+        entry.recentLosses >= 2 ||
+        entry.overallLosses >= 2 ||
+        (entry.overallGames >= 4 && entry.overallWinRate <= 40);
+
+      return reliableSample && meaningfulStruggle;
+    })
     .sort((a, b) =>
       b.severityScore - a.severityScore ||
       b.directLosses - a.directLosses ||
@@ -1283,27 +1290,7 @@ function buildProblematicMatchupSummary(matches: ParticipantSnapshot[], locale: 
       b.recentLosses - a.recentLosses ||
       b.overallGames - a.overallGames ||
       a.avgGoldDiffAt15 - b.avgGoldDiffAt15
-    )[0]
-    ?? Array.from(grouped.entries())
-      .map(([opponentChampionName, list]) => ({
-        opponentChampionName,
-        list,
-        recentList: recentGrouped.get(opponentChampionName) ?? [],
-        overallGames: list.length,
-        overallWins: list.filter((match) => match.win).length,
-        overallLosses: list.filter((match) => !match.win).length,
-        overallWinRate: round(percent(list.filter((match) => match.win).length, list.length), 1),
-        avgGoldDiffAt15: avg(list.map((match) => match.timeline.goldDiffAt15 ?? 0)),
-        avgLevelDiffAt15: avg(list.map((match) => match.timeline.levelDiffAt15 ?? 0)),
-        recentWins: (recentGrouped.get(opponentChampionName) ?? []).filter((match) => match.win).length,
-        recentLosses: (recentGrouped.get(opponentChampionName) ?? []).filter((match) => !match.win).length,
-        recentWinRate: round(percent((recentGrouped.get(opponentChampionName) ?? []).filter((match) => match.win).length, (recentGrouped.get(opponentChampionName) ?? []).length), 1),
-        directMatches: matches.filter((match) => match.championName === championName && match.opponentChampionName === opponentChampionName),
-        directWins: matches.filter((match) => match.championName === championName && match.opponentChampionName === opponentChampionName && match.win).length,
-        directLosses: matches.filter((match) => match.championName === championName && match.opponentChampionName === opponentChampionName && !match.win).length,
-        severityScore: 0
-      }))
-      .sort((a, b) => b.recentLosses - a.recentLosses || b.overallLosses - a.overallLosses || b.overallGames - a.overallGames)[0];
+    )[0];
 
   if (!worstOpponent) return null;
 
@@ -1507,8 +1494,9 @@ function buildReviewAgenda(matches: ParticipantSnapshot[], locale: SummaryLocale
   const roleProfile = getRoleProfile(primaryRole, locale);
   const leadTarget = getLeadMetricTarget(primaryRole);
   const sorted = [...matches].sort((a, b) => b.gameCreation - a.gameCreation);
+  const recentMatches = sorted.slice(0, Math.min(7, sorted.length));
 
-  const stressed = sorted
+  const stressed = recentMatches
     .filter((match) => !match.win || match.timeline.deathsPre14 > roleProfile.stableDeathsPre14 || match.timeline.objectiveFightDeaths > 0 || (match.timeline.goldDiffAt15 ?? 0) <= -200)
     .map((match) => {
       const review = buildReviewQuestionForMatch({
@@ -1544,7 +1532,7 @@ function buildReviewAgenda(matches: ParticipantSnapshot[], locale: SummaryLocale
     .sort((a, b) => b.priorityScore - a.priorityScore || b.gameCreation - a.gameCreation)
     .slice(0, 2);
 
-  const referenceGame = sorted
+  const referenceGame = recentMatches
     .filter((match) =>
       match.win &&
       match.timeline.deathsPre14 <= roleProfile.stableDeathsPre14 &&

@@ -25,44 +25,44 @@ type MatchQuickRead = {
 
 const accentPalettes: ChampionAccent[] = [
   {
-    glow: 'rgba(110, 198, 255, 0.34)',
-    border: 'rgba(110, 198, 255, 0.34)',
-    panel: 'linear-gradient(180deg, rgba(19,38,56,0.94), rgba(8,13,21,0.98))',
+    glow: 'rgba(110, 198, 255, 0.12)',
+    border: 'rgba(110, 198, 255, 0.14)',
+    panel: 'linear-gradient(180deg, rgba(11,17,28,0.98), rgba(7,11,18,0.99))',
     muted: '#8ccfff',
     text: '#e7f6ff'
   },
   {
-    glow: 'rgba(255, 164, 102, 0.32)',
-    border: 'rgba(255, 164, 102, 0.3)',
-    panel: 'linear-gradient(180deg, rgba(54,31,20,0.94), rgba(11,13,20,0.98))',
+    glow: 'rgba(255, 164, 102, 0.11)',
+    border: 'rgba(255, 164, 102, 0.13)',
+    panel: 'linear-gradient(180deg, rgba(14,17,25,0.98), rgba(7,11,18,0.99))',
     muted: '#ffc28e',
     text: '#fff0e2'
   },
   {
-    glow: 'rgba(123, 239, 197, 0.3)',
-    border: 'rgba(123, 239, 197, 0.28)',
-    panel: 'linear-gradient(180deg, rgba(17,45,39,0.94), rgba(8,13,20,0.98))',
+    glow: 'rgba(123, 239, 197, 0.11)',
+    border: 'rgba(123, 239, 197, 0.13)',
+    panel: 'linear-gradient(180deg, rgba(11,17,24,0.98), rgba(7,11,18,0.99))',
     muted: '#98f2d2',
     text: '#ebfff8'
   },
   {
-    glow: 'rgba(255, 128, 149, 0.28)',
-    border: 'rgba(255, 128, 149, 0.28)',
-    panel: 'linear-gradient(180deg, rgba(51,23,31,0.94), rgba(10,12,20,0.98))',
+    glow: 'rgba(255, 128, 149, 0.11)',
+    border: 'rgba(255, 128, 149, 0.13)',
+    panel: 'linear-gradient(180deg, rgba(12,16,24,0.98), rgba(7,11,18,0.99))',
     muted: '#ffb4c2',
     text: '#fff0f4'
   },
   {
-    glow: 'rgba(208, 176, 96, 0.3)',
-    border: 'rgba(208, 176, 96, 0.28)',
-    panel: 'linear-gradient(180deg, rgba(49,40,18,0.94), rgba(10,12,20,0.98))',
+    glow: 'rgba(208, 176, 96, 0.11)',
+    border: 'rgba(208, 176, 96, 0.13)',
+    panel: 'linear-gradient(180deg, rgba(13,17,24,0.98), rgba(7,11,18,0.99))',
     muted: '#f0d496',
     text: '#fff7e3'
   },
   {
-    glow: 'rgba(155, 142, 255, 0.28)',
-    border: 'rgba(155, 142, 255, 0.28)',
-    panel: 'linear-gradient(180deg, rgba(35,27,60,0.94), rgba(10,12,20,0.98))',
+    glow: 'rgba(155, 142, 255, 0.11)',
+    border: 'rgba(155, 142, 255, 0.13)',
+    panel: 'linear-gradient(180deg, rgba(12,16,26,0.98), rgba(7,11,18,0.99))',
     muted: '#c7bfff',
     text: '#f3f0ff'
   }
@@ -134,6 +134,12 @@ export function buildMatchQuickRead(match: MatchSnapshot, dataset: Dataset, loca
   const opponentName = match.opponentChampionName ? formatChampionName(match.opponentChampionName) : null;
   const roleLabel = getRoleLabel((match.role || dataset.summary.primaryRole || 'ALL').toUpperCase());
   const sameChampionMatches = dataset.matches.filter((entry) => entry.championName === match.championName);
+  const sameMatchupMatches = dataset.matches.filter((entry) =>
+    entry.championName === match.championName &&
+    entry.opponentChampionName === match.opponentChampionName
+  );
+  const sameMatchupLosses = sameMatchupMatches.filter((entry) => !entry.win).length;
+  const sameMatchupWins = sameMatchupMatches.filter((entry) => entry.win).length;
   const championBaselineScore = average(sameChampionMatches.map((entry) => entry.score.total));
   const championBaselineWinRate = sameChampionMatches.length
     ? (sameChampionMatches.filter((entry) => entry.win).length / sameChampionMatches.length) * 100
@@ -144,6 +150,8 @@ export function buildMatchQuickRead(match: MatchSnapshot, dataset: Dataset, loca
   const leadAt15 = (match.timeline.goldDiffAt15 ?? 0) >= 150;
   const severeLaneDeficit = (match.timeline.goldDiffAt15 ?? 0) <= -350 || (match.timeline.levelDiffAt15 ?? 0) <= -0.8;
   const reviewVsBaseline = match.score.total - championBaselineScore;
+  const repeatedToughMatchup = Boolean(opponentName && sameMatchupMatches.length >= 2 && sameMatchupLosses >= 2);
+  const repeatedPlayableMatchup = Boolean(opponentName && sameMatchupMatches.length >= 2 && sameMatchupWins >= 2 && sameMatchupWins > sameMatchupLosses);
 
   if (match.win && match.score.total >= 86 && leadAt15 && objectivePressure <= 0.55) {
     return {
@@ -244,6 +252,30 @@ export function buildMatchQuickRead(match: MatchSnapshot, dataset: Dataset, loca
     };
   }
 
+  if (repeatedToughMatchup) {
+    return {
+      tone: 'warning',
+      toneLabel: toneLabel('warning', locale),
+      impactLabel: getImpactLabel(match, locale),
+      title: locale === 'en' ? 'This matchup is still costing you real games' : 'Este matchup te sigue costando partidas de verdad',
+      body: locale === 'en'
+        ? `${championName} into ${opponentName} is already a repeated problem inside your own sample. The useful review is to isolate what keeps failing first in this exact cross, not to judge the game as a generic loss.`
+        : `${championName} contra ${opponentName} ya es un problema repetido dentro de tu propia muestra. El review útil es aislar qué se rompe primero en este cruce exacto, no leerlo como una derrota genérica.`,
+      evidence: [
+        locale === 'en'
+          ? `${sameMatchupMatches.length} visible games into ${opponentName}, with ${sameMatchupLosses} losses in the sample.`
+          : `${sameMatchupMatches.length} partidas visibles contra ${opponentName}, con ${sameMatchupLosses} derrotas en la muestra.`,
+        locale === 'en'
+          ? `This game still landed ${formatSignedNumber(match.timeline.goldDiffAt15, 0)} gold and ${formatSignedNumber(match.timeline.levelDiffAt15, 1)} levels by minute 15.`
+          : `Esta partida igual cayó en ${formatSignedNumber(match.timeline.goldDiffAt15, 0)} de oro y ${formatSignedNumber(match.timeline.levelDiffAt15, 1)} niveles al minuto 15.`
+      ],
+      reviewBullets: [
+        locale === 'en' ? 'Compare only against your other games into the same opponent.' : 'Comparala solo contra tus otras partidas contra ese mismo rival.',
+        locale === 'en' ? 'Mark whether the cross is breaking by lane state, reset or first map move.' : 'Marcá si el cruce se está rompiendo por lane state, reset o primer move al mapa.'
+      ]
+    };
+  }
+
   if (match.win && match.killParticipation >= 60 && match.score.total >= championBaselineScore) {
     return {
       tone: 'stable',
@@ -268,14 +300,38 @@ export function buildMatchQuickRead(match: MatchSnapshot, dataset: Dataset, loca
     };
   }
 
+  if (repeatedPlayableMatchup && match.win) {
+    return {
+      tone: 'stable',
+      toneLabel: toneLabel('stable', locale),
+      impactLabel: getImpactLabel(match, locale),
+      title: locale === 'en' ? 'You already have a playable answer in this matchup' : 'Ya tenés una respuesta jugable en este matchup',
+      body: locale === 'en'
+        ? `${championName} into ${opponentName} is not just a random win anymore. This cross is starting to show a repeatable version you can reuse when the same rival comes back.`
+        : `${championName} contra ${opponentName} ya no es solo una victoria suelta. Este cruce empieza a mostrar una versión repetible que podés reutilizar cuando vuelva el mismo rival.`,
+      evidence: [
+        locale === 'en'
+          ? `${sameMatchupMatches.length} visible games into ${opponentName}, with ${sameMatchupWins} wins in the sample.`
+          : `${sameMatchupMatches.length} partidas visibles contra ${opponentName}, con ${sameMatchupWins} victorias en la muestra.`,
+        locale === 'en'
+          ? `This one stayed at score ${Math.round(match.score.total)} with ${formatDecimal(match.killParticipation)}% KP.`
+          : `Esta quedó en score ${Math.round(match.score.total)} con ${formatDecimal(match.killParticipation)}% de KP.`
+      ],
+      reviewBullets: [
+        locale === 'en' ? 'Use this cross as your first mirror before queueing back into it.' : 'Usá este cruce como primer espejo antes de volver a entrar en él.',
+        locale === 'en' ? 'Hold the same reset and pressure pattern before changing runes or build.' : 'Sostené el mismo patrón de reset y presión antes de tocar runas o build.'
+      ]
+    };
+  }
+
   return {
     tone: 'neutral',
     toneLabel: toneLabel('neutral', locale),
     impactLabel: getImpactLabel(match, locale),
-    title: locale === 'en' ? 'Useful middle-ground review' : 'Review útil de zona media',
+    title: locale === 'en' ? 'Useful context game' : 'Partida útil para contexto',
     body: locale === 'en'
-      ? `${championName}${opponentName ? ` into ${opponentName}` : ''} is neither your cleanest version nor your worst one. It is useful because it shows where tempo, map access or pressure stopped being clean.`
-      : `${championName}${opponentName ? ` contra ${opponentName}` : ''} no es ni tu versión más limpia ni la peor. Sirve porque muestra dónde el tempo, el acceso al mapa o la presión dejaron de estar limpios.`,
+      ? `${championName}${opponentName ? ` into ${opponentName}` : ''} is useful because it shows exactly where tempo, map access or pressure stopped staying clean inside a still-playable game.`
+      : `${championName}${opponentName ? ` contra ${opponentName}` : ''} sirve porque muestra exactamente dónde el tempo, el acceso al mapa o la presión dejaron de mantenerse limpios dentro de una partida todavía jugable.`,
     evidence: [
       locale === 'en'
         ? `${getQueueLabel(match.queueId)} · ${formatMatchDuration(match.gameDurationSeconds, locale)} · score ${Math.round(match.score.total)}.`
@@ -293,6 +349,8 @@ export function buildMatchQuickRead(match: MatchSnapshot, dataset: Dataset, loca
 
 export function findReferenceMatch(matches: MatchSnapshot[]) {
   return [...matches]
+    .sort((left, right) => right.gameCreation - left.gameCreation)
+    .slice(0, Math.min(7, matches.length))
     .filter((match) => match.win)
     .sort((left, right) =>
       (right.score.total + (right.timeline.goldDiffAt15 ?? 0) * 0.015 - (right.timeline.objectiveSetupScore ?? 0) * 8)
@@ -302,6 +360,8 @@ export function findReferenceMatch(matches: MatchSnapshot[]) {
 
 export function findReviewPriorityMatch(matches: MatchSnapshot[]) {
   return [...matches]
+    .sort((left, right) => right.gameCreation - left.gameCreation)
+    .slice(0, Math.min(7, matches.length))
     .filter((match) => !match.win)
     .sort((left, right) =>
       ((right.timeline.laneVolatilityScore ?? 0) * 18 + (right.timeline.objectiveSetupScore ?? 0) * 18 + Math.max(0, 64 - right.score.total))

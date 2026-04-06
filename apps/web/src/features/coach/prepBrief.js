@@ -63,6 +63,16 @@ function buildBuildChecklistAction(locale, defaultPath, recommendation) {
 function itemName(dataset, itemId) {
     return dataset.itemCatalog?.[String(itemId)]?.name ?? `Item ${itemId}`;
 }
+function buildRelatedPicks(dataset, anchorChampion, locale) {
+    return dataset.summary.championPool
+        .filter((entry) => entry.championName !== anchorChampion.championName)
+        .sort((left, right) => right.games - left.games || right.avgScore - left.avgScore)
+        .slice(0, 2)
+        .map((entry) => ({
+        championName: entry.championName,
+        note: t(locale, `${entry.games} partidas · ${formatPercent(entry.winRate)} WR · ${formatMetric(entry.avgScore)} score medio`, `${entry.games} games · ${formatPercent(entry.winRate)} WR · ${formatMetric(entry.avgScore)} average score`)
+    }));
+}
 export function buildChampionPrepBrief({ dataset, locale = 'es', anchorChampion, mainProblem, todayActions, aiCoach, problematicMatchup }) {
     if (!anchorChampion)
         return null;
@@ -76,13 +86,21 @@ export function buildChampionPrepBrief({ dataset, locale = 'es', anchorChampion,
         : null;
     const buildComparison = buildChampion?.comparisons[0] ?? null;
     const buildBaseline = buildChampion?.baseline ?? null;
+    const relatedPicks = buildRelatedPicks(dataset, anchorChampion, locale);
     const matchupApplies = problematicMatchup?.championName === anchorChampion.championName;
     const matchupSummary = matchupApplies
         ? (aiCoach?.coach.matchupSpecificNote ?? problematicMatchup?.summary ?? null)
         : (aiCoach?.coach.matchupSpecificNote ?? null);
     const matchupAdjustments = matchupApplies ? (problematicMatchup?.adjustments.slice(0, 2) ?? []) : [];
+    const rawFocusNote = aiCoach?.coach.championSpecificNote ?? null;
+    const normalizedFocusNote = rawFocusNote?.toLowerCase() ?? '';
+    const focusNote = rawFocusNote && (normalizedFocusNote.includes(anchorChampion.championName.toLowerCase()) ||
+        !relatedPicks.some((entry) => normalizedFocusNote.includes(entry.championName.toLowerCase())))
+        ? rawFocusNote
+        : null;
     const runePlan = runeKeystone
         ? {
+            championName: anchorChampion.championName,
             defaultPage: `${runeKeystone.baseline.keystone} · ${runeKeystone.baseline.compactLabel}`,
             baselineSummary: t(locale, `${runeKeystone.baseline.games} partidas · ${formatPercent(runeKeystone.baseline.winRate)} WR · ${formatMetric(runeKeystone.baseline.avgCsAt15)} CS@15`, `${runeKeystone.baseline.games} games · ${formatPercent(runeKeystone.baseline.winRate)} WR · ${formatMetric(runeKeystone.baseline.avgCsAt15)} CS@15`),
             evidenceTier: runeComparison?.evidenceTier ?? null,
@@ -100,6 +118,7 @@ export function buildChampionPrepBrief({ dataset, locale = 'es', anchorChampion,
         : null;
     const buildPlan = buildBaseline
         ? {
+            championName: anchorChampion.championName,
             status: 'ready',
             defaultPath: buildBaseline.label,
             baselineSummary: t(locale, `${buildBaseline.games} partidas · ${formatPercent(buildBaseline.winRate)} WR · ${formatMetric(buildBaseline.avgScore)} score`, `${buildBaseline.games} games · ${formatPercent(buildBaseline.winRate)} WR · ${formatMetric(buildBaseline.avgScore)} score`),
@@ -118,6 +137,7 @@ export function buildChampionPrepBrief({ dataset, locale = 'es', anchorChampion,
         }
         : buildWorkbench.ready
             ? {
+                championName: anchorChampion.championName,
                 status: 'missing',
                 defaultPath: null,
                 baselineSummary: t(locale, 'Este campeón todavía no tiene familia de build suficientemente repetida dentro del scope actual.', 'This champion still does not have a repeated enough build family inside the current scope.'),
@@ -126,6 +146,7 @@ export function buildChampionPrepBrief({ dataset, locale = 'es', anchorChampion,
                 supportingChips: []
             }
             : {
+                championName: anchorChampion.championName,
                 status: 'needs-refresh',
                 defaultPath: null,
                 baselineSummary: t(locale, 'El collector actual necesita un refresh para traer timings de items, botas y ventanas seguidas.', 'The current collector needs a refresh to bring item timings, boots timing and tracked windows.'),
@@ -149,9 +170,10 @@ export function buildChampionPrepBrief({ dataset, locale = 'es', anchorChampion,
         .slice(0, 3);
     return {
         championName: anchorChampion.championName,
+        relatedPicks,
         readiness: runePlan && buildPlan.status === 'ready' ? 'full' : 'partial',
         operatingSummary: buildOperatingSummary(mainProblem, locale),
-        focusNote: aiCoach?.coach.championSpecificNote ?? null,
+        focusNote,
         matchupSummary,
         matchupAdjustments,
         runePlan,

@@ -54,7 +54,7 @@ function buildProfileStrengthLabel(strength?: AICoachResult['context']['player']
 }
 
 function buildFallbackReviewAgenda(matches: MatchEntry[], locale: Locale): ReviewAgendaEntry[] {
-  const sorted = [...matches].sort((a, b) => b.gameCreation - a.gameCreation);
+  const sorted = [...matches].sort((a, b) => b.gameCreation - a.gameCreation).slice(0, Math.min(7, matches.length));
   const stressed = sorted
     .filter((match) => !match.win || match.timeline.deathsPre14 >= 2 || match.timeline.objectiveFightDeaths > 0)
     .map((match) => {
@@ -247,6 +247,8 @@ export function CoachingHome({
 }) {
   const { summary } = dataset;
   const matchesByDate = [...dataset.matches].sort((a, b) => a.gameCreation - b.gameCreation);
+  const recentSeven = [...dataset.matches].sort((a, b) => b.gameCreation - a.gameCreation).slice(0, Math.min(7, dataset.matches.length));
+  const recentSevenIds = new Set(recentSeven.map((match) => match.matchId));
   const suggestedRecentCount = Math.min(8, Math.max(3, Math.ceil(matchesByDate.length * 0.35)));
   const recentWindow = matchesByDate.slice(-Math.min(suggestedRecentCount, matchesByDate.length));
   const baselineWindow = matchesByDate.slice(0, Math.max(0, matchesByDate.length - recentWindow.length));
@@ -279,13 +281,20 @@ export function CoachingHome({
     deathsPre14Delta: rawTrend.deathsPre14Delta ?? (avg(fallbackRecent.map((match) => match.timeline.deathsPre14)) - avg(fallbackBaseline.map((match) => match.timeline.deathsPre14)))
   };
   const championReference = buildScopedChampionReference(dataset);
-  const problematicMatchup = summary.problematicMatchup;
+  const problematicMatchup = summary.problematicMatchup && (
+    summary.problematicMatchup.directGames >= 2 ||
+    summary.problematicMatchup.recentGames >= 3
+  )
+    ? summary.problematicMatchup
+    : null;
   const primaryInsight = summary.coaching.primaryInsight;
   const topProblems = summary.coaching.topProblems;
   const activePlan = summary.coaching.activePlan;
   const fallbackPositives = summary.insights.filter((insight) => insight.category === 'positive');
   const positives = (summary.positiveSignals?.length ? summary.positiveSignals : fallbackPositives).slice(0, 2);
-  const reviewAgenda = (summary.reviewAgenda?.length ? summary.reviewAgenda : buildFallbackReviewAgenda(dataset.matches, locale))
+  const scopedReviewAgendaSource = (summary.reviewAgenda?.length ? summary.reviewAgenda : buildFallbackReviewAgenda(dataset.matches, locale))
+    .filter((item) => recentSevenIds.has(item.matchId));
+  const reviewAgenda = (scopedReviewAgendaSource.length ? scopedReviewAgendaSource : buildFallbackReviewAgenda(recentSeven, locale))
     .map((item) => {
       const match = dataset.matches.find((entry) => entry.matchId === item.matchId);
       return {
@@ -567,6 +576,16 @@ export function CoachingHome({
                 </div>
                 <div style={{ color: '#a4afc1', lineHeight: 1.7 }}>{prepBrief.operatingSummary}</div>
                 {prepBrief.focusNote ? <div style={actionStyle}>{prepBrief.focusNote}</div> : null}
+                {prepBrief.relatedPicks.length ? (
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <SectionEyebrow title={t(locale, 'Picks que también están vivos en tu bloque', 'Other live picks in your block')} />
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {prepBrief.relatedPicks.map((entry) => (
+                        <span key={entry.championName} style={chipStyle}>{`${formatChampionName(entry.championName)} · ${entry.note}`}</span>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 {prepBrief.matchupSummary ? (
                   <div style={{ ...compactListStyle, background: 'rgba(255,255,255,0.035)' }}>
                     <strong style={{ color: '#eef4ff' }}>{t(locale, 'Matchup watchpoint:', 'Matchup watchpoint:')}</strong> {prepBrief.matchupSummary}
@@ -602,7 +621,7 @@ export function CoachingHome({
               </PrepSectionCard>
 
               <PrepSectionCard
-                eyebrow={t(locale, 'Runas', 'Runes')}
+                eyebrow={`${t(locale, 'Runas', 'Runes')} · ${formatChampionName(prepBrief.runePlan?.championName ?? prepBrief.championName)}`}
                 title={prepBrief.runePlan ? prepBrief.runePlan.defaultPage : t(locale, 'Sin página cerrada', 'No closed page yet')}
                 summary={prepBrief.runePlan?.baselineSummary ?? t(locale, 'Todavía no hay una página con suficiente repetición dentro de este campeón.', 'There is still no page with enough repetition inside this champion.')}
                 badge={prepBrief.runePlan?.evidenceTier ? (
@@ -624,7 +643,7 @@ export function CoachingHome({
               </PrepSectionCard>
 
               <PrepSectionCard
-                eyebrow={t(locale, 'Build', 'Build')}
+                eyebrow={`${t(locale, 'Build', 'Build')} · ${formatChampionName(prepBrief.buildPlan.championName ?? prepBrief.championName)}`}
                 title={prepBrief.buildPlan.defaultPath ?? (prepBrief.buildPlan.status === 'needs-refresh' ? t(locale, 'Refresh pendiente', 'Refresh required') : t(locale, 'Familia todavía abierta', 'Family still open'))}
                 summary={prepBrief.buildPlan.baselineSummary}
                 badge={prepBrief.buildPlan.evidenceTier ? (

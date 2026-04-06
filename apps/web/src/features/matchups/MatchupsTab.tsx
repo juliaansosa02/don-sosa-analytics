@@ -5,10 +5,32 @@ import { formatChampionName, getChampionIconUrl, getRoleLabel } from '../../lib/
 import { formatDecimal, formatInteger, formatPercent, formatSignedNumber } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
 import { translateRole } from '../../lib/i18n';
-import { getChampionAccent } from '../dashboard/dashboardSignals';
-
 function average(values: number[]) {
   return values.length ? values.reduce((total, value) => total + value, 0) / values.length : 0;
+}
+
+function getMatchupSurface(winRate: number) {
+  if (winRate >= 55) {
+    return {
+      background: 'linear-gradient(180deg, rgba(11,28,21,0.98), rgba(7,14,12,0.99))',
+      border: 'rgba(102, 214, 155, 0.22)',
+      glow: 'rgba(102, 214, 155, 0.08)'
+    };
+  }
+
+  if (winRate < 45) {
+    return {
+      background: 'linear-gradient(180deg, rgba(31,16,18,0.98), rgba(15,9,10,0.99))',
+      border: 'rgba(239, 120, 120, 0.22)',
+      glow: 'rgba(239, 120, 120, 0.08)'
+    };
+  }
+
+  return {
+    background: 'linear-gradient(180deg, rgba(10,14,22,0.98), rgba(7,11,18,0.99))',
+    border: 'rgba(255,255,255,0.06)',
+    glow: 'rgba(149, 166, 197, 0.06)'
+  };
 }
 
 function matchupDiffLabel(value: number, unit: string, locale: Locale) {
@@ -155,7 +177,7 @@ export function MatchupsTab({ dataset, locale = 'es' }: { dataset: Dataset; loca
         </div>
         {matchups.length ? matchups.map((matchup) => {
           const iconUrl = getChampionIconUrl(matchup.opponent, dataset.ddragonVersion);
-          const accent = getChampionAccent(matchup.opponent);
+          const surface = getMatchupSurface(matchup.winRate);
           const narrative = buildMatchupNarrative(matchup, filteredBaseline, locale);
 
           return (
@@ -163,9 +185,9 @@ export function MatchupsTab({ dataset, locale = 'es' }: { dataset: Dataset; loca
               key={`${matchup.opponent}-${matchup.role}`}
               style={{
                 ...matchupCardStyle,
-                background: accent.panel,
-                border: `1px solid ${accent.border}`,
-                boxShadow: `0 18px 42px rgba(0,0,0,0.16), 0 0 24px ${accent.glow}`
+                background: surface.background,
+                border: `1px solid ${surface.border}`,
+                boxShadow: `0 16px 34px rgba(0,0,0,0.14), 0 0 18px ${surface.glow}`
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'start' }}>

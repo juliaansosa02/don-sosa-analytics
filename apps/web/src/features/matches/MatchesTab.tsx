@@ -37,6 +37,20 @@ function formatObjectives(match: Dataset['matches'][number], locale: Locale) {
     : (locale === 'en' ? 'No major objectives secured' : 'Sin objetivos mayores asegurados');
 }
 
+function buildObjectiveTokens(match: Dataset['matches'][number], locale: Locale) {
+  const tokens: Array<{ key: string; label: string; value?: number; tone?: 'default' | 'high' | 'medium' | 'low' }> = [];
+
+  if (match.dragonKills) tokens.push({ key: 'dragon', label: locale === 'en' ? 'Drake' : 'Dragón', value: match.dragonKills, tone: 'low' });
+  if (match.baronKills) tokens.push({ key: 'baron', label: 'Nashor', value: match.baronKills, tone: 'default' });
+  if (match.turretKills) tokens.push({ key: 'tower', label: locale === 'en' ? 'Tower' : 'Torre', value: match.turretKills, tone: 'default' });
+  if (match.firstBloodKill) tokens.push({ key: 'fb', label: 'FB', tone: 'medium' });
+  if (match.firstTowerKill) tokens.push({ key: 'ft', label: 'FT', tone: 'medium' });
+  const multiKills = (match.doubleKills ?? 0) + (match.tripleKills ?? 0) + (match.quadraKills ?? 0) + (match.pentaKills ?? 0);
+  if (multiKills > 0) tokens.push({ key: 'multi', label: locale === 'en' ? 'Multi' : 'Multi', value: multiKills, tone: 'low' });
+
+  return tokens;
+}
+
 function formatDetailDate(gameCreation: number, locale: Locale) {
   return new Date(gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR', {
     day: '2-digit',
@@ -101,6 +115,17 @@ export function MatchesTab({ dataset, locale = 'es' }: { dataset: Dataset; local
         const firstItemName = match.items?.milestones.firstCompletedItemId
           ? dataset.itemCatalog?.[String(match.items.milestones.firstCompletedItemId)]?.name ?? null
           : null;
+        const objectiveTokens = buildObjectiveTokens(match, locale);
+        const earlyDetailMetrics = [
+          { label: detailMetricLabel(locale, 'deaths'), value: formatDecimal(match.timeline.deathsPre14) },
+          { label: detailMetricLabel(locale, 'laneVolatility'), value: formatDecimal(match.timeline.laneVolatilityScore, 1) },
+          ...(match.timeline.firstDeathMinute !== null ? [{ label: detailMetricLabel(locale, 'firstDeath'), value: `${formatDecimal(match.timeline.firstDeathMinute, 1)}m` }] : []),
+          ...(match.timeline.firstBaseMinute !== null ? [{ label: detailMetricLabel(locale, 'firstBase'), value: `${formatDecimal(match.timeline.firstBaseMinute, 1)}m` }] : []),
+          ...(match.timeline.firstMoveMinute !== null ? [{ label: detailMetricLabel(locale, 'firstMove'), value: `${formatDecimal(match.timeline.firstMoveMinute, 1)}m` }] : []),
+          ...(firstItemMinute ? [{ label: detailMetricLabel(locale, 'firstItem'), value: `${formatDecimal(firstItemMinute, 1)}m` }] : []),
+          { label: detailMetricLabel(locale, 'goldDiff'), value: formatSignedNumber(match.timeline.goldDiffAt15, 0) },
+          { label: locale === 'en' ? 'Level diff 15' : 'Diff nivel 15', value: formatSignedNumber(match.timeline.levelDiffAt15, 1) }
+        ];
 
         return (
           <article
@@ -112,7 +137,7 @@ export function MatchesTab({ dataset, locale = 'es' }: { dataset: Dataset; local
               borderRadius: 24,
               background: accent.panel,
               border: `1px solid ${accent.border}`,
-              boxShadow: `0 22px 54px rgba(0,0,0,0.24), 0 0 0 1px rgba(255,255,255,0.02), 0 0 34px ${accent.glow}`
+              boxShadow: `0 18px 38px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.02), 0 0 16px ${accent.glow}`
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start', flexWrap: 'wrap' }}>
@@ -125,17 +150,15 @@ export function MatchesTab({ dataset, locale = 'es' }: { dataset: Dataset; local
                     <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota')}</Badge>
                     <Badge tone={toneToBadgeTone(quickRead.tone)}>{quickRead.toneLabel}</Badge>
                     <Badge tone={toneToBadgeTone(quickRead.tone)}>{quickRead.impactLabel}</Badge>
+                    <Badge>{match.opponentChampionName ? `vs ${formatChampionName(match.opponentChampionName)}` : (locale === 'en' ? 'Opponent unknown' : 'Rival sin detectar')}</Badge>
+                    <Badge>{locale === 'en' ? getRoleLabel(match.role || dataset.summary.primaryRole || 'ALL') : getRoleLabel(match.role || dataset.summary.primaryRole || 'ALL')}</Badge>
+                    <Badge>{`${match.kills}/${match.deaths}/${match.assists}`}</Badge>
+                    <Badge>{`${formatDecimal(match.killParticipation)}% KP`}</Badge>
                   </>
                 }
               />
 
               <div style={{ display: 'grid', gap: 10, justifyItems: 'end' }}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'end' }}>
-                  <Badge>{match.opponentChampionName ? `vs ${formatChampionName(match.opponentChampionName)}` : (locale === 'en' ? 'Opponent unknown' : 'Rival sin detectar')}</Badge>
-                  <Badge>{locale === 'en' ? getRoleLabel(match.role || dataset.summary.primaryRole || 'ALL') : getRoleLabel(match.role || dataset.summary.primaryRole || 'ALL')}</Badge>
-                  <Badge>{`${match.kills}/${match.deaths}/${match.assists}`}</Badge>
-                  <Badge>{`${formatDecimal(match.killParticipation)}% KP`}</Badge>
-                </div>
                 <button
                   type="button"
                   onClick={() => setExpandedMatchId(expanded ? null : match.matchId)}
@@ -184,7 +207,13 @@ export function MatchesTab({ dataset, locale = 'es' }: { dataset: Dataset; local
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <SignalBadge tone="default">{formatObjectives(match, locale)}</SignalBadge>
+                  {objectiveTokens.length
+                    ? objectiveTokens.map((token) => (
+                      <SignalBadge key={`${match.matchId}-${token.key}`} tone={token.tone ?? 'default'}>
+                        {token.value ? `${token.label} ${token.value}` : token.label}
+                      </SignalBadge>
+                    ))
+                    : <SignalBadge tone="default">{formatObjectives(match, locale)}</SignalBadge>}
                   {match.timeline.firstDeathMinute !== null ? <SignalBadge tone="medium">{`${detailMetricLabel(locale, 'firstDeath')} ${formatDecimal(match.timeline.firstDeathMinute, 1)}m`}</SignalBadge> : null}
                   {match.timeline.firstBaseMinute !== null ? <SignalBadge tone="default">{`${detailMetricLabel(locale, 'firstBase')} ${formatDecimal(match.timeline.firstBaseMinute, 1)}m`}</SignalBadge> : null}
                   {firstItemMinute ? <SignalBadge tone="default">{`${detailMetricLabel(locale, 'firstItem')} ${formatDecimal(firstItemMinute, 1)}m`}</SignalBadge> : null}
@@ -247,14 +276,9 @@ export function MatchesTab({ dataset, locale = 'es' }: { dataset: Dataset; local
                       subtitle={locale === 'en' ? 'Useful to separate lane issue, reset issue or setup issue.' : 'Sirve para separar si fue un problema de línea, reset o setup.'}
                     >
                       <div style={detailMetricGridStyle}>
-                        <DetailMetric label={detailMetricLabel(locale, 'deaths')} value={formatDecimal(match.timeline.deathsPre14)} />
-                        <DetailMetric label={detailMetricLabel(locale, 'laneVolatility')} value={formatDecimal(match.timeline.laneVolatilityScore, 1)} />
-                        <DetailMetric label={detailMetricLabel(locale, 'firstDeath')} value={match.timeline.firstDeathMinute !== null ? `${formatDecimal(match.timeline.firstDeathMinute, 1)}m` : '—'} />
-                        <DetailMetric label={detailMetricLabel(locale, 'firstBase')} value={match.timeline.firstBaseMinute !== null ? `${formatDecimal(match.timeline.firstBaseMinute, 1)}m` : '—'} />
-                        <DetailMetric label={detailMetricLabel(locale, 'firstMove')} value={match.timeline.firstMoveMinute !== null ? `${formatDecimal(match.timeline.firstMoveMinute, 1)}m` : '—'} />
-                        <DetailMetric label={detailMetricLabel(locale, 'firstItem')} value={firstItemMinute ? `${formatDecimal(firstItemMinute, 1)}m` : '—'} />
-                        <DetailMetric label={detailMetricLabel(locale, 'goldDiff')} value={formatSignedNumber(match.timeline.goldDiffAt15, 0)} />
-                        <DetailMetric label={locale === 'en' ? 'Level diff 15' : 'Diff nivel 15'} value={formatSignedNumber(match.timeline.levelDiffAt15, 1)} />
+                        {earlyDetailMetrics.map((metric) => (
+                          <DetailMetric key={`${match.matchId}-${metric.label}`} label={metric.label} value={metric.value} />
+                        ))}
                       </div>
                     </DetailSection>
                   </div>

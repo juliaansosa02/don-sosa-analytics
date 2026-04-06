@@ -4,9 +4,29 @@ import { useMemo, useState } from 'react';
 import { formatChampionName, getChampionIconUrl, getRoleLabel } from '../../lib/lol';
 import { formatDecimal, formatInteger, formatPercent, formatSignedNumber } from '../../lib/format';
 import { translateRole } from '../../lib/i18n';
-import { getChampionAccent } from '../dashboard/dashboardSignals';
 function average(values) {
     return values.length ? values.reduce((total, value) => total + value, 0) / values.length : 0;
+}
+function getMatchupSurface(winRate) {
+    if (winRate >= 55) {
+        return {
+            background: 'linear-gradient(180deg, rgba(11,28,21,0.98), rgba(7,14,12,0.99))',
+            border: 'rgba(102, 214, 155, 0.22)',
+            glow: 'rgba(102, 214, 155, 0.08)'
+        };
+    }
+    if (winRate < 45) {
+        return {
+            background: 'linear-gradient(180deg, rgba(31,16,18,0.98), rgba(15,9,10,0.99))',
+            border: 'rgba(239, 120, 120, 0.22)',
+            glow: 'rgba(239, 120, 120, 0.08)'
+        };
+    }
+    return {
+        background: 'linear-gradient(180deg, rgba(10,14,22,0.98), rgba(7,11,18,0.99))',
+        border: 'rgba(255,255,255,0.06)',
+        glow: 'rgba(149, 166, 197, 0.06)'
+    };
 }
 function matchupDiffLabel(value, unit, locale) {
     if (value > 0)
@@ -108,13 +128,13 @@ export function MatchupsTab({ dataset, locale = 'es' }) {
                                 ? (locale === 'en' ? 'You are looking at all of your picks mixed together.' : 'Estás viendo todos tus picks mezclados.')
                                 : (locale === 'en' ? `You are looking only at matchups when you play ${formatChampionName(championFilter)}.` : `Estás viendo solo matchups cuando jugás ${formatChampionName(championFilter)}.`) }), _jsxs("div", { style: { display: 'flex', gap: 10, flexWrap: 'wrap' }, children: [_jsx("select", { value: championFilter, onChange: (event) => setChampionFilter(event.target.value), style: filterSelectStyle, children: championOptions.map((champion) => (_jsx("option", { value: champion, children: champion === 'ALL' ? (locale === 'en' ? 'All your champions' : 'Todos tus campeones') : formatChampionName(champion) }, champion))) }), _jsxs("select", { value: sortKey, onChange: (event) => setSortKey(event.target.value), style: filterSelectStyle, children: [_jsx("option", { value: "games", children: locale === 'en' ? 'Most games' : 'Más partidas' }), _jsx("option", { value: "winRate", children: locale === 'en' ? 'Highest win rate' : 'Mayor win rate' }), _jsx("option", { value: "performance", children: locale === 'en' ? 'Highest performance' : 'Mayor performance' }), _jsx("option", { value: "avgGoldDiffAt15", children: locale === 'en' ? 'Highest gold diff' : 'Mayor diff. de oro' }), _jsx("option", { value: "avgLevelDiffAt15", children: locale === 'en' ? 'Highest level diff' : 'Mayor diff. de nivel' })] })] })] }), matchups.length ? matchups.map((matchup) => {
                     const iconUrl = getChampionIconUrl(matchup.opponent, dataset.ddragonVersion);
-                    const accent = getChampionAccent(matchup.opponent);
+                    const surface = getMatchupSurface(matchup.winRate);
                     const narrative = buildMatchupNarrative(matchup, filteredBaseline, locale);
                     return (_jsxs("div", { style: {
                             ...matchupCardStyle,
-                            background: accent.panel,
-                            border: `1px solid ${accent.border}`,
-                            boxShadow: `0 18px 42px rgba(0,0,0,0.16), 0 0 24px ${accent.glow}`
+                            background: surface.background,
+                            border: `1px solid ${surface.border}`,
+                            boxShadow: `0 16px 34px rgba(0,0,0,0.14), 0 0 18px ${surface.glow}`
                         }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'start' }, children: [_jsxs("div", { style: { display: 'flex', alignItems: 'center', gap: 14 }, children: [iconUrl ? _jsx("img", { src: iconUrl, alt: formatChampionName(matchup.opponent), width: 52, height: 52, style: iconStyle }) : null, _jsxs("div", { style: { display: 'grid', gap: 6 }, children: [_jsx("div", { style: { fontSize: 18, fontWeight: 700 }, children: formatChampionName(matchup.opponent) }), _jsx("div", { style: { color: '#7d8696', fontSize: 13 }, children: locale === 'en' ? translateRole(matchup.role, 'en') : getRoleLabel(matchup.role) })] })] }), _jsx(Badge, { tone: matchup.winRate >= 55 ? 'low' : matchup.winRate < 45 ? 'high' : 'medium', children: matchup.winRate >= 55 ? (locale === 'en' ? 'FAVORABLE' : 'FAVORABLE') : matchup.winRate < 45 ? (locale === 'en' ? 'TOUGH' : 'COMPLICADO') : (locale === 'en' ? 'EVEN' : 'PAREJO') })] }), _jsx("div", { style: { color: '#d7e1f0', lineHeight: 1.7, fontSize: 14 }, children: narrative }), _jsxs("div", { className: "seven-col-grid", style: metricGridStyle, children: [_jsx(MetricBlock, { label: locale === 'en' ? 'Games' : 'Partidas', value: formatInteger(matchup.games), info: locale === 'en' ? 'How many times you faced this champion inside the current sample.' : 'Cantidad de veces que enfrentaste a este campeón en la muestra actual.' }), _jsx(MetricBlock, { label: "Win rate", value: formatPercent(matchup.winRate), info: locale === 'en' ? 'Your win rate against this opponent.' : 'Tu porcentaje de victorias contra este rival.', trend: { direction: matchup.winRate > filteredBaseline.winRate ? 'up' : matchup.winRate < filteredBaseline.winRate ? 'down' : 'steady', tone: matchup.winRate > filteredBaseline.winRate ? 'positive' : matchup.winRate < filteredBaseline.winRate ? 'negative' : 'neutral' } }), _jsx(MetricBlock, { label: "Performance", value: formatDecimal(matchup.performance), info: locale === 'en' ? 'Average internal execution score against this matchup.' : 'Promedio del índice interno de ejecución contra este matchup.' }), _jsx(MetricBlock, { label: locale === 'en' ? 'CS at 15' : 'CS a los 15', value: formatDecimal(matchup.avgCsAt15), info: locale === 'en' ? 'Your average economy at minute 15 against this opponent.' : 'Tu economía media a los 15 contra este rival.' }), _jsx(MetricBlock, { label: locale === 'en' ? 'Gold vs opponent' : 'Oro vs rival', value: matchupDiffLabel(matchup.avgGoldDiffAt15, 'gold', locale), info: locale === 'en' ? "If the value ends in 'ahead', you reach minute 15 with an average gold lead. If it ends in 'behind', you are behind your direct lane or role opponent." : "Si el valor termina 'a favor', llegás con ventaja media de oro al 15. Si termina 'en contra', llegás por detrás frente al rival directo.", trend: { direction: matchup.avgGoldDiffAt15 > 0 ? 'up' : matchup.avgGoldDiffAt15 < 0 ? 'down' : 'steady', tone: matchup.avgGoldDiffAt15 > 0 ? 'positive' : matchup.avgGoldDiffAt15 < 0 ? 'negative' : 'neutral' } }), _jsx(MetricBlock, { label: locale === 'en' ? 'Level vs opponent' : 'Nivel vs rival', value: matchupDiffLabel(matchup.avgLevelDiffAt15, 'lvl', locale), info: locale === 'en' ? "If the value ends in 'ahead', your average level at 15 is above the opponent. If it ends in 'behind', you are trailing in experience." : "Si el valor termina 'a favor', tu nivel medio al 15 está por encima del rival. Si termina 'en contra', llegás con desventaja de experiencia.", trend: { direction: matchup.avgLevelDiffAt15 > 0 ? 'up' : matchup.avgLevelDiffAt15 < 0 ? 'down' : 'steady', tone: matchup.avgLevelDiffAt15 > 0 ? 'positive' : matchup.avgLevelDiffAt15 < 0 ? 'negative' : 'neutral' } }), _jsx(MetricBlock, { label: locale === 'en' ? 'Deaths pre 14' : 'Muertes pre 14', value: formatDecimal(matchup.avgDeathsPre14), info: locale === 'en' ? 'How often these matchups punish you early, on average.' : 'Cuántas veces te castigan temprano, en promedio, estos cruces.', trend: { direction: matchup.avgDeathsPre14 < filteredBaseline.avgDeathsPre14 ? 'down' : matchup.avgDeathsPre14 > filteredBaseline.avgDeathsPre14 ? 'up' : 'steady', tone: matchup.avgDeathsPre14 < filteredBaseline.avgDeathsPre14 ? 'positive' : matchup.avgDeathsPre14 > filteredBaseline.avgDeathsPre14 ? 'negative' : 'neutral' } })] })] }, `${matchup.opponent}-${matchup.role}`));
                 }) : (_jsx("div", { style: emptyStateStyle, children: locale === 'en'
                         ? 'There are no direct-opponent samples inside this filter yet.'
