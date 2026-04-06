@@ -3,6 +3,7 @@ import type { MatchSnapshot, Dataset } from '../../types';
 import { classifyComparativeEvidence, type EvidenceTier } from '../premium-analysis/evidence';
 
 type DurationBucket = 'short' | 'standard' | 'long';
+type EarlyState = 'stable' | 'scrappy' | 'volatile';
 
 export interface RuneVariantAggregate {
   key: string;
@@ -17,12 +18,23 @@ export interface RuneVariantAggregate {
   avgScore: number;
   avgDamageToChampions: number;
   avgCsAt15: number;
+  avgGoldAt15: number;
+  avgGoldDiffAt15: number;
   avgDurationMinutes: number;
   avgDeathsPre14: number;
   avgFirstMoveMinute: number | null;
+  avgLaneVolatility: number;
+  avgResetTiming: number;
+  avgObjectiveSetup: number;
   avgRuneValue: number;
-  topMatchups: Array<{ championName: string; games: number; share: number }>;
+  avgRuneDamage: number;
+  avgRuneHealing: number;
+  avgRuneShielding: number;
+  topMatchups: Array<{ championName: string; games: number; share: number; winRate: number }>;
   durationProfile: Record<DurationBucket, number>;
+  earlyStateProfile: Record<EarlyState, number>;
+  durationPerformance: Record<DurationBucket, { games: number; winRate: number; avgScore: number }>;
+  earlyStatePerformance: Record<EarlyState, { games: number; winRate: number; avgScore: number }>;
 }
 
 export interface RuneComparison {
@@ -31,16 +43,25 @@ export interface RuneComparison {
   evidenceTier: EvidenceTier;
   differenceLabel: string;
   summary: string;
+  recommendation: string;
   contextNote: string | null;
   signalNote: string;
   constraint: string | null;
+  bestWhen: string | null;
+  avoidWhen: string | null;
   deltas: {
     winRate: number;
     score: number;
     damageToChampions: number;
     csAt15: number;
+    goldDiffAt15: number;
     durationMinutes: number;
     deathsPre14: number;
+    runeValue: number;
+    runeDamage: number;
+    runeHealing: number;
+    laneVolatility: number;
+    resetTiming: number;
   };
 }
 
@@ -58,6 +79,8 @@ export interface ChampionRuneWorkbench {
   strongReads: number;
   weakReads: number;
   hypothesisReads: number;
+  headline: string;
+  decisionNote: string;
   keystones: KeystoneWorkbench[];
 }
 
@@ -85,6 +108,12 @@ function bucketDuration(durationMinutes: number): DurationBucket {
   return 'long';
 }
 
+function classifyEarlyState(match: MatchSnapshot): EarlyState {
+  if (match.timeline.deathsPre14 >= 2 || (match.timeline.goldDiffAt15 ?? 0) <= -400 || match.timeline.laneVolatilityScore >= 55) return 'volatile';
+  if (match.timeline.deathsPre14 === 0 && (match.timeline.goldDiffAt15 ?? 0) >= 0 && match.timeline.laneVolatilityScore <= 38) return 'stable';
+  return 'scrappy';
+}
+
 function runeName(name?: string, perk?: number) {
   return name?.trim() || `Perk ${perk ?? 'unknown'}`;
 }
@@ -95,7 +124,7 @@ function buildVariantDescriptor(match: MatchSnapshot) {
   const secondaryMinor = match.secondaryRunes.map((rune) => runeName(rune.name, rune.perk));
   const key = [keystone, ...primaryMinor, '::', ...secondaryMinor].join('|');
   const compactLabel = secondaryMinor.length
-    ? `${secondaryMinor.join(' + ')}`
+    ? secondaryMinor.join(' + ')
     : primaryMinor.length
       ? primaryMinor.join(' + ')
       : keystone;
@@ -111,35 +140,53 @@ function buildVariantDescriptor(match: MatchSnapshot) {
 }
 
 function buildTopMatchups(matches: MatchSnapshot[]) {
-  const counts = new Map<string, number>();
+  const counts = new Map<string, MatchSnapshot[]>();
 
   for (const match of matches) {
     if (!match.opponentChampionName) continue;
-    counts.set(match.opponentChampionName, (counts.get(match.opponentChampionName) ?? 0) + 1);
+    const current = counts.get(match.opponentChampionName) ?? [];
+    current.push(match);
+    counts.set(match.opponentChampionName, current);
   }
 
   return Array.from(counts.entries())
-    .map(([championName, games]) => ({
+    .map(([championName, list]) => ({
       championName,
-      games,
-      share: round((games / Math.max(matches.length, 1)) * 100, 1)
+      games: list.length,
+      share: round((list.length / Math.max(matches.length, 1)) * 100, 1),
+      winRate: round((list.filter((match) => match.win).length / Math.max(list.length, 1)) * 100, 1)
     }))
     .sort((left, right) => right.games - left.games)
     .slice(0, 3);
 }
 
+function buildStatePerformance(matches: MatchSnapshot[], by: 'duration' | 'early') {
+  const keys = by === 'duration'
+    ? ['short', 'standard', 'long'] as const
+    : ['stable', 'scrappy', 'volatile'] as const;
+  const result = {} as Record<string, { games: number; winRate: number; avgScore: number }>;
+
+  for (const key of keys) {
+    const list = matches.filter((match) => (by === 'duration' ? bucketDuration(match.gameDurationSeconds / 60) : classifyEarlyState(match)) === key);
+    result[key] = {
+      games: list.length,
+      winRate: round((list.filter((match) => match.win).length / Math.max(list.length, 1)) * 100, 1),
+      avgScore: round(average(list.map((match) => match.score.total)), 1)
+    };
+  }
+
+  return result as Record<typeof keys[number], { games: number; winRate: number; avgScore: number }>;
+}
+
 function aggregateVariant(matches: MatchSnapshot[]) {
   const descriptor = buildVariantDescriptor(matches[0]);
   const wins = matches.filter((match) => match.win).length;
-  const durationProfile: Record<DurationBucket, number> = {
-    short: 0,
-    standard: 0,
-    long: 0
-  };
+  const durationProfile: Record<DurationBucket, number> = { short: 0, standard: 0, long: 0 };
+  const earlyStateProfile: Record<EarlyState, number> = { stable: 0, scrappy: 0, volatile: 0 };
 
   for (const match of matches) {
-    const durationBucket = bucketDuration(match.gameDurationSeconds / 60);
-    durationProfile[durationBucket] += 1;
+    durationProfile[bucketDuration(match.gameDurationSeconds / 60)] += 1;
+    earlyStateProfile[classifyEarlyState(match)] += 1;
   }
 
   return {
@@ -150,16 +197,31 @@ function aggregateVariant(matches: MatchSnapshot[]) {
     avgScore: round(average(matches.map((match) => match.score.total)), 1),
     avgDamageToChampions: round(average(matches.map((match) => match.damageToChampions)), 0),
     avgCsAt15: round(average(matches.map((match) => match.timeline.csAt15)), 1),
+    avgGoldAt15: round(average(matches.map((match) => match.timeline.goldAt15)), 0),
+    avgGoldDiffAt15: round(average(matches.map((match) => match.timeline.goldDiffAt15 ?? 0)), 0),
     avgDurationMinutes: round(average(matches.map((match) => match.gameDurationSeconds / 60)), 1),
     avgDeathsPre14: round(average(matches.map((match) => match.timeline.deathsPre14)), 1),
     avgFirstMoveMinute: averageNullable(matches.map((match) => match.timeline.firstMoveMinute)),
+    avgLaneVolatility: round(average(matches.map((match) => match.timeline.laneVolatilityScore)), 1),
+    avgResetTiming: round(average(matches.map((match) => match.timeline.resetTimingScore)), 1),
+    avgObjectiveSetup: round(average(matches.map((match) => match.timeline.objectiveSetupScore)), 1),
     avgRuneValue: round(average(matches.map((match) => match.runeStats.keystoneValue)), 0),
+    avgRuneDamage: round(average(matches.map((match) => match.runeStats.totalDamageFromRunes)), 0),
+    avgRuneHealing: round(average(matches.map((match) => match.runeStats.totalHealingFromRunes)), 0),
+    avgRuneShielding: round(average(matches.map((match) => match.runeStats.totalShieldingFromRunes)), 0),
     topMatchups: buildTopMatchups(matches),
     durationProfile: {
       short: round((durationProfile.short / Math.max(matches.length, 1)) * 100, 0),
       standard: round((durationProfile.standard / Math.max(matches.length, 1)) * 100, 0),
       long: round((durationProfile.long / Math.max(matches.length, 1)) * 100, 0)
-    }
+    },
+    earlyStateProfile: {
+      stable: round((earlyStateProfile.stable / Math.max(matches.length, 1)) * 100, 0),
+      scrappy: round((earlyStateProfile.scrappy / Math.max(matches.length, 1)) * 100, 0),
+      volatile: round((earlyStateProfile.volatile / Math.max(matches.length, 1)) * 100, 0)
+    },
+    durationPerformance: buildStatePerformance(matches, 'duration'),
+    earlyStatePerformance: buildStatePerformance(matches, 'early')
   } satisfies RuneVariantAggregate;
 }
 
@@ -168,21 +230,15 @@ function describeDifferences(baseline: RuneVariantAggregate, variant: RuneVarian
 
   baseline.primaryMinor.forEach((name, index) => {
     const next = variant.primaryMinor[index];
-    if (next && next !== name) {
-      changes.push(`${name} -> ${next}`);
-    }
+    if (next && next !== name) changes.push(`${name} -> ${next}`);
   });
 
   baseline.secondaryMinor.forEach((name, index) => {
     const next = variant.secondaryMinor[index];
-    if (next && next !== name) {
-      changes.push(`${name} -> ${next}`);
-    }
+    if (next && next !== name) changes.push(`${name} -> ${next}`);
   });
 
-  if (!changes.length && baseline.compactLabel !== variant.compactLabel) {
-    changes.push(variant.compactLabel);
-  }
+  if (!changes.length && baseline.compactLabel !== variant.compactLabel) changes.push(variant.compactLabel);
 
   if (!changes.length) {
     return baseline.compactLabel === variant.compactLabel
@@ -194,75 +250,115 @@ function describeDifferences(baseline: RuneVariantAggregate, variant: RuneVarian
 }
 
 function buildContextNote(baseline: RuneVariantAggregate, variant: RuneVariantAggregate, locale: Locale) {
-  const baselineTop = baseline.topMatchups[0];
   const variantTop = variant.topMatchups[0];
+  const baselineTop = baseline.topMatchups[0];
   const durationGap = round(variant.avgDurationMinutes - baseline.avgDurationMinutes, 1);
 
   if (variantTop && (!baselineTop || variantTop.championName !== baselineTop.championName) && variantTop.share >= 35) {
-    return copy(locale, `La variante está más cargada hacia ${variantTop.championName} (${variantTop.share}% de la muestra).`, `The variant is more skewed toward ${variantTop.championName} (${variantTop.share}% of the sample).`);
+    return copy(locale, `La variante está más sesgada a ${variantTop.championName} (${variantTop.share}% de la muestra).`, `The variant is more skewed toward ${variantTop.championName} (${variantTop.share}% of the sample).`);
   }
 
   if (Math.abs(durationGap) >= 3.5) {
     return durationGap > 0
-      ? copy(locale, 'Esta variante está apareciendo en partidas más largas que el baseline.', 'This variant is showing up in longer games than the baseline.')
-      : copy(locale, 'Esta variante está apareciendo en partidas más cortas que el baseline.', 'This variant is showing up in shorter games than the baseline.');
+      ? copy(locale, 'La variante aparece en partidas bastante más largas que el baseline.', 'The variant shows up in meaningfully longer games than the baseline.')
+      : copy(locale, 'La variante aparece en partidas bastante más cortas que el baseline.', 'The variant shows up in meaningfully shorter games than the baseline.');
   }
 
-  if (variant.durationProfile.long - baseline.durationProfile.long >= 20) {
-    return copy(locale, 'La página alternativa está sobrerrepresentada en juegos largos.', 'The alternative page is overrepresented in long games.');
+  if (variant.earlyStateProfile.volatile - baseline.earlyStateProfile.volatile >= 18) {
+    return copy(locale, 'La página alternativa se usa más en earlys rotos o volátiles.', 'The alternative page appears more often in broken or volatile early games.');
   }
 
-  if (variant.durationProfile.short - baseline.durationProfile.short >= 20) {
-    return copy(locale, 'La página alternativa está sobrerrepresentada en juegos cortos.', 'The alternative page is overrepresented in short games.');
+  if (variant.earlyStateProfile.stable - baseline.earlyStateProfile.stable >= 18) {
+    return copy(locale, 'La página alternativa se está viendo más en earlys limpios y controlados.', 'The alternative page is showing up more often in clean and controlled early games.');
   }
 
   return null;
 }
 
-function buildSignalNote(baseline: RuneVariantAggregate, variant: RuneVariantAggregate, locale: Locale) {
-  const scoreDelta = round(variant.avgScore - baseline.avgScore, 1);
-  const damageDelta = round((variant.avgDamageToChampions - baseline.avgDamageToChampions) / 1000, 1);
-  const csDelta = round(variant.avgCsAt15 - baseline.avgCsAt15, 1);
-  const firstMoveDelta = baseline.avgFirstMoveMinute !== null && variant.avgFirstMoveMinute !== null
-    ? round(variant.avgFirstMoveMinute - baseline.avgFirstMoveMinute, 1)
-    : null;
-
-  if (scoreDelta >= 2.5 && damageDelta >= 1.5) {
-    return copy(locale, 'La diferencia no vive solo en WR: también mueve score y presión real sobre campeones.', 'The difference does not live only in WR: it also moves score and real champion pressure.');
+function buildSignalNote(baseline: RuneVariantAggregate, variant: RuneVariantAggregate, locale: Locale, deltas: RuneComparison['deltas']) {
+  if (deltas.runeValue >= 1500 && deltas.score >= 2) {
+    return copy(locale, 'No cambia solo el WR: también sube el valor real que la página extrae del kit.', 'This is not only a WR shift: the page is also extracting more real value from the kit.');
   }
 
-  if (scoreDelta >= 2 && csDelta >= 4) {
-    return copy(locale, 'La señal se apoya en una partida más limpia de economía y ejecución, no solo en resultados finales.', 'The signal is supported by cleaner economy and execution, not just final results.');
+  if (deltas.laneVolatility <= -6 && deltas.deathsPre14 <= -0.6) {
+    return copy(locale, 'La variante parece ordenar mejor el early y bajar el costo de los errores.', 'The variant seems to organize the early game better and reduce the cost of mistakes.');
   }
 
-  if (firstMoveDelta !== null && firstMoveDelta <= -1 && damageDelta >= 1) {
-    return copy(locale, 'La página parece empujar una versión más activa y de mayor tempo temprano.', 'The page seems to push a more active, earlier-tempo version of the champion.');
+  if (deltas.goldDiffAt15 >= 180 && deltas.csAt15 >= 3) {
+    return copy(locale, 'La señal va con mejor economía temprana y no solo con outcomes tardíos.', 'The signal tracks with better early economy, not only with late outcomes.');
   }
 
-  if (variant.avgDeathsPre14 <= baseline.avgDeathsPre14 - 0.7) {
-    return copy(locale, 'La mejora aparece más por limpieza de early que por explosión de daño.', 'The improvement looks more like cleaner early game than raw damage explosion.');
+  if (deltas.runeHealing >= 250 || deltas.runeDamage >= 1200) {
+    return copy(locale, 'El swap está moviendo output medible de runas y no solo sensación subjetiva.', 'The swap is moving measurable rune output, not only subjective feel.');
   }
 
-  return copy(locale, 'La lectura principal está en si el swap cambia tu ejecución, no solo el pick rate.', 'The main read is whether the swap changes your execution, not just pick rate.');
+  return copy(locale, 'La lectura principal es si el swap mejora la versión del campeón que querés ejecutar.', 'The main read is whether the swap improves the version of the champion you want to execute.');
 }
 
 function buildConstraint(baseline: RuneVariantAggregate, variant: RuneVariantAggregate, locale: Locale) {
   const minSample = Math.min(baseline.games, variant.games);
-  const sameTopMatchup = baseline.topMatchups[0]?.championName && baseline.topMatchups[0]?.championName === variant.topMatchups[0]?.championName;
 
   if (minSample < 4) {
     return copy(locale, 'Todavía no hay suficiente muestra pareja entre ambos lados.', 'There is not enough balanced sample on both sides yet.');
   }
 
-  if (!sameTopMatchup && (variant.topMatchups[0]?.share ?? 0) >= 35) {
-    return copy(locale, 'Parte de la diferencia puede venir del matchup y no solo de la runa.', 'Part of the difference may come from matchup allocation, not only the rune page.');
+  if ((variant.topMatchups[0]?.share ?? 0) >= 35 && variant.topMatchups[0]?.championName !== baseline.topMatchups[0]?.championName) {
+    return copy(locale, 'Parte del edge puede venir del matchup que absorbió esta variante.', 'Part of the edge may come from the matchup allocation absorbed by this variant.');
   }
 
   if (Math.abs(variant.avgDurationMinutes - baseline.avgDurationMinutes) >= 4) {
-    return copy(locale, 'La duración media entre páginas cambió bastante, así que conviene leer el edge con cuidado.', 'Average game length changed a lot between pages, so the edge needs a careful read.');
+    return copy(locale, 'La duración media cambió bastante entre páginas, así que conviene leer el edge con cuidado.', 'Average duration changed a lot between pages, so the edge needs a careful read.');
+  }
+
+  if (Math.abs(variant.earlyStateProfile.volatile - baseline.earlyStateProfile.volatile) >= 20) {
+    return copy(locale, 'La página no está entrando al mismo tipo de early, así que no toda la diferencia es de runas.', 'The page is not entering the same type of early, so not all the difference belongs to the runes.');
   }
 
   return null;
+}
+
+function buildBestWhen(baseline: RuneVariantAggregate, variant: RuneVariantAggregate, locale: Locale) {
+  if (variant.earlyStatePerformance.stable.games >= 2 && variant.earlyStatePerformance.stable.winRate >= baseline.earlyStatePerformance.stable.winRate + 8) {
+    return copy(locale, 'Cuando el early llega limpio y podés jugar una versión ordenada del campeón.', 'When the early game stays clean and you can play an orderly version of the champion.');
+  }
+
+  if (variant.durationPerformance.long.games >= 2 && variant.durationPerformance.long.winRate >= baseline.durationPerformance.long.winRate + 8) {
+    return copy(locale, 'Cuando la partida suele alargarse y la página escala mejor con el tiempo.', 'When the game tends to go longer and the page scales better over time.');
+  }
+
+  if (variant.topMatchups[0]?.share && variant.topMatchups[0].share >= 30) {
+    return copy(locale, `Cuando el bloque entra seguido contra ${variant.topMatchups[0].championName}.`, `When the block often lands into ${variant.topMatchups[0].championName}.`);
+  }
+
+  return null;
+}
+
+function buildAvoidWhen(baseline: RuneVariantAggregate, variant: RuneVariantAggregate, locale: Locale) {
+  if (variant.earlyStatePerformance.volatile.games >= 2 && variant.earlyStatePerformance.volatile.winRate <= baseline.earlyStatePerformance.volatile.winRate - 8) {
+    return copy(locale, 'Cuando el early se rompe rápido y necesitás una página más indulgente.', 'When the early game breaks quickly and you need a more forgiving page.');
+  }
+
+  if (variant.durationPerformance.short.games >= 2 && variant.durationPerformance.short.winRate <= baseline.durationPerformance.short.winRate - 8) {
+    return copy(locale, 'Cuando la partida se define demasiado temprano y la página no llega a exprimir su valor.', 'When the game gets decided too early and the page does not get to extract its value.');
+  }
+
+  return null;
+}
+
+function buildRecommendation(variant: RuneVariantAggregate, deltas: RuneComparison['deltas'], locale: Locale) {
+  if (deltas.winRate >= 3 && deltas.score >= 2 && deltas.runeValue >= 1000) {
+    return copy(locale, `Probala como página de trabajo cuando quieras optimizar output real, no solo comodidad.`, `Use it as a working page when you want to optimize real output, not only comfort.`);
+  }
+
+  if (deltas.deathsPre14 <= -0.6 && deltas.laneVolatility <= -5) {
+    return copy(locale, 'Vale más como página de estabilidad: ordena el early y baja el costo de ejecución.', 'It looks more valuable as a stability page: it organizes the early game and lowers execution cost.');
+  }
+
+  if (variant.avgRuneHealing > 0 || variant.avgRuneShielding > 0) {
+    return copy(locale, 'Leela como una página de margen y sustain, no solo como una de daño bruto.', 'Read it as a margin/sustain page, not only as a raw damage page.');
+  }
+
+  return copy(locale, 'Seguila como variante útil, pero todavía no como respuesta cerrada para todo contexto.', 'Keep it as a useful variant, but not yet as a closed answer for every context.');
 }
 
 function buildComparison(baseline: RuneVariantAggregate, variant: RuneVariantAggregate, locale: Locale): RuneComparison {
@@ -271,8 +367,14 @@ function buildComparison(baseline: RuneVariantAggregate, variant: RuneVariantAgg
     score: round(variant.avgScore - baseline.avgScore, 1),
     damageToChampions: round(variant.avgDamageToChampions - baseline.avgDamageToChampions, 0),
     csAt15: round(variant.avgCsAt15 - baseline.avgCsAt15, 1),
+    goldDiffAt15: round(variant.avgGoldDiffAt15 - baseline.avgGoldDiffAt15, 0),
     durationMinutes: round(variant.avgDurationMinutes - baseline.avgDurationMinutes, 1),
-    deathsPre14: round(variant.avgDeathsPre14 - baseline.avgDeathsPre14, 1)
+    deathsPre14: round(variant.avgDeathsPre14 - baseline.avgDeathsPre14, 1),
+    runeValue: round(variant.avgRuneValue - baseline.avgRuneValue, 0),
+    runeDamage: round(variant.avgRuneDamage - baseline.avgRuneDamage, 0),
+    runeHealing: round((variant.avgRuneHealing + variant.avgRuneShielding) - (baseline.avgRuneHealing + baseline.avgRuneShielding), 0),
+    laneVolatility: round(variant.avgLaneVolatility - baseline.avgLaneVolatility, 1),
+    resetTiming: round(variant.avgResetTiming - baseline.avgResetTiming, 1)
   };
 
   const signalScore = Math.max(
@@ -280,12 +382,14 @@ function buildComparison(baseline: RuneVariantAggregate, variant: RuneVariantAgg
     Math.abs(deltas.score) / 4,
     Math.abs(deltas.damageToChampions) / 3000,
     Math.abs(deltas.csAt15) / 8,
-    Math.abs(deltas.deathsPre14) / 1.3
+    Math.abs(deltas.goldDiffAt15) / 350,
+    Math.abs(deltas.runeValue) / 2500,
+    Math.abs(deltas.laneVolatility) / 10
   );
   const contextScore = (
-    (buildContextNote(baseline, variant, locale) ? 0 : 0.2)
+    (Math.min(baseline.games, variant.games) >= 6 ? 0.25 : 0)
     + (Math.abs(deltas.durationMinutes) <= 2.5 ? 0.15 : 0)
-    + (Math.min(baseline.games, variant.games) >= 6 ? 0.2 : 0)
+    + (Math.abs(variant.earlyStateProfile.volatile - baseline.earlyStateProfile.volatile) <= 12 ? 0.15 : 0)
   );
   const constraint = buildConstraint(baseline, variant, locale);
   const evidenceTier = classifyComparativeEvidence({
@@ -294,9 +398,8 @@ function buildComparison(baseline: RuneVariantAggregate, variant: RuneVariantAgg
     signalScore,
     contextScore: constraint ? contextScore - 0.25 : contextScore
   });
-
   const summary = deltas.winRate >= 0
-    ? copy(locale, `${variant.compactLabel} está ${Math.abs(deltas.winRate).toFixed(1)} pts arriba en WR y ${Math.abs(deltas.score).toFixed(1)} arriba en score.`, `${variant.compactLabel} is ${Math.abs(deltas.winRate).toFixed(1)} pts up in WR and ${Math.abs(deltas.score).toFixed(1)} up in score.`)
+    ? copy(locale, `${variant.compactLabel} está ${Math.abs(deltas.winRate).toFixed(1)} pts arriba en WR, ${Math.abs(deltas.score).toFixed(1)} arriba en score y ${Math.abs(deltas.runeValue)} arriba en valor de runa.`, `${variant.compactLabel} is ${Math.abs(deltas.winRate).toFixed(1)} pts up in WR, ${Math.abs(deltas.score).toFixed(1)} up in score and ${Math.abs(deltas.runeValue)} up in rune value.`)
     : copy(locale, `${variant.compactLabel} está ${Math.abs(deltas.winRate).toFixed(1)} pts abajo en WR y ${Math.abs(deltas.score).toFixed(1)} abajo en score.`, `${variant.compactLabel} is ${Math.abs(deltas.winRate).toFixed(1)} pts down in WR and ${Math.abs(deltas.score).toFixed(1)} down in score.`);
 
   return {
@@ -305,9 +408,12 @@ function buildComparison(baseline: RuneVariantAggregate, variant: RuneVariantAgg
     evidenceTier,
     differenceLabel: describeDifferences(baseline, variant),
     summary,
+    recommendation: buildRecommendation(variant, deltas, locale),
     contextNote: buildContextNote(baseline, variant, locale),
-    signalNote: buildSignalNote(baseline, variant, locale),
+    signalNote: buildSignalNote(baseline, variant, locale, deltas),
     constraint,
+    bestWhen: buildBestWhen(baseline, variant, locale),
+    avoidWhen: buildAvoidWhen(baseline, variant, locale),
     deltas
   };
 }
@@ -347,6 +453,24 @@ function buildKeystoneWorkbench(matches: MatchSnapshot[], locale: Locale) {
   } satisfies KeystoneWorkbench;
 }
 
+function championHeadline(championName: string, comparisons: RuneComparison[], locale: Locale) {
+  const strongest = comparisons[0];
+  if (!strongest) {
+    return copy(locale, `${championName}: todavía no hay una variante cerrada.`, `${championName}: there is still no closed rune variant.`);
+  }
+
+  return copy(locale, `${championName}: ${strongest.variant.compactLabel} es la lectura más útil hoy.`, `${championName}: ${strongest.variant.compactLabel} is the most useful read today.`);
+}
+
+function championDecisionNote(comparisons: RuneComparison[], locale: Locale) {
+  const strong = comparisons.find((comparison) => comparison.evidenceTier === 'strong');
+  if (strong) return strong.recommendation;
+  const weak = comparisons[0];
+  return weak
+    ? copy(locale, 'Todavía sirve más como decisión contextual que como default absoluto.', 'For now this works better as a contextual decision than as an absolute default.')
+    : copy(locale, 'Todavía hace falta más repetición para una decisión real de optimización.', 'More repetition is still needed for a real optimization decision.');
+}
+
 export function buildChampionRuneWorkbench(dataset: Dataset, locale: Locale = 'es') {
   const byChampion = new Map<string, MatchSnapshot[]>();
 
@@ -379,6 +503,8 @@ export function buildChampionRuneWorkbench(dataset: Dataset, locale: Locale = 'e
         strongReads: allComparisons.filter((comparison) => comparison.evidenceTier === 'strong').length,
         weakReads: allComparisons.filter((comparison) => comparison.evidenceTier === 'weak').length,
         hypothesisReads: allComparisons.filter((comparison) => comparison.evidenceTier === 'hypothesis').length,
+        headline: championHeadline(championName, allComparisons, locale),
+        decisionNote: championDecisionNote(allComparisons, locale),
         keystones
       } satisfies ChampionRuneWorkbench;
     })

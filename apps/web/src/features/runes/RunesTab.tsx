@@ -24,8 +24,8 @@ export function RunesTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
         <div style={{ display: 'grid', gap: 12, color: '#c8d5e7', lineHeight: 1.7 }}>
           <div>
             {locale === 'en'
-              ? 'This tab now looks for same-champion pages, same keystone families and small rune swaps with enough sample on both sides. Right now the visible block is still too thin to call those differences.'
-              : 'Esta pestaña ahora busca páginas del mismo campeón, familias con la misma keystone y swaps chicos con suficiente muestra en ambos lados. En el bloque visible todavía no alcanza para leer esas diferencias con honestidad.'}
+              ? 'This tab now looks for same-champion pages, same keystone families, early-state splits, duration splits and measurable rune value before calling an edge.'
+              : 'Esta pestaña ahora busca páginas del mismo campeón, familias con la misma keystone, cortes por early state, duración y valor medible de runas antes de llamar a un edge.'}
           </div>
           <div style={noteBoxStyle}>
             {locale === 'en'
@@ -42,8 +42,8 @@ export function RunesTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
       <Card
         title={locale === 'en' ? 'Runes workbench' : 'Workbench de runas'}
         subtitle={locale === 'en'
-          ? 'Champion-first comparisons, same-keystone families and explicit evidence tiers so each rune read is useful for decisions.'
-          : 'Comparaciones champion-first, familias con la misma keystone y tiers de evidencia explícitos para que cada lectura sirva para decidir.'}
+          ? 'A serious optimization surface: same-champion pages, same-keystone swaps, context splits and explicit evidence tiers.'
+          : 'Una superficie seria de optimización: páginas del mismo campeón, swaps dentro de la misma keystone, cortes de contexto y tiers de evidencia explícitos.'}
       >
         <div style={{ display: 'grid', gap: 16 }}>
           <div style={summaryGridStyle}>
@@ -63,13 +63,12 @@ export function RunesTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
               hint={locale === 'en' ? 'Directional reads or still-open hypotheses.' : 'Lecturas direccionales o hipótesis todavía abiertas.'}
             />
           </div>
-
           <div style={methodologyPanelStyle}>
-            <div style={sectionLabelStyle}>{locale === 'en' ? 'How to read this' : 'Cómo leer esto'}</div>
+            <div style={sectionLabelStyle}>{locale === 'en' ? 'Why this is different' : 'Por qué esto es distinto'}</div>
             <div style={{ color: '#edf3ff', lineHeight: 1.7 }}>
               {locale === 'en'
-                ? 'The baseline is the most repeated page inside each keystone family for that champion. Every alternative page is compared against that baseline, checking small rune swaps, matchup skew, game length and execution metrics before calling it strong, weak or just a hypothesis.'
-                : 'El baseline es la página más repetida dentro de cada familia de keystone para ese campeón. Cada página alternativa se compara contra ese baseline revisando swaps chicos, sesgo de matchup, duración de partida y métricas de ejecución antes de llamarla fuerte, débil o solo hipótesis.'}
+                ? 'The baseline is the most repeated page inside each keystone family for that champion. Every alternative page is compared against that baseline, but also split by early-state quality, game length, top matchup exposure and measurable rune output before making a claim.'
+                : 'El baseline es la página más repetida dentro de cada familia de keystone para ese campeón. Cada página alternativa se compara contra ese baseline, pero además se corta por calidad del early, duración de partida, exposición a matchup y output medible de runas antes de hacer un claim.'}
             </div>
           </div>
         </div>
@@ -80,26 +79,24 @@ export function RunesTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
           key={champion.championName}
           title={formatChampionName(champion.championName)}
           subtitle={locale === 'en'
-            ? `${champion.games} visible games. The goal is not “most picked” but whether small swaps move the actual output of the champion.`
-            : `${champion.games} partidas visibles. El objetivo no es “most picked” sino si los swaps chicos mueven el output real del campeón.`}
+            ? `${champion.games} visible games. The point is not “most picked”, but which page fits the way this player is really piloting the champion.`
+            : `${champion.games} partidas visibles. El objetivo no es “most picked”, sino qué página calza mejor con cómo este jugador está piloteando el campeón.`}
         >
           <div style={{ display: 'grid', gap: 18 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-              <ChampionIdentity
-                championName={champion.championName}
-                version={dataset.ddragonVersion}
-                subtitle={locale === 'en'
-                  ? 'Variants are grouped by keystone first, then compared inside the same family.'
-                  : 'Las variantes se agrupan primero por keystone y después se comparan dentro de la misma familia.'}
-                meta={
-                  <>
-                    {champion.strongReads ? <Badge tone="low">{locale === 'en' ? `${champion.strongReads} strong` : `${champion.strongReads} fuertes`}</Badge> : null}
-                    {champion.weakReads ? <Badge tone="medium">{locale === 'en' ? `${champion.weakReads} weak` : `${champion.weakReads} débiles`}</Badge> : null}
-                    {champion.hypothesisReads ? <Badge>{locale === 'en' ? `${champion.hypothesisReads} hypotheses` : `${champion.hypothesisReads} hipótesis`}</Badge> : null}
-                  </>
-                }
-              />
-            </div>
+            <ChampionIdentity
+              championName={champion.championName}
+              version={dataset.ddragonVersion}
+              subtitle={champion.headline}
+              meta={
+                <>
+                  {champion.strongReads ? <Badge tone="low">{locale === 'en' ? `${champion.strongReads} strong` : `${champion.strongReads} fuertes`}</Badge> : null}
+                  {champion.weakReads ? <Badge tone="medium">{locale === 'en' ? `${champion.weakReads} weak` : `${champion.weakReads} débiles`}</Badge> : null}
+                  {champion.hypothesisReads ? <Badge>{locale === 'en' ? `${champion.hypothesisReads} hypotheses` : `${champion.hypothesisReads} hipótesis`}</Badge> : null}
+                </>
+              }
+            />
+
+            <div style={headlinePanelStyle}>{champion.decisionNote}</div>
 
             <div style={{ display: 'grid', gap: 14 }}>
               {champion.keystones.map((keystone) => (
@@ -173,16 +170,45 @@ function BaselinePanel({ baseline, locale }: { baseline: RuneVariantAggregate; l
       <div style={metricRowStyle}>
         <MetricChip label="WR" value={formatPercent(baseline.winRate)} />
         <MetricChip label={locale === 'en' ? 'Score' : 'Score'} value={formatDecimal(baseline.avgScore)} />
-        <MetricChip label={locale === 'en' ? 'Damage' : 'Daño'} value={formatInteger(baseline.avgDamageToChampions)} />
+        <MetricChip label={locale === 'en' ? 'Rune value' : 'Valor runa'} value={formatInteger(baseline.avgRuneValue)} />
+        <MetricChip label={locale === 'en' ? 'Rune dmg' : 'Daño runa'} value={formatInteger(baseline.avgRuneDamage)} />
         <MetricChip label="CS@15" value={formatDecimal(baseline.avgCsAt15)} />
+        <MetricChip label="GD@15" value={formatInteger(baseline.avgGoldDiffAt15)} />
         <MetricChip label={locale === 'en' ? 'Pre14 deaths' : 'Muertes pre14'} value={formatDecimal(baseline.avgDeathsPre14)} />
+      </div>
+
+      <div className="rune-context-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+        <ContextBox
+          title={locale === 'en' ? 'Early state' : 'Estado del early'}
+          lines={[
+            `${locale === 'en' ? 'Stable' : 'Estable'} ${baseline.earlyStateProfile.stable}%`,
+            `${locale === 'en' ? 'Scrappy' : 'Tenso'} ${baseline.earlyStateProfile.scrappy}%`,
+            `${locale === 'en' ? 'Volatile' : 'Volátil'} ${baseline.earlyStateProfile.volatile}%`
+          ]}
+        />
+        <ContextBox
+          title={locale === 'en' ? 'Duration split' : 'Split por duración'}
+          lines={[
+            `${locale === 'en' ? 'Short' : 'Corta'} ${baseline.durationProfile.short}%`,
+            `${locale === 'en' ? 'Standard' : 'Media'} ${baseline.durationProfile.standard}%`,
+            `${locale === 'en' ? 'Long' : 'Larga'} ${baseline.durationProfile.long}%`
+          ]}
+        />
+        <ContextBox
+          title={locale === 'en' ? 'Tempo read' : 'Lectura de tempo'}
+          lines={[
+            `${locale === 'en' ? 'Volatility' : 'Volatilidad'} ${formatDecimal(baseline.avgLaneVolatility)}`,
+            `${locale === 'en' ? 'Reset' : 'Reset'} ${formatDecimal(baseline.avgResetTiming)}`,
+            `${locale === 'en' ? 'Setup' : 'Setup'} ${formatDecimal(baseline.avgObjectiveSetup)}`
+          ]}
+        />
       </div>
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {baseline.topMatchups.map((matchup) => (
           <div key={`${baseline.key}-${matchup.championName}`} style={contextPillStyle}>
             <strong>{formatChampionName(matchup.championName)}</strong>
-            <span>{matchup.games} · {formatDecimal(matchup.share)}%</span>
+            <span>{matchup.games} · {formatDecimal(matchup.share)}% · {formatPercent(matchup.winRate)}</span>
           </div>
         ))}
       </div>
@@ -197,9 +223,7 @@ function ComparisonCard({ comparison, locale }: { comparison: RuneComparison; lo
         <div style={{ display: 'grid', gap: 5 }}>
           <div style={sectionLabelStyle}>{locale === 'en' ? 'Micro-variant under review' : 'Microvariante bajo revisión'}</div>
           <div style={{ color: '#eef4ff', fontSize: 17, fontWeight: 800 }}>{comparison.variant.compactLabel}</div>
-          <div style={{ color: '#8d9bb0', lineHeight: 1.6 }}>
-            {comparison.differenceLabel}
-          </div>
+          <div style={{ color: '#8d9bb0', lineHeight: 1.6 }}>{comparison.differenceLabel}</div>
         </div>
         <Badge tone={evidenceTone(comparison.evidenceTier)}>
           {evidenceBadgeLabel(comparison.evidenceTier, locale)}
@@ -209,9 +233,13 @@ function ComparisonCard({ comparison, locale }: { comparison: RuneComparison; lo
       <div style={deltaGridStyle}>
         <DeltaTile label="WR" value={formatSignedNumber(comparison.deltas.winRate, 1, '%')} />
         <DeltaTile label={locale === 'en' ? 'Score' : 'Score'} value={formatSignedNumber(comparison.deltas.score)} />
-        <DeltaTile label={locale === 'en' ? 'Damage' : 'Daño'} value={formatSignedNumber(comparison.deltas.damageToChampions, 0)} />
+        <DeltaTile label={locale === 'en' ? 'Rune value' : 'Valor runa'} value={formatSignedNumber(comparison.deltas.runeValue, 0)} />
+        <DeltaTile label={locale === 'en' ? 'Rune dmg' : 'Daño runa'} value={formatSignedNumber(comparison.deltas.runeDamage, 0)} />
+        <DeltaTile label={locale === 'en' ? 'Heal/shield' : 'Heal/shield'} value={formatSignedNumber(comparison.deltas.runeHealing, 0)} />
         <DeltaTile label="CS@15" value={formatSignedNumber(comparison.deltas.csAt15)} />
-        <DeltaTile label={locale === 'en' ? 'Duration' : 'Duración'} value={formatSignedNumber(comparison.deltas.durationMinutes, 1, 'm')} />
+        <DeltaTile label="GD@15" value={formatSignedNumber(comparison.deltas.goldDiffAt15, 0)} />
+        <DeltaTile label={locale === 'en' ? 'Volatility' : 'Volatilidad'} value={formatSignedNumber(comparison.deltas.laneVolatility)} />
+        <DeltaTile label={locale === 'en' ? 'Reset' : 'Reset'} value={formatSignedNumber(comparison.deltas.resetTiming)} />
         <DeltaTile label={locale === 'en' ? 'Pre14 deaths' : 'Muertes pre14'} value={formatSignedNumber(comparison.deltas.deathsPre14)} />
       </div>
 
@@ -219,6 +247,11 @@ function ComparisonCard({ comparison, locale }: { comparison: RuneComparison; lo
         <div style={{ color: '#f0f6ff', lineHeight: 1.65, fontWeight: 700 }}>{comparison.summary}</div>
         <div style={{ color: '#9aa7ba', lineHeight: 1.65 }}>{comparison.signalNote}</div>
         {comparison.contextNote ? <div style={contextCalloutStyle}>{comparison.contextNote}</div> : null}
+        <div className="rune-decision-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
+          <DecisionBox title={locale === 'en' ? 'Best when' : 'Rinde más cuando'} value={comparison.bestWhen ?? (locale === 'en' ? 'No clear context edge yet.' : 'Todavía no aparece un edge contextual claro.')} />
+          <DecisionBox title={locale === 'en' ? 'Careful when' : 'Ojo cuando'} value={comparison.avoidWhen ?? (locale === 'en' ? 'No clear avoid-case yet.' : 'Todavía no aparece un avoid-case claro.')} />
+        </div>
+        <div style={recommendationStyle}>{comparison.recommendation}</div>
         <div style={{ color: '#7f8da2', fontSize: 12, lineHeight: 1.6 }}>
           {evidenceExplanation(
             comparison.evidenceTier,
@@ -246,6 +279,26 @@ function DeltaTile({ label, value }: { label: string; value: string }) {
     <div style={deltaTileStyle}>
       <div style={metricChipLabelStyle}>{label}</div>
       <div style={deltaValueStyle}>{value}</div>
+    </div>
+  );
+}
+
+function ContextBox({ title, lines }: { title: string; lines: string[] }) {
+  return (
+    <div style={contextBoxStyle}>
+      <div style={sectionLabelStyle}>{title}</div>
+      <div style={{ display: 'grid', gap: 4 }}>
+        {lines.map((line) => <div key={line} style={{ color: '#dce6f5', lineHeight: 1.5 }}>{line}</div>)}
+      </div>
+    </div>
+  );
+}
+
+function DecisionBox({ title, value }: { title: string; value: string }) {
+  return (
+    <div style={decisionBoxStyle}>
+      <div style={sectionLabelStyle}>{title}</div>
+      <div style={{ color: '#ecf3ff', lineHeight: 1.6 }}>{value}</div>
     </div>
   );
 }
@@ -293,6 +346,15 @@ const methodologyPanelStyle = {
   border: '1px solid rgba(216,253,241,0.08)'
 } as const;
 
+const headlinePanelStyle = {
+  padding: '14px 15px',
+  borderRadius: 18,
+  background: 'rgba(125,174,255,0.07)',
+  border: '1px solid rgba(125,174,255,0.12)',
+  color: '#deebff',
+  lineHeight: 1.65
+} as const;
+
 const keystoneCardStyle = {
   display: 'grid',
   gap: 14,
@@ -320,7 +382,7 @@ const sectionLabelStyle = {
 
 const metricRowStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
   gap: 10
 } as const;
 
@@ -369,7 +431,7 @@ const comparisonCardStyle = {
 
 const deltaGridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
   gap: 10
 } as const;
 
@@ -395,6 +457,33 @@ const contextCalloutStyle = {
   border: '1px solid rgba(255, 196, 82, 0.14)',
   color: '#e7d2a2',
   lineHeight: 1.6
+} as const;
+
+const recommendationStyle = {
+  padding: '11px 12px',
+  borderRadius: 14,
+  background: 'rgba(126,245,199,0.08)',
+  border: '1px solid rgba(126,245,199,0.14)',
+  color: '#dff7eb',
+  lineHeight: 1.6
+} as const;
+
+const contextBoxStyle = {
+  display: 'grid',
+  gap: 8,
+  padding: '11px 12px',
+  borderRadius: 14,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.05)'
+} as const;
+
+const decisionBoxStyle = {
+  display: 'grid',
+  gap: 8,
+  padding: '11px 12px',
+  borderRadius: 14,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.05)'
 } as const;
 
 const emptyComparisonStyle = {
