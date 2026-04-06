@@ -1,37 +1,49 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { Badge } from '../../components/ui';
 import { getRiotPlatformInfo, supportedRiotPlatforms } from '../../lib/lol';
 export function AccountCenter(props) {
     if (!props.open)
         return null;
     const { locale, authUser, canManageCoachRoster, isAdmin, accountPanelTab } = props;
+    const linkedProfilesCount = props.membership?.linkedProfiles.length ?? 0;
+    const aiRunsCount = props.membership?.usage.openaiGenerations ?? 0;
     const authTabs = [
         { id: 'auth', label: locale === 'en' ? 'Access' : 'Acceso' },
         { id: 'membership', label: locale === 'en' ? 'Plans' : 'Planes' }
     ];
     const userTabs = [
-        { id: 'profile', label: locale === 'en' ? 'Profile' : 'Perfil' },
-        { id: 'membership', label: locale === 'en' ? 'Membership' : 'Membresía' },
+        { id: 'profile', label: locale === 'en' ? 'Account base' : 'Base de cuenta' },
+        { id: 'membership', label: locale === 'en' ? 'Plan' : 'Plan' },
         { id: 'security', label: locale === 'en' ? 'Security' : 'Seguridad' },
-        ...(canManageCoachRoster ? [{ id: 'coach', label: locale === 'en' ? 'Coach workspace' : 'Espacio coach' }] : []),
+        ...(canManageCoachRoster ? [{ id: 'coach', label: locale === 'en' ? 'Coach desk' : 'Mesa coach' }] : []),
         ...(isAdmin ? [{ id: 'admin', label: locale === 'en' ? 'Admin tools' : 'Herramientas admin' }] : [])
     ];
     const availableTabs = authUser ? userTabs : authTabs;
-    return (_jsxs("section", { style: accountPanelStyle, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: sectionEyebrowStyle, children: authUser ? (locale === 'en' ? 'Account center' : 'Centro de cuenta') : (locale === 'en' ? 'Account access' : 'Acceso a cuenta') }), _jsx("div", { style: sectionTitleStyle, children: authUser
-                                    ? (locale === 'en' ? 'Profile, membership and workspace' : 'Perfil, membresía y espacio de cuenta')
-                                    : (locale === 'en' ? 'Login, membership and recovery' : 'Ingreso, membresía y recuperación') }), _jsx("div", { style: sectionBodyStyle, children: authUser
+    return (_jsxs("section", { style: accountPanelStyle, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: sectionEyebrowStyle, children: authUser ? (locale === 'en' ? 'Product account' : 'Cuenta del producto') : (locale === 'en' ? 'Account access' : 'Acceso a cuenta') }), _jsx("div", { style: sectionTitleStyle, children: authUser
+                                    ? (locale === 'en' ? 'Your competitive base behind the dashboard' : 'La base competitiva detrás del dashboard')
+                                    : (locale === 'en' ? 'Save your progress under a real account' : 'Guardá tu progreso en una cuenta real') }), _jsx("div", { style: sectionBodyStyle, children: authUser
                                     ? (locale === 'en'
-                                        ? 'Keep account actions here so the main product can stay focused on your League profile, coaching and analysis.'
-                                        : 'Concentrá acá las acciones de cuenta para que el producto principal quede enfocado en tu perfil de League, el coaching y el análisis.')
+                                        ? 'This is where your product account, plan continuity, saved profiles and security live. The player-facing dashboard stays clean because the base is organized here.'
+                                        : 'Acá viven tu cuenta del producto, la continuidad del plan, los perfiles guardados y la seguridad. El dashboard del jugador se mantiene limpio porque la base se ordena acá.')
                                     : (locale === 'en'
-                                        ? 'Create a real account so your coaching, plans and billing history stay attached to you instead of only to this browser.'
-                                        : 'Creá una cuenta real para que tu coaching, tus planes y tu historial de billing queden ligados a vos y no solo a este navegador.') })] }), _jsx("button", { type: "button", style: secondaryButtonStyle, onClick: props.onClose, children: locale === 'en' ? 'Close' : 'Cerrar' })] }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: availableTabs.map((tab) => (_jsx("button", { type: "button", onClick: () => props.onTabChange(tab.id), style: { ...tabStyle, ...(accountPanelTab === tab.id ? activeTabStyle : {}) }, children: tab.label }, tab.id))) }), renderAuthSection(props), renderProfileSection(props), renderMembershipSection(props), renderSecuritySection(props), renderCoachSection(props), renderAdminSection(props), props.authError ? _jsx("div", { style: softPanelStyle, children: props.authError }) : null, props.membershipError ? _jsx("div", { style: softPanelStyle, children: props.membershipError }) : null] }));
+                                        ? 'Create a real account so your saved profiles, coaching history and plan state stay with you across browsers and sessions.'
+                                        : 'Creá una cuenta real para que tus perfiles guardados, tu historial de coaching y el estado de tu plan te sigan entre navegadores y sesiones.') })] }), _jsx("button", { type: "button", style: secondaryButtonStyle, onClick: props.onClose, children: locale === 'en' ? 'Close' : 'Cerrar' })] }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: availableTabs.map((tab) => (_jsx("button", { type: "button", onClick: () => props.onTabChange(tab.id), style: { ...tabStyle, ...(accountPanelTab === tab.id ? activeTabStyle : {}) }, children: tab.label }, tab.id))) }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: authUser
+                    ? (_jsxs(_Fragment, { children: [_jsx(Badge, { tone: "default", children: props.currentPlan?.name ?? 'Free' }), _jsx(Badge, { tone: "low", children: locale === 'en' ? `${linkedProfilesCount} saved profiles` : `${linkedProfilesCount} perfiles guardados` }), _jsx(Badge, { tone: "low", children: locale === 'en' ? `${aiRunsCount} AI reads this month` : `${aiRunsCount} lecturas IA este mes` })] }))
+                    : (_jsxs(_Fragment, { children: [_jsx(Badge, { tone: "default", children: locale === 'en' ? 'Sync profiles across sessions' : 'Sincronizá perfiles entre sesiones' }), _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Keep plan and billing history attached to you' : 'Mantené tu plan y tu historial ligados a vos' })] })) }), renderAuthSection(props), renderProfileSection(props), renderMembershipSection(props), renderSecuritySection(props), renderCoachSection(props), renderAdminSection(props), props.authError ? _jsx("div", { style: softPanelStyle, children: props.authError }) : null, props.membershipError ? _jsx("div", { style: softPanelStyle, children: props.membershipError }) : null] }));
 }
 function renderAuthSection(props) {
     const { authUser, accountPanelTab, locale, authMode, authDisplayName, authEmail, authPassword, authActionLoading, resetToken, newPassword, resetTokenPreview, resetLinkPreview } = props;
     if (authUser || accountPanelTab !== 'auth')
         return null;
-    return (_jsxs("div", { className: "two-col-grid", style: authPanelGridStyle, children: [_jsxs("div", { style: panelCardStyle, children: [_jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: ['login', 'signup', 'reset'].map((mode) => (_jsx("button", { type: "button", onClick: () => props.onAuthModeChange(mode), style: { ...smallActionButtonStyle, ...(authMode === mode ? activeSmallActionButtonStyle : {}) }, children: mode === 'login'
+    return (_jsxs("div", { className: "two-col-grid", style: authPanelGridStyle, children: [_jsxs("div", { style: panelCardStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: panelTitleStyle, children: authMode === 'login'
+                                    ? (locale === 'en' ? 'Recover your account base' : 'Recuperá tu base de cuenta')
+                                    : authMode === 'signup'
+                                        ? (locale === 'en' ? 'Create your competitive account' : 'Creá tu cuenta competitiva')
+                                        : (locale === 'en' ? 'Start recovery' : 'Empezá la recuperación') }), _jsx("div", { style: panelBodyStyle, children: authMode === 'login'
+                                    ? (locale === 'en' ? 'Sign in to reopen your saved profiles, plan state and coaching history.' : 'Iniciá sesión para reabrir tus perfiles guardados, el estado del plan y tu historial de coaching.')
+                                    : authMode === 'signup'
+                                        ? (locale === 'en' ? 'A real account turns this browser experience into a persistent competitive base.' : 'Una cuenta real convierte esta experiencia del navegador en una base competitiva persistente.')
+                                        : (locale === 'en' ? 'Request the recovery link with your email and finish the reset here if you are testing locally.' : 'Pedí el link de recuperación con tu email y terminá el reset acá si estás probando localmente.') })] }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: ['login', 'signup', 'reset'].map((mode) => (_jsx("button", { type: "button", onClick: () => props.onAuthModeChange(mode), style: { ...smallActionButtonStyle, ...(authMode === mode ? activeSmallActionButtonStyle : {}) }, children: mode === 'login'
                                 ? (locale === 'en' ? 'Login' : 'Ingresar')
                                 : mode === 'signup'
                                     ? (locale === 'en' ? 'Create account' : 'Crear cuenta')
@@ -41,9 +53,9 @@ function renderAuthSection(props) {
                                                 ? (locale === 'en' ? 'Log in' : 'Iniciar sesión')
                                                 : authMode === 'signup'
                                                     ? (locale === 'en' ? 'Create account' : 'Crear cuenta')
-                                                    : (locale === 'en' ? 'Send recovery' : 'Enviar recuperación') }), _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Your coaching and billing history will persist on your account' : 'Tu historial de coaching y billing quedará persistido en tu cuenta' })] })] })] }), _jsxs("div", { style: panelCardStyle, children: [_jsx("div", { style: panelTitleStyle, children: locale === 'en' ? 'Password recovery flow' : 'Flujo de recuperación de contraseña' }), _jsx("div", { style: panelBodyStyle, children: locale === 'en'
-                            ? '1. Request recovery with your email. 2. In production, use the email link. 3. In development, the token and direct link appear here so you can finish the full flow locally.'
-                            : '1. Pedí la recuperación con tu email. 2. En producción, seguí el link recibido. 3. En desarrollo, el token y el link directo aparecen acá para que puedas cerrar el flujo completo localmente.' }), _jsxs("form", { onSubmit: props.onResetPasswordConfirm, style: { display: 'grid', gap: 10 }, children: [_jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Reset token' : 'Token de recuperación' }), _jsx("input", { value: resetToken, onChange: (e) => props.onResetTokenChange(e.target.value), style: inputStyle, placeholder: locale === 'en' ? 'Paste the token here' : 'Pegá el token acá' })] }), _jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'New password' : 'Nueva contraseña' }), _jsx("input", { type: "password", value: newPassword, onChange: (e) => props.onNewPasswordChange(e.target.value), style: inputStyle, placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }, children: [_jsx("button", { type: "submit", style: secondaryButtonStyle, disabled: authActionLoading, children: authActionLoading ? (locale === 'en' ? 'Saving...' : 'Guardando...') : (locale === 'en' ? 'Apply new password' : 'Aplicar nueva contraseña') }), resetTokenPreview ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? 'Dev token ready' : 'Token dev listo' }) : null, resetLinkPreview ? _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Reset link ready' : 'Link de reset listo' }) : null] }), resetTokenPreview ? (_jsx("div", { style: statusPanelStyle, children: locale === 'en'
+                                                    : (locale === 'en' ? 'Send recovery' : 'Enviar recuperación') }), _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Profiles, coaching and plan history stay attached to you' : 'Perfiles, coaching e historial del plan quedan ligados a vos' })] })] })] }), _jsxs("div", { style: panelCardStyle, children: [_jsx("div", { style: panelTitleStyle, children: locale === 'en' ? 'Recovery and continuity' : 'Recuperación y continuidad' }), _jsx("div", { style: panelBodyStyle, children: locale === 'en'
+                            ? '1. Request the recovery with your email. 2. In production, continue from the mailbox link. 3. In development, the token and direct link appear here so you can close the full loop locally.'
+                            : '1. Pedí la recuperación con tu email. 2. En producción, seguí el link del correo. 3. En desarrollo, el token y el link directo aparecen acá para cerrar el flujo completo en local.' }), _jsxs("form", { onSubmit: props.onResetPasswordConfirm, style: { display: 'grid', gap: 10 }, children: [_jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'Reset token' : 'Token de recuperación' }), _jsx("input", { value: resetToken, onChange: (e) => props.onResetTokenChange(e.target.value), style: inputStyle, placeholder: locale === 'en' ? 'Paste the token here' : 'Pegá el token acá' })] }), _jsxs("label", { style: { ...fieldBlockStyle, minWidth: 0 }, children: [_jsx("span", { style: fieldLabelStyle, children: locale === 'en' ? 'New password' : 'Nueva contraseña' }), _jsx("input", { type: "password", value: newPassword, onChange: (e) => props.onNewPasswordChange(e.target.value), style: inputStyle, placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022" })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }, children: [_jsx("button", { type: "submit", style: secondaryButtonStyle, disabled: authActionLoading, children: authActionLoading ? (locale === 'en' ? 'Saving...' : 'Guardando...') : (locale === 'en' ? 'Apply new password' : 'Aplicar nueva contraseña') }), resetTokenPreview ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? 'Dev token ready' : 'Token dev listo' }) : null, resetLinkPreview ? _jsx(Badge, { tone: "low", children: locale === 'en' ? 'Reset link ready' : 'Link de reset listo' }) : null] }), resetTokenPreview ? (_jsx("div", { style: statusPanelStyle, children: locale === 'en'
                                     ? 'The development token was generated and autofilled. You can use it as-is or replace it if you want to test the manual step too.'
                                     : 'El token de desarrollo se generó y quedó autocompletado. Podés usarlo así o reemplazarlo si querés probar también el paso manual.' })) : null, resetLinkPreview ? (_jsx("div", { style: statusPanelStyle, children: _jsxs("div", { style: { display: 'grid', gap: 8 }, children: [_jsx("div", { children: locale === 'en'
                                                 ? 'The recovery link is also ready. It opens the account center directly in reset mode.'
@@ -53,15 +65,17 @@ function renderProfileSection(props) {
     const { authUser, accountPanelTab, locale, actorUser, membership, currentPlan, currentPlanPriceLabel, authMe, billingReady, canOpenBillingPortal, authActionLoading, membershipActionLoading } = props;
     if (!authUser || accountPanelTab !== 'profile')
         return null;
-    return (_jsxs("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: '1.05fr repeat(2, minmax(0, 1fr))', gap: 12 }, children: [_jsxs("div", { style: panelCardStyle, children: [_jsx("div", { style: panelHeroTitleStyle, children: authUser.displayName }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13 }, children: authUser.email }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: actorUser?.role.toUpperCase() ?? 'USER' }), _jsx(Badge, { tone: "low", children: currentPlan?.name ?? 'Free' }), membership?.overrideReason === 'admin_full_access' ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? 'Full admin access' : 'Acceso admin total' }) : null] }), _jsx("div", { style: panelBodyStyle, children: locale === 'en'
-                            ? `${membership?.linkedProfiles.length ?? 0} saved profiles · ${membership?.usage.openaiGenerations ?? 0} AI runs this month`
-                            : `${membership?.linkedProfiles.length ?? 0} perfiles guardados · ${membership?.usage.openaiGenerations ?? 0} corridas IA este mes` }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx("button", { type: "button", style: secondaryButtonStyle, disabled: authActionLoading, onClick: () => void props.onLogout(), children: authActionLoading ? (locale === 'en' ? 'Closing...' : 'Cerrando...') : (locale === 'en' ? 'Log out' : 'Cerrar sesión') }), authMe?.isImpersonating ? (_jsx("button", { type: "button", style: secondaryButtonStyle, disabled: authActionLoading, onClick: () => void props.onStopImpersonation(), children: locale === 'en' ? 'Stop impersonation' : 'Salir de la suplantación' })) : null] })] }), _jsxs("div", { style: panelCardStyle, children: [_jsx("div", { style: panelTitleStyle, children: locale === 'en' ? 'Current membership' : 'Membresía actual' }), _jsx("div", { style: panelBodyStyle, children: membership
+    const linkedProfilesCount = membership?.linkedProfiles.length ?? 0;
+    const aiRunsCount = membership?.usage.openaiGenerations ?? 0;
+    return (_jsxs("div", { className: "three-col-grid", style: { display: 'grid', gridTemplateColumns: '1.05fr repeat(2, minmax(0, 1fr))', gap: 12 }, children: [_jsxs("div", { style: accountHeroCardStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: sectionEyebrowStyle, children: locale === 'en' ? 'Account identity' : 'Identidad de cuenta' }), _jsx("div", { style: panelHeroTitleStyle, children: authUser.displayName }), _jsx("div", { style: { color: '#8f9bad', fontSize: 13 }, children: authUser.email })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "default", children: actorUser?.role.toUpperCase() ?? 'USER' }), _jsx(Badge, { tone: "low", children: currentPlan?.name ?? 'Free' }), membership?.overrideReason === 'admin_full_access' ? _jsx(Badge, { tone: "medium", children: locale === 'en' ? 'Full admin access' : 'Acceso admin total' }) : null] }), _jsx("div", { style: panelBodyStyle, children: locale === 'en'
+                            ? 'This account is the persistent layer behind your saved League profiles, coaching continuity and membership state.'
+                            : 'Esta cuenta es la capa persistente detrás de tus perfiles guardados de League, la continuidad del coaching y el estado de la membresía.' }), _jsxs("div", { style: accountMiniStatsGridStyle, children: [_jsxs("div", { style: accountMiniStatStyle, children: [_jsx("div", { style: miniStatLabelStyle, children: locale === 'en' ? 'Saved profiles' : 'Perfiles guardados' }), _jsx("div", { style: miniStatValueStyle, children: linkedProfilesCount })] }), _jsxs("div", { style: accountMiniStatStyle, children: [_jsx("div", { style: miniStatLabelStyle, children: locale === 'en' ? 'AI reads' : 'Lecturas IA' }), _jsx("div", { style: miniStatValueStyle, children: aiRunsCount })] }), _jsxs("div", { style: accountMiniStatStyle, children: [_jsx("div", { style: miniStatLabelStyle, children: locale === 'en' ? 'Plan state' : 'Estado del plan' }), _jsx("div", { style: miniStatValueStyle, children: membership?.account.status ?? (locale === 'en' ? 'Loading' : 'Cargando') })] })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx("button", { type: "button", style: secondaryButtonStyle, disabled: authActionLoading, onClick: () => void props.onLogout(), children: authActionLoading ? (locale === 'en' ? 'Closing...' : 'Cerrando...') : (locale === 'en' ? 'Log out' : 'Cerrar sesión') }), authMe?.isImpersonating ? (_jsx("button", { type: "button", style: secondaryButtonStyle, disabled: authActionLoading, onClick: () => void props.onStopImpersonation(), children: locale === 'en' ? 'Stop impersonation' : 'Salir de la suplantación' })) : null] })] }), _jsxs("div", { style: panelCardStyle, children: [_jsx("div", { style: panelTitleStyle, children: locale === 'en' ? 'Membership capacity' : 'Capacidad de membresía' }), _jsx("div", { style: panelBodyStyle, children: membership
                             ? (locale === 'en'
-                                ? `${membership.account.status} · ${membership.plan.entitlements.maxStoredProfiles} profiles · ${membership.plan.entitlements.maxStoredMatchesPerProfile} matches per profile`
-                                : `${membership.account.status} · ${membership.plan.entitlements.maxStoredProfiles} perfiles · ${membership.plan.entitlements.maxStoredMatchesPerProfile} partidas por perfil`)
-                            : (locale === 'en' ? 'Loading membership...' : 'Cargando membresía...') }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [currentPlanPriceLabel ? _jsx(Badge, { tone: "default", children: currentPlanPriceLabel }) : null, membership ? _jsx(Badge, { tone: "low", children: locale === 'en' ? `${membership.plan.entitlements.maxCoachRoles} coaching roles` : `${membership.plan.entitlements.maxCoachRoles} roles de coaching` }) : null] })] }), _jsxs("div", { style: panelCardStyle, children: [_jsx("div", { style: panelTitleStyle, children: locale === 'en' ? 'Billing actions' : 'Acciones de billing' }), _jsx("div", { style: panelBodyStyle, children: billingReady
-                            ? (locale === 'en' ? 'Stripe is ready for upgrades, renewals and self-serve management.' : 'Stripe ya está listo para upgrades, renovaciones y autogestión.')
-                            : (locale === 'en' ? 'Billing is not configured yet for this environment.' : 'Billing todavía no está configurado para este entorno.') }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [canOpenBillingPortal ? (_jsx("button", { type: "button", style: secondaryButtonStyle, disabled: membershipActionLoading, onClick: () => void props.onBillingPortal(), children: membershipActionLoading ? (locale === 'en' ? 'Opening...' : 'Abriendo...') : (locale === 'en' ? 'Manage billing' : 'Gestionar billing') })) : (_jsx(Badge, { tone: "default", children: billingReady ? (locale === 'en' ? 'Stripe ready' : 'Stripe listo') : (locale === 'en' ? 'Stripe pending' : 'Stripe pendiente') })), _jsx("button", { type: "button", style: secondaryButtonStyle, onClick: () => props.onTabChange('membership'), children: locale === 'en' ? 'See plans' : 'Ver planes' })] })] })] }));
+                                ? `${membership.account.status} account · ${membership.plan.entitlements.maxStoredProfiles} saved profiles · ${membership.plan.entitlements.maxStoredMatchesPerProfile} matches per profile`
+                                : `Cuenta ${membership.account.status} · ${membership.plan.entitlements.maxStoredProfiles} perfiles guardados · ${membership.plan.entitlements.maxStoredMatchesPerProfile} partidas por perfil`)
+                            : (locale === 'en' ? 'Loading membership...' : 'Cargando membresía...') }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [currentPlanPriceLabel ? _jsx(Badge, { tone: "default", children: currentPlanPriceLabel }) : null, membership ? _jsx(Badge, { tone: "low", children: locale === 'en' ? `${membership.plan.entitlements.maxCoachRoles} coaching roles` : `${membership.plan.entitlements.maxCoachRoles} roles de coaching` }) : null] }), membership ? (_jsxs("div", { style: accountMiniStatsGridStyle, children: [_jsxs("div", { style: accountMiniStatStyle, children: [_jsx("div", { style: miniStatLabelStyle, children: locale === 'en' ? 'Profiles' : 'Perfiles' }), _jsx("div", { style: miniStatValueStyle, children: membership.plan.entitlements.maxStoredProfiles })] }), _jsxs("div", { style: accountMiniStatStyle, children: [_jsx("div", { style: miniStatLabelStyle, children: locale === 'en' ? 'Matches/profile' : 'Partidas/perfil' }), _jsx("div", { style: miniStatValueStyle, children: membership.plan.entitlements.maxStoredMatchesPerProfile })] }), _jsxs("div", { style: accountMiniStatStyle, children: [_jsx("div", { style: miniStatLabelStyle, children: locale === 'en' ? 'Managed players' : 'Jugadores gestionados' }), _jsx("div", { style: miniStatValueStyle, children: membership.plan.entitlements.maxManagedPlayers })] })] })) : null] }), _jsxs("div", { style: panelCardStyle, children: [_jsx("div", { style: panelTitleStyle, children: locale === 'en' ? 'Plan and billing actions' : 'Acciones de plan y billing' }), _jsx("div", { style: panelBodyStyle, children: billingReady
+                            ? (locale === 'en' ? 'Open the billing portal for upgrades, renewals and self-serve plan management.' : 'Abrí el portal de billing para upgrades, renovaciones y autogestión del plan.')
+                            : (locale === 'en' ? 'Billing is not configured yet for this environment.' : 'Billing todavía no está configurado para este entorno.') }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [canOpenBillingPortal ? (_jsx("button", { type: "button", style: secondaryButtonStyle, disabled: membershipActionLoading, onClick: () => void props.onBillingPortal(), children: membershipActionLoading ? (locale === 'en' ? 'Opening...' : 'Abriendo...') : (locale === 'en' ? 'Manage plan' : 'Gestionar plan') })) : (_jsx(Badge, { tone: "default", children: billingReady ? (locale === 'en' ? 'Stripe ready' : 'Stripe listo') : (locale === 'en' ? 'Stripe pending' : 'Stripe pendiente') })), _jsx("button", { type: "button", style: secondaryButtonStyle, onClick: () => props.onTabChange('membership'), children: locale === 'en' ? 'Compare plans' : 'Comparar planes' })] })] })] }));
 }
 function renderMembershipSection(props) {
     const { accountPanelTab, membershipCatalog, membership, locale, authUser, billingReady, membershipActionLoading } = props;
@@ -158,9 +172,14 @@ const panelCardStyle = {
     gap: 12,
     padding: '16px 16px 18px',
     borderRadius: 18,
-    background: '#090e16',
-    border: '1px solid rgba(255,255,255,0.06)',
+    background: 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(8,12,19,0.98))',
+    border: '1px solid rgba(255,255,255,0.07)',
     alignContent: 'start'
+};
+const accountHeroCardStyle = {
+    ...panelCardStyle,
+    background: 'radial-gradient(circle at top left, rgba(216,253,241,0.1), transparent 42%), linear-gradient(180deg, rgba(10,14,22,0.98), rgba(8,12,19,1))',
+    borderColor: 'rgba(216,253,241,0.12)'
 };
 const planCardsGridStyle = {
     display: 'grid',
@@ -247,6 +266,30 @@ const activeTabStyle = {
     background: 'linear-gradient(180deg, rgba(49,55,86,0.95), rgba(16,23,35,1))',
     borderColor: 'rgba(216,253,241,0.2)',
     color: '#ffffff'
+};
+const accountMiniStatsGridStyle = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: 8
+};
+const accountMiniStatStyle = {
+    display: 'grid',
+    gap: 4,
+    padding: '11px 12px',
+    borderRadius: 14,
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.05)'
+};
+const miniStatLabelStyle = {
+    color: '#8da0ba',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em'
+};
+const miniStatValueStyle = {
+    color: '#edf2ff',
+    fontSize: 15,
+    fontWeight: 800
 };
 const adminUserCardStyle = {
     display: 'grid',

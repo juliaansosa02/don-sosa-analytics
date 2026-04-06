@@ -85,15 +85,17 @@ export function AccountCenter(props: AccountCenterProps) {
   if (!props.open) return null;
 
   const { locale, authUser, canManageCoachRoster, isAdmin, accountPanelTab } = props;
+  const linkedProfilesCount = props.membership?.linkedProfiles.length ?? 0;
+  const aiRunsCount = props.membership?.usage.openaiGenerations ?? 0;
   const authTabs = [
     { id: 'auth', label: locale === 'en' ? 'Access' : 'Acceso' },
     { id: 'membership', label: locale === 'en' ? 'Plans' : 'Planes' }
   ] as const;
   const userTabs = [
-    { id: 'profile' as const, label: locale === 'en' ? 'Profile' : 'Perfil' },
-    { id: 'membership' as const, label: locale === 'en' ? 'Membership' : 'Membresía' },
+    { id: 'profile' as const, label: locale === 'en' ? 'Account base' : 'Base de cuenta' },
+    { id: 'membership' as const, label: locale === 'en' ? 'Plan' : 'Plan' },
     { id: 'security' as const, label: locale === 'en' ? 'Security' : 'Seguridad' },
-    ...(canManageCoachRoster ? [{ id: 'coach' as const, label: locale === 'en' ? 'Coach workspace' : 'Espacio coach' }] : []),
+    ...(canManageCoachRoster ? [{ id: 'coach' as const, label: locale === 'en' ? 'Coach desk' : 'Mesa coach' }] : []),
     ...(isAdmin ? [{ id: 'admin' as const, label: locale === 'en' ? 'Admin tools' : 'Herramientas admin' }] : [])
   ];
   const availableTabs = authUser ? userTabs : authTabs;
@@ -103,21 +105,21 @@ export function AccountCenter(props: AccountCenterProps) {
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
         <div style={{ display: 'grid', gap: 4 }}>
           <div style={sectionEyebrowStyle}>
-            {authUser ? (locale === 'en' ? 'Account center' : 'Centro de cuenta') : (locale === 'en' ? 'Account access' : 'Acceso a cuenta')}
+            {authUser ? (locale === 'en' ? 'Product account' : 'Cuenta del producto') : (locale === 'en' ? 'Account access' : 'Acceso a cuenta')}
           </div>
           <div style={sectionTitleStyle}>
             {authUser
-              ? (locale === 'en' ? 'Profile, membership and workspace' : 'Perfil, membresía y espacio de cuenta')
-              : (locale === 'en' ? 'Login, membership and recovery' : 'Ingreso, membresía y recuperación')}
+              ? (locale === 'en' ? 'Your competitive base behind the dashboard' : 'La base competitiva detrás del dashboard')
+              : (locale === 'en' ? 'Save your progress under a real account' : 'Guardá tu progreso en una cuenta real')}
           </div>
           <div style={sectionBodyStyle}>
             {authUser
               ? (locale === 'en'
-                ? 'Keep account actions here so the main product can stay focused on your League profile, coaching and analysis.'
-                : 'Concentrá acá las acciones de cuenta para que el producto principal quede enfocado en tu perfil de League, el coaching y el análisis.')
+                ? 'This is where your product account, plan continuity, saved profiles and security live. The player-facing dashboard stays clean because the base is organized here.'
+                : 'Acá viven tu cuenta del producto, la continuidad del plan, los perfiles guardados y la seguridad. El dashboard del jugador se mantiene limpio porque la base se ordena acá.')
               : (locale === 'en'
-                ? 'Create a real account so your coaching, plans and billing history stay attached to you instead of only to this browser.'
-                : 'Creá una cuenta real para que tu coaching, tus planes y tu historial de billing queden ligados a vos y no solo a este navegador.')}
+                ? 'Create a real account so your saved profiles, coaching history and plan state stay with you across browsers and sessions.'
+                : 'Creá una cuenta real para que tus perfiles guardados, tu historial de coaching y el estado de tu plan te sigan entre navegadores y sesiones.')}
           </div>
         </div>
         <button type="button" style={secondaryButtonStyle} onClick={props.onClose}>
@@ -136,6 +138,23 @@ export function AccountCenter(props: AccountCenterProps) {
             {tab.label}
           </button>
         ))}
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {authUser
+          ? (
+            <>
+              <Badge tone="default">{props.currentPlan?.name ?? 'Free'}</Badge>
+              <Badge tone="low">{locale === 'en' ? `${linkedProfilesCount} saved profiles` : `${linkedProfilesCount} perfiles guardados`}</Badge>
+              <Badge tone="low">{locale === 'en' ? `${aiRunsCount} AI reads this month` : `${aiRunsCount} lecturas IA este mes`}</Badge>
+            </>
+          )
+          : (
+            <>
+              <Badge tone="default">{locale === 'en' ? 'Sync profiles across sessions' : 'Sincronizá perfiles entre sesiones'}</Badge>
+              <Badge tone="low">{locale === 'en' ? 'Keep plan and billing history attached to you' : 'Mantené tu plan y tu historial ligados a vos'}</Badge>
+            </>
+          )}
       </div>
 
       {renderAuthSection(props)}
@@ -172,6 +191,22 @@ function renderAuthSection(props: AccountCenterProps) {
   return (
     <div className="two-col-grid" style={authPanelGridStyle}>
       <div style={panelCardStyle}>
+        <div style={{ display: 'grid', gap: 5 }}>
+          <div style={panelTitleStyle}>
+            {authMode === 'login'
+              ? (locale === 'en' ? 'Recover your account base' : 'Recuperá tu base de cuenta')
+              : authMode === 'signup'
+                ? (locale === 'en' ? 'Create your competitive account' : 'Creá tu cuenta competitiva')
+                : (locale === 'en' ? 'Start recovery' : 'Empezá la recuperación')}
+          </div>
+          <div style={panelBodyStyle}>
+            {authMode === 'login'
+              ? (locale === 'en' ? 'Sign in to reopen your saved profiles, plan state and coaching history.' : 'Iniciá sesión para reabrir tus perfiles guardados, el estado del plan y tu historial de coaching.')
+              : authMode === 'signup'
+                ? (locale === 'en' ? 'A real account turns this browser experience into a persistent competitive base.' : 'Una cuenta real convierte esta experiencia del navegador en una base competitiva persistente.')
+                : (locale === 'en' ? 'Request the recovery link with your email and finish the reset here if you are testing locally.' : 'Pedí el link de recuperación con tu email y terminá el reset acá si estás probando localmente.')}
+          </div>
+        </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {(['login', 'signup', 'reset'] as const).map((mode) => (
             <button
@@ -217,16 +252,16 @@ function renderAuthSection(props: AccountCenterProps) {
                     ? (locale === 'en' ? 'Create account' : 'Crear cuenta')
                     : (locale === 'en' ? 'Send recovery' : 'Enviar recuperación')}
             </button>
-            <Badge tone="low">{locale === 'en' ? 'Your coaching and billing history will persist on your account' : 'Tu historial de coaching y billing quedará persistido en tu cuenta'}</Badge>
+            <Badge tone="low">{locale === 'en' ? 'Profiles, coaching and plan history stay attached to you' : 'Perfiles, coaching e historial del plan quedan ligados a vos'}</Badge>
           </div>
         </form>
       </div>
       <div style={panelCardStyle}>
-        <div style={panelTitleStyle}>{locale === 'en' ? 'Password recovery flow' : 'Flujo de recuperación de contraseña'}</div>
+        <div style={panelTitleStyle}>{locale === 'en' ? 'Recovery and continuity' : 'Recuperación y continuidad'}</div>
         <div style={panelBodyStyle}>
           {locale === 'en'
-            ? '1. Request recovery with your email. 2. In production, use the email link. 3. In development, the token and direct link appear here so you can finish the full flow locally.'
-            : '1. Pedí la recuperación con tu email. 2. En producción, seguí el link recibido. 3. En desarrollo, el token y el link directo aparecen acá para que puedas cerrar el flujo completo localmente.'}
+            ? '1. Request the recovery with your email. 2. In production, continue from the mailbox link. 3. In development, the token and direct link appear here so you can close the full loop locally.'
+            : '1. Pedí la recuperación con tu email. 2. En producción, seguí el link del correo. 3. En desarrollo, el token y el link directo aparecen acá para cerrar el flujo completo en local.'}
         </div>
         <form onSubmit={props.onResetPasswordConfirm} style={{ display: 'grid', gap: 10 }}>
           <label style={{ ...fieldBlockStyle, minWidth: 0 }}>
@@ -272,12 +307,17 @@ function renderAuthSection(props: AccountCenterProps) {
 function renderProfileSection(props: AccountCenterProps) {
   const { authUser, accountPanelTab, locale, actorUser, membership, currentPlan, currentPlanPriceLabel, authMe, billingReady, canOpenBillingPortal, authActionLoading, membershipActionLoading } = props;
   if (!authUser || accountPanelTab !== 'profile') return null;
+  const linkedProfilesCount = membership?.linkedProfiles.length ?? 0;
+  const aiRunsCount = membership?.usage.openaiGenerations ?? 0;
 
   return (
     <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.05fr repeat(2, minmax(0, 1fr))', gap: 12 }}>
-      <div style={panelCardStyle}>
-        <div style={panelHeroTitleStyle}>{authUser.displayName}</div>
-        <div style={{ color: '#8f9bad', fontSize: 13 }}>{authUser.email}</div>
+      <div style={accountHeroCardStyle}>
+        <div style={{ display: 'grid', gap: 5 }}>
+          <div style={sectionEyebrowStyle}>{locale === 'en' ? 'Account identity' : 'Identidad de cuenta'}</div>
+          <div style={panelHeroTitleStyle}>{authUser.displayName}</div>
+          <div style={{ color: '#8f9bad', fontSize: 13 }}>{authUser.email}</div>
+        </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Badge tone="default">{actorUser?.role.toUpperCase() ?? 'USER'}</Badge>
           <Badge tone="low">{currentPlan?.name ?? 'Free'}</Badge>
@@ -285,8 +325,22 @@ function renderProfileSection(props: AccountCenterProps) {
         </div>
         <div style={panelBodyStyle}>
           {locale === 'en'
-            ? `${membership?.linkedProfiles.length ?? 0} saved profiles · ${membership?.usage.openaiGenerations ?? 0} AI runs this month`
-            : `${membership?.linkedProfiles.length ?? 0} perfiles guardados · ${membership?.usage.openaiGenerations ?? 0} corridas IA este mes`}
+            ? 'This account is the persistent layer behind your saved League profiles, coaching continuity and membership state.'
+            : 'Esta cuenta es la capa persistente detrás de tus perfiles guardados de League, la continuidad del coaching y el estado de la membresía.'}
+        </div>
+        <div style={accountMiniStatsGridStyle}>
+          <div style={accountMiniStatStyle}>
+            <div style={miniStatLabelStyle}>{locale === 'en' ? 'Saved profiles' : 'Perfiles guardados'}</div>
+            <div style={miniStatValueStyle}>{linkedProfilesCount}</div>
+          </div>
+          <div style={accountMiniStatStyle}>
+            <div style={miniStatLabelStyle}>{locale === 'en' ? 'AI reads' : 'Lecturas IA'}</div>
+            <div style={miniStatValueStyle}>{aiRunsCount}</div>
+          </div>
+          <div style={accountMiniStatStyle}>
+            <div style={miniStatLabelStyle}>{locale === 'en' ? 'Plan state' : 'Estado del plan'}</div>
+            <div style={miniStatValueStyle}>{membership?.account.status ?? (locale === 'en' ? 'Loading' : 'Cargando')}</div>
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button type="button" style={secondaryButtonStyle} disabled={authActionLoading} onClick={() => void props.onLogout()}>
@@ -300,36 +354,52 @@ function renderProfileSection(props: AccountCenterProps) {
         </div>
       </div>
       <div style={panelCardStyle}>
-        <div style={panelTitleStyle}>{locale === 'en' ? 'Current membership' : 'Membresía actual'}</div>
+        <div style={panelTitleStyle}>{locale === 'en' ? 'Membership capacity' : 'Capacidad de membresía'}</div>
         <div style={panelBodyStyle}>
           {membership
             ? (locale === 'en'
-              ? `${membership.account.status} · ${membership.plan.entitlements.maxStoredProfiles} profiles · ${membership.plan.entitlements.maxStoredMatchesPerProfile} matches per profile`
-              : `${membership.account.status} · ${membership.plan.entitlements.maxStoredProfiles} perfiles · ${membership.plan.entitlements.maxStoredMatchesPerProfile} partidas por perfil`)
+              ? `${membership.account.status} account · ${membership.plan.entitlements.maxStoredProfiles} saved profiles · ${membership.plan.entitlements.maxStoredMatchesPerProfile} matches per profile`
+              : `Cuenta ${membership.account.status} · ${membership.plan.entitlements.maxStoredProfiles} perfiles guardados · ${membership.plan.entitlements.maxStoredMatchesPerProfile} partidas por perfil`)
             : (locale === 'en' ? 'Loading membership...' : 'Cargando membresía...')}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {currentPlanPriceLabel ? <Badge tone="default">{currentPlanPriceLabel}</Badge> : null}
           {membership ? <Badge tone="low">{locale === 'en' ? `${membership.plan.entitlements.maxCoachRoles} coaching roles` : `${membership.plan.entitlements.maxCoachRoles} roles de coaching`}</Badge> : null}
         </div>
+        {membership ? (
+          <div style={accountMiniStatsGridStyle}>
+            <div style={accountMiniStatStyle}>
+              <div style={miniStatLabelStyle}>{locale === 'en' ? 'Profiles' : 'Perfiles'}</div>
+              <div style={miniStatValueStyle}>{membership.plan.entitlements.maxStoredProfiles}</div>
+            </div>
+            <div style={accountMiniStatStyle}>
+              <div style={miniStatLabelStyle}>{locale === 'en' ? 'Matches/profile' : 'Partidas/perfil'}</div>
+              <div style={miniStatValueStyle}>{membership.plan.entitlements.maxStoredMatchesPerProfile}</div>
+            </div>
+            <div style={accountMiniStatStyle}>
+              <div style={miniStatLabelStyle}>{locale === 'en' ? 'Managed players' : 'Jugadores gestionados'}</div>
+              <div style={miniStatValueStyle}>{membership.plan.entitlements.maxManagedPlayers}</div>
+            </div>
+          </div>
+        ) : null}
       </div>
       <div style={panelCardStyle}>
-        <div style={panelTitleStyle}>{locale === 'en' ? 'Billing actions' : 'Acciones de billing'}</div>
+        <div style={panelTitleStyle}>{locale === 'en' ? 'Plan and billing actions' : 'Acciones de plan y billing'}</div>
         <div style={panelBodyStyle}>
           {billingReady
-            ? (locale === 'en' ? 'Stripe is ready for upgrades, renewals and self-serve management.' : 'Stripe ya está listo para upgrades, renovaciones y autogestión.')
+            ? (locale === 'en' ? 'Open the billing portal for upgrades, renewals and self-serve plan management.' : 'Abrí el portal de billing para upgrades, renovaciones y autogestión del plan.')
             : (locale === 'en' ? 'Billing is not configured yet for this environment.' : 'Billing todavía no está configurado para este entorno.')}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {canOpenBillingPortal ? (
             <button type="button" style={secondaryButtonStyle} disabled={membershipActionLoading} onClick={() => void props.onBillingPortal()}>
-              {membershipActionLoading ? (locale === 'en' ? 'Opening...' : 'Abriendo...') : (locale === 'en' ? 'Manage billing' : 'Gestionar billing')}
+              {membershipActionLoading ? (locale === 'en' ? 'Opening...' : 'Abriendo...') : (locale === 'en' ? 'Manage plan' : 'Gestionar plan')}
             </button>
           ) : (
             <Badge tone="default">{billingReady ? (locale === 'en' ? 'Stripe ready' : 'Stripe listo') : (locale === 'en' ? 'Stripe pending' : 'Stripe pendiente')}</Badge>
           )}
           <button type="button" style={secondaryButtonStyle} onClick={() => props.onTabChange('membership')}>
-            {locale === 'en' ? 'See plans' : 'Ver planes'}
+            {locale === 'en' ? 'Compare plans' : 'Comparar planes'}
           </button>
         </div>
       </div>
@@ -628,9 +698,15 @@ const panelCardStyle: CSSProperties = {
   gap: 12,
   padding: '16px 16px 18px',
   borderRadius: 18,
-  background: '#090e16',
-  border: '1px solid rgba(255,255,255,0.06)',
+  background: 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(8,12,19,0.98))',
+  border: '1px solid rgba(255,255,255,0.07)',
   alignContent: 'start'
+};
+
+const accountHeroCardStyle: CSSProperties = {
+  ...panelCardStyle,
+  background: 'radial-gradient(circle at top left, rgba(216,253,241,0.1), transparent 42%), linear-gradient(180deg, rgba(10,14,22,0.98), rgba(8,12,19,1))',
+  borderColor: 'rgba(216,253,241,0.12)'
 };
 
 const planCardsGridStyle: CSSProperties = {
@@ -729,6 +805,34 @@ const activeTabStyle: CSSProperties = {
   background: 'linear-gradient(180deg, rgba(49,55,86,0.95), rgba(16,23,35,1))',
   borderColor: 'rgba(216,253,241,0.2)',
   color: '#ffffff'
+};
+
+const accountMiniStatsGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+  gap: 8
+};
+
+const accountMiniStatStyle: CSSProperties = {
+  display: 'grid',
+  gap: 4,
+  padding: '11px 12px',
+  borderRadius: 14,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.05)'
+};
+
+const miniStatLabelStyle: CSSProperties = {
+  color: '#8da0ba',
+  fontSize: 11,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em'
+};
+
+const miniStatValueStyle: CSSProperties = {
+  color: '#edf2ff',
+  fontSize: 15,
+  fontWeight: 800
 };
 
 const adminUserCardStyle: CSSProperties = {
