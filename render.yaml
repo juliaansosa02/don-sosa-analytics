@@ -10,6 +10,8 @@ services:
     envVars:
       - key: RIOT_API_KEY
         sync: false
+      - key: OPENAI_API_KEY
+        sync: false
       - key: RIOT_PLATFORM
         value: la2
       - key: RIOT_REGION
@@ -20,9 +22,51 @@ services:
         value: "700"
       - key: RIOT_MAX_RETRIES
         value: "4"
+      - key: MEMBERSHIP_DEV_TOOLS
+        value: "false"
+      - key: DEV_EXPOSE_RESET_TOKEN
+        value: "false"
+      - key: APP_BASE_URL
+        value: https://don-sosa.onrender.com
       - key: CORS_ORIGIN
         value: https://don-sosa.onrender.com
       - key: VITE_API_BASE_URL
         value: https://don-sosa.onrender.com/api
+      - key: VITE_SITE_URL
+        value: https://don-sosa.onrender.com
+      - key: VITE_SITE_NAME
+        value: Don Sosa Coach
+      - key: VITE_SITE_DESCRIPTION
+        value: Coaching premium para mejorar en League of Legends con analytics, progreso y herramientas para coaches.
+      - key: VITE_OG_TITLE
+        value: Don Sosa Coach | Coaching premium para mejorar en League of Legends
+      - key: VITE_OG_DESCRIPTION
+        value: Diagnóstico claro, coaching premium y progreso real para jugadores y coaches de League of Legends.
+      - key: VITE_SUPPORT_EMAIL
+        value: juliaansosa02@gmail.com
+      - key: VITE_DEFAULT_LOCALE
+        value: es-AR
+      - key: LEGAL_ENTITY_NAME
+        value: Don Sosa Coach
+      - key: LEGAL_COUNTRY
+        value: Argentina
+      - key: LEGAL_LAST_UPDATED
+        value: "2026-04-06"
+      - key: SESSION_COOKIE_NAME
+        value: don_sosa_session
+      - key: SESSION_TTL_DAYS
+        value: "30"
+      - key: PASSWORD_RESET_TTL_MINUTES
+        value: "30"
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_SUCCESS_URL
+        value: https://don-sosa.onrender.com/?billing=success
+      - key: STRIPE_CANCEL_URL
+        value: https://don-sosa.onrender.com/?billing=cancel
       - key: DATABASE_URL
         sync: false
