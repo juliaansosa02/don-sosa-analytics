@@ -5,7 +5,7 @@ import { formatDecimal, formatInteger } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
 import { formatChampionName, getProfileIconUrl } from '../../lib/lol';
 import { evidenceBadgeLabel, evidenceTone } from '../premium-analysis/evidence';
-import { CoachPremiumWorkspace } from './CoachPremiumWorkspace';
+import { CoachPremiumWorkspace, type CoachWorkspaceRosterPlayer } from './CoachPremiumWorkspace';
 import { buildChampionPrepBrief } from './prepBrief';
 
 type TrendSignal = { direction: TrendDirection; tone: TrendTone; label?: string };
@@ -228,7 +228,9 @@ export function CoachingHome({
   onSendFeedback,
   roleReferences = [],
   roleReferencesLoading = false,
-  roleReferencesError = null
+  roleReferencesError = null,
+  coachRosterPlayers = [],
+  canManageCoachRoster = false
 }: {
   dataset: Dataset;
   locale?: Locale;
@@ -240,6 +242,8 @@ export function CoachingHome({
   roleReferences?: RoleReferenceProfile[];
   roleReferencesLoading?: boolean;
   roleReferencesError?: string | null;
+  coachRosterPlayers?: CoachWorkspaceRosterPlayer[];
+  canManageCoachRoster?: boolean;
 }) {
   const { summary } = dataset;
   const matchesByDate = [...dataset.matches].sort((a, b) => a.gameCreation - b.gameCreation);
@@ -412,7 +416,13 @@ export function CoachingHome({
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <CoachPremiumWorkspace dataset={dataset} locale={locale} />
+      <CoachPremiumWorkspace
+        dataset={dataset}
+        locale={locale}
+        rosterPlayers={coachRosterPlayers}
+        roleReferences={roleReferences}
+        canManageRoster={canManageCoachRoster}
+      />
 
       <Card title={t(locale, 'Lectura central del bloque', 'Central block read')} subtitle={t(locale, 'Una sola lectura para decidir qué corregir primero, por qué confiar en ella y qué dejar para después.', 'One read to decide what to correct first, why it deserves trust and what should wait.')}>
         <div className="coaching-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.45fr) minmax(320px, 0.95fr)', gap: 16, alignItems: 'start' }}>

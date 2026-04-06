@@ -38,6 +38,7 @@ import type {
 } from '../types';
 import { Shell, Card, Badge } from '../components/ui';
 import { CoachingHome } from '../features/coach/CoachingHome';
+import type { CoachWorkspaceRosterPlayer } from '../features/coach/CoachPremiumWorkspace';
 import { AccountCenter, type AccountPanelTab } from '../features/account/AccountCenter';
 import { RankBadge, RankEmblem } from '../features/profile/ProfilePrimitives';
 import { OverviewTab } from '../features/overview/OverviewTab';
@@ -918,6 +919,8 @@ function AppShell() {
           roleReferences={roleReferences}
           roleReferencesLoading={roleReferencesLoading}
           roleReferencesError={roleReferencesError}
+          coachRosterPlayers={coachWorkspaceRosterPlayers}
+          canManageCoachRoster={canManageCoachRoster}
           onGenerateAICoach={() => void handleGenerateAICoach(true)}
           onSendFeedback={(verdict: 'useful' | 'mixed' | 'generic' | 'incorrect') => void handleAICoachFeedback(verdict)}
         />
@@ -1361,6 +1364,37 @@ function AppShell() {
   const activeProfileFreshnessLabel = activeSavedProfile ? formatRelativeSyncTime(activeSavedProfile.lastSyncedAt, locale) : null;
   const activeProfileReadinessLabel = activeSavedProfile ? getSavedProfileReadinessLabel(activeSavedProfile, locale) : null;
   const linkedProfilesCount = membership?.linkedProfiles.length ?? savedProfiles.length;
+  const coachWorkspaceRosterPlayers = useMemo<CoachWorkspaceRosterPlayer[]>(() => safeCoachRoster.map((entry) => {
+    const rosterProfile = entry.profile ? {
+      gameName: entry.profile.gameName,
+      tagLine: entry.profile.tagLine,
+      platform: entry.profile.platform
+    } : null;
+    const rosterProfileKey = rosterProfile
+      ? buildProfileIdentityKey(rosterProfile.gameName, rosterProfile.tagLine, rosterProfile.platform)
+      : null;
+    const localProfile = rosterProfileKey
+      ? savedProfiles.find((profile) => buildProfileIdentityKey(profile.gameName, profile.tagLine, profile.platform) === rosterProfileKey) ?? null
+      : null;
+    return {
+      assignmentId: entry.assignmentId,
+      displayName: rosterProfile ? `${rosterProfile.gameName}#${rosterProfile.tagLine}` : entry.user?.displayName ?? entry.user?.email ?? (locale === 'en' ? 'Roster player' : 'Jugador del roster'),
+      email: entry.user?.email ?? null,
+      targetType: entry.targetType,
+      linkedAt: entry.linkedAt,
+      note: entry.note ?? null,
+      isLoaded: Boolean(rosterProfileKey && activeProfileIdentity && rosterProfileKey === activeProfileIdentity),
+      profile: rosterProfile,
+      localProfile: localProfile ? {
+        matches: localProfile.matches,
+        targetMatches: Math.max(localProfile.matchCount, localProfile.matches),
+        lastSyncedAt: localProfile.lastSyncedAt,
+        rankLabel: localProfile.rankLabel,
+        profileIconId: localProfile.profileIconId,
+        ddragonVersion: localProfile.ddragonVersion
+      } : null
+    };
+  }), [activeProfileIdentity, locale, safeCoachRoster, savedProfiles]);
 
   const accountHubTitle = !dataset
     ? (locale === 'en' ? 'Load your next competitive profile' : 'Cargá tu próximo perfil competitivo')
