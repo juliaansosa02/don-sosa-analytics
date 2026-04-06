@@ -1926,7 +1926,7 @@ function AppShell() {
                 <div style={{ color: '#8793a8', fontSize: 13 }}>{locale === 'en' ? 'These filters affect stats, matchups, runes, champions and match review only. Coaching keeps using its own saved role scope.' : 'Estos filtros afectan solo métricas, cruces, runas, campeones y review de partidas. El coaching sigue usando su propio scope guardado de roles.'}</div>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Badge tone="default">{locale === 'en' ? 'Affects: stats, matchups, matches' : 'Afecta: stats, matchups, partidas'}</Badge>
+                <Badge tone="default">{locale === 'en' ? 'Affects: stats, matchups, runes, builds, champions, matches' : 'Afecta: stats, matchups, runas, builds, campeones y partidas'}</Badge>
                 <Badge tone="low">{locale === 'en' ? `Coaching keeps ${coachScopeLabel}` : `El coaching sigue en ${coachScopeLabel}`}</Badge>
               </div>
               <div className="role-pill-grid" style={rolePillGridStyle}>

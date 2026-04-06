@@ -1,10 +1,12 @@
-import type { PropsWithChildren } from 'react';
+import { type PropsWithChildren, type ReactNode, useMemo } from 'react';
 import { Badge, Card, ChampionIdentity, InfoHint, TrendIndicator, type TrendDirection, type TrendTone } from '../../components/ui';
 import type { AICoachResult, Dataset, RoleReferenceProfile } from '../../types';
 import { formatDecimal, formatInteger } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
 import { formatChampionName, getProfileIconUrl } from '../../lib/lol';
+import { evidenceBadgeLabel, evidenceTone } from '../premium-analysis/evidence';
 import { CoachPremiumWorkspace } from './CoachPremiumWorkspace';
+import { buildChampionPrepBrief } from './prepBrief';
 
 type TrendSignal = { direction: TrendDirection; tone: TrendTone; label?: string };
 type MatchEntry = Dataset['matches'][number];
@@ -317,6 +319,18 @@ export function CoachingHome({
   const mainInterpretation = primaryInsight?.interpretation ?? mainProblem?.interpretation ?? null;
   const mainSampleSize = mainProblem?.sampleSize ?? null;
   const todayActions = (aiCoach?.coach.whatToDoNext3Games?.length ? aiCoach.coach.whatToDoNext3Games : primaryInsight?.actions?.length ? primaryInsight.actions : mainProblem?.actions ?? []).slice(0, 3);
+  const prepBrief = useMemo(
+    () => buildChampionPrepBrief({
+      dataset,
+      locale,
+      anchorChampion: championReference,
+      mainProblem,
+      todayActions,
+      aiCoach,
+      problematicMatchup
+    }),
+    [dataset, locale, championReference, mainProblem, todayActions, aiCoach, problematicMatchup]
+  );
   const steadyLabel = t(locale, 'estable', 'stable');
   const performanceTrend = signal(trend.scoreDelta, 'up', 0.25);
   const changeSummary = performanceTrend.tone === 'positive'
@@ -506,6 +520,123 @@ export function CoachingHome({
         </div>
       </Card>
 
+      {prepBrief ? (
+        <Card
+          title={t(locale, 'Plan para tu próxima cola', 'Plan for your next queue')}
+          subtitle={t(
+            locale,
+            'La idea es cerrar la distancia entre diagnóstico y ejecución: qué pick usar como base, qué página respetar, qué build tomar y qué no abrir todavía.',
+            'The goal is to close the gap between diagnosis and execution: which pick to use as a base, which page to respect, which build to take and what should not be opened yet.'
+          )}
+        >
+          <div style={{ display: 'grid', gap: 16 }}>
+            <div className="coaching-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(280px, 0.8fr)', gap: 16, alignItems: 'start' }}>
+              <div style={panelStyle}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'start', flexWrap: 'wrap' }}>
+                  <ChampionIdentity
+                    championName={prepBrief.championName}
+                    version={dataset.ddragonVersion}
+                    subtitle={t(
+                      locale,
+                      'Este es el pick que hoy conviene usar como base operativa del bloque.',
+                      'This is the pick worth using today as the operating base of the block.'
+                    )}
+                    size={62}
+                  />
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'end' }}>
+                    <Badge tone={prepBrief.readiness === 'full' ? 'low' : 'medium'}>
+                      {prepBrief.readiness === 'full'
+                        ? t(locale, 'Prep completa', 'Full prep')
+                        : t(locale, 'Prep parcial', 'Partial prep')}
+                    </Badge>
+                    {prepBrief.matchupSummary ? <Badge tone="default">{t(locale, 'Con lectura de matchup', 'Matchup-aware')}</Badge> : null}
+                  </div>
+                </div>
+                <div style={{ color: '#eef4ff', fontSize: 24, fontWeight: 800, lineHeight: 1.15 }}>
+                  {t(locale, 'Cómo tiene que sentirse esta versión', 'How this version should feel')}
+                </div>
+                <div style={{ color: '#a4afc1', lineHeight: 1.7 }}>{prepBrief.operatingSummary}</div>
+                {prepBrief.focusNote ? <div style={actionStyle}>{prepBrief.focusNote}</div> : null}
+                {prepBrief.matchupSummary ? (
+                  <div style={{ ...compactListStyle, background: 'rgba(255,255,255,0.035)' }}>
+                    <strong style={{ color: '#eef4ff' }}>{t(locale, 'Matchup watchpoint:', 'Matchup watchpoint:')}</strong> {prepBrief.matchupSummary}
+                  </div>
+                ) : null}
+              </div>
+
+              <div style={{ display: 'grid', gap: 12 }}>
+                <div style={panelStyle}>
+                  <SectionEyebrow title={t(locale, 'Checklist corto', 'Short checklist')} />
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {prepBrief.checklist.map((entry, index) => (
+                      <PrepChecklistStep key={`${entry.source}-${entry.label}`} index={index + 1} label={entry.label} source={entry.source} locale={locale} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, alignItems: 'start' }}>
+              <PrepSectionCard
+                eyebrow={t(locale, 'Matchup / contexto', 'Matchup / context')}
+                title={prepBrief.matchupSummary ? t(locale, 'Qué respetar cuando el contexto se pone duro', 'What to respect when the context gets harder') : t(locale, 'Contexto operativo', 'Operating context')}
+                summary={prepBrief.matchupSummary ?? t(locale, 'Todavía no hay un matchup repetido lo bastante fuerte como para cambiar el plan base del pick.', 'There is no repeated matchup strong enough yet to change the base plan of the pick.')}
+              >
+                {prepBrief.matchupAdjustments.length ? (
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    {prepBrief.matchupAdjustments.map((entry) => <div key={entry} style={actionStyle}>{entry}</div>)}
+                  </div>
+                ) : (
+                  <div style={emptyStyle}>{t(locale, 'La prioridad sigue siendo ejecutar mejor tu plan base antes de abrir respuestas más finas.', 'The priority is still to execute your base plan better before opening finer responses.')}</div>
+                )}
+              </PrepSectionCard>
+
+              <PrepSectionCard
+                eyebrow={t(locale, 'Runas', 'Runes')}
+                title={prepBrief.runePlan ? prepBrief.runePlan.defaultPage : t(locale, 'Sin página cerrada', 'No closed page yet')}
+                summary={prepBrief.runePlan?.baselineSummary ?? t(locale, 'Todavía no hay una página con suficiente repetición dentro de este campeón.', 'There is still no page with enough repetition inside this champion.')}
+                badge={prepBrief.runePlan?.evidenceTier ? (
+                  <Badge tone={evidenceTone(prepBrief.runePlan.evidenceTier)}>
+                    {evidenceBadgeLabel(prepBrief.runePlan.evidenceTier, locale)}
+                  </Badge>
+                ) : null}
+              >
+                {prepBrief.runePlan ? (
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    <div style={{ color: '#dce6f5', lineHeight: 1.65 }}>{prepBrief.runePlan.swapSummary}</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {prepBrief.runePlan.supportingChips.map((entry) => <span key={entry} style={chipStyle}>{entry}</span>)}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={emptyStyle}>{t(locale, 'Este campeón todavía necesita más muestra repetida para cerrar una lectura útil de página default.', 'This champion still needs more repeated sample to close a useful default page read.')}</div>
+                )}
+              </PrepSectionCard>
+
+              <PrepSectionCard
+                eyebrow={t(locale, 'Build', 'Build')}
+                title={prepBrief.buildPlan.defaultPath ?? (prepBrief.buildPlan.status === 'needs-refresh' ? t(locale, 'Refresh pendiente', 'Refresh required') : t(locale, 'Familia todavía abierta', 'Family still open'))}
+                summary={prepBrief.buildPlan.baselineSummary}
+                badge={prepBrief.buildPlan.evidenceTier ? (
+                  <Badge tone={evidenceTone(prepBrief.buildPlan.evidenceTier)}>
+                    {evidenceBadgeLabel(prepBrief.buildPlan.evidenceTier, locale)}
+                  </Badge>
+                ) : prepBrief.buildPlan.status === 'needs-refresh' ? <Badge tone="medium">{t(locale, 'Falta refresh', 'Refresh needed')}</Badge> : null}
+              >
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ color: '#dce6f5', lineHeight: 1.65 }}>{prepBrief.buildPlan.swapSummary}</div>
+                  {prepBrief.buildPlan.supportingChips.length ? (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {prepBrief.buildPlan.supportingChips.map((entry) => <span key={entry} style={chipStyle}>{entry}</span>)}
+                    </div>
+                  ) : null}
+                </div>
+              </PrepSectionCard>
+            </div>
+          </div>
+        </Card>
+      ) : null}
+
       <section className="coaching-overview-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
         <Card title={t(locale, 'Base que ya te sostiene hoy', 'What is already holding you up')} subtitle={t(locale, 'Fusionamos tu pick de referencia con lo que ya te da nivel para que la lectura sea más directa y menos redundante.', 'We merge your reference pick with what is already giving you level so the read feels stronger and less redundant.')}>
           <div style={{ display: 'grid', gap: 12 }}>
@@ -676,6 +807,57 @@ function SignalTile({ label, value, detail, trend }: { label: string; value: str
   );
 }
 
+function PrepSectionCard({
+  eyebrow,
+  title,
+  summary,
+  badge,
+  children
+}: PropsWithChildren<{ eyebrow: string; title: string; summary: string; badge?: ReactNode }>) {
+  return (
+    <div style={prepSectionStyle}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'start', flexWrap: 'wrap' }}>
+        <div style={{ display: 'grid', gap: 7 }}>
+          <SectionEyebrow title={eyebrow} />
+          <div style={{ color: '#eef4ff', fontSize: 19, fontWeight: 800, lineHeight: 1.2 }}>{title}</div>
+          <div style={{ color: '#9aa5b7', lineHeight: 1.6 }}>{summary}</div>
+        </div>
+        {badge}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function PrepChecklistStep({
+  index,
+  label,
+  source,
+  locale
+}: {
+  index: number;
+  label: string;
+  source: 'coach' | 'runes' | 'builds' | 'matchup';
+  locale: Locale;
+}) {
+  const sourceLabel = {
+    coach: t(locale, 'coach', 'coach'),
+    runes: t(locale, 'runas', 'runes'),
+    builds: t(locale, 'build', 'build'),
+    matchup: t(locale, 'matchup', 'matchup')
+  } satisfies Record<'coach' | 'runes' | 'builds' | 'matchup', string>;
+
+  return (
+    <div style={prepChecklistStyle}>
+      <div style={stepIndexStyle}>{index}</div>
+      <div style={{ display: 'grid', gap: 6 }}>
+        <div style={{ color: '#eef4ff', lineHeight: 1.65 }}>{label}</div>
+        <div style={{ color: '#7f8da2', fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{sourceLabel[source]}</div>
+      </div>
+    </div>
+  );
+}
+
 function MetaStat({ label, value, caption }: { label: string; value: string; caption?: string }) {
   return (
     <div style={metaStyle}>
@@ -794,5 +976,7 @@ const reviewMetricStyle = { display: 'grid', gap: 6, padding: '10px 11px', borde
 const anchorMetricStyle = { display: 'grid', gap: 7, padding: '11px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)', alignContent: 'start' } as const;
 const strengthItemStyle = { display: 'grid', gap: 10, padding: '14px 14px', borderRadius: 16, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)', alignContent: 'start' } as const;
 const compactListStyle = { padding: '10px 11px', borderRadius: 12, background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.05)', color: '#dfe7f4', lineHeight: 1.55 } as const;
+const prepSectionStyle = { display: 'grid', gap: 14, padding: '16px 16px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))', border: '1px solid rgba(255,255,255,0.05)', alignContent: 'start' } as const;
+const prepChecklistStyle = { display: 'grid', gridTemplateColumns: '28px minmax(0, 1fr)', gap: 10, alignItems: 'start', padding: '11px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' } as const;
 const reviewCardStyle = { display: 'grid', gap: 12, padding: '16px 16px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))', border: '1px solid rgba(255,255,255,0.05)', alignContent: 'start' } as const;
 const referenceCardStyle = { display: 'grid', gap: 12, padding: '16px 16px', borderRadius: 18, background: 'linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(7, 11, 17, 0.98))', border: '1px solid rgba(255,255,255,0.05)' } as const;
