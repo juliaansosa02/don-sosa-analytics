@@ -1,5 +1,5 @@
 import { buildAggregateSummary } from '@don-sosa/core';
-import { Component, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { Component, Suspense, lazy, useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import {
   addCoachPlayer,
   changePassword,
@@ -37,17 +37,9 @@ import type {
   RoleReferenceProfile
 } from '../types';
 import { Shell, Card, Badge } from '../components/ui';
-import { CoachingHome } from '../features/coach/CoachingHome';
 import type { CoachWorkspaceRosterPlayer } from '../features/coach/CoachPremiumWorkspace';
-import { AccountCenter, type AccountPanelTab } from '../features/account/AccountCenter';
+import type { AccountPanelTab } from '../features/account/AccountCenter';
 import { RankBadge, RankEmblem } from '../features/profile/ProfilePrimitives';
-import { OverviewTab } from '../features/overview/OverviewTab';
-import { StatsTab } from '../features/stats/StatsTab';
-import { MatchupsTab } from '../features/matchups/MatchupsTab';
-import { RunesTab } from '../features/runes/RunesTab';
-import { BuildsTab } from '../features/builds/BuildsTab';
-import { ChampionPoolTab } from '../features/champion-pool/ChampionPoolTab';
-import { MatchesTab } from '../features/matches/MatchesTab';
 import { detectLocale, translateRole, type Locale } from '../lib/i18n';
 import { buildProfileIdentityKey, getProfileIconUrl, getQueueBucket, getQueueLabel, getRiotPlatformInfo, getRoleLabel, guessDefaultRiotPlatform, supportedRiotPlatforms, type RiotPlatform } from '../lib/lol';
 import { buildCs15Benchmark } from '../lib/benchmarks';
@@ -62,6 +54,51 @@ const tabs = [
   { id: 'champions', label: { es: 'Campeones', en: 'Champions' } },
   { id: 'matches', label: { es: 'Partidas', en: 'Matches' } }
 ] as const;
+
+const CoachingHome = lazy(async () => {
+  const module = await import('../features/coach/CoachingHome');
+  return { default: module.CoachingHome };
+});
+
+const AccountCenter = lazy(async () => {
+  const module = await import('../features/account/AccountCenter');
+  return { default: module.AccountCenter };
+});
+
+const OverviewTab = lazy(async () => {
+  const module = await import('../features/overview/OverviewTab');
+  return { default: module.OverviewTab };
+});
+
+const StatsTab = lazy(async () => {
+  const module = await import('../features/stats/StatsTab');
+  return { default: module.StatsTab };
+});
+
+const MatchupsTab = lazy(async () => {
+  const module = await import('../features/matchups/MatchupsTab');
+  return { default: module.MatchupsTab };
+});
+
+const RunesTab = lazy(async () => {
+  const module = await import('../features/runes/RunesTab');
+  return { default: module.RunesTab };
+});
+
+const BuildsTab = lazy(async () => {
+  const module = await import('../features/builds/BuildsTab');
+  return { default: module.BuildsTab };
+});
+
+const ChampionPoolTab = lazy(async () => {
+  const module = await import('../features/champion-pool/ChampionPoolTab');
+  return { default: module.ChampionPoolTab };
+});
+
+const MatchesTab = lazy(async () => {
+  const module = await import('../features/matches/MatchesTab');
+  return { default: module.MatchesTab };
+});
 
 type TabId = typeof tabs[number]['id'];
 interface ProgressState {
@@ -305,7 +342,7 @@ function extractRankTierFromLabel(rankLabel?: string) {
 function AppShell() {
   const [locale] = useState<Locale>(() => detectLocale());
   const [platform, setPlatform] = useState<RiotPlatform>(() => guessDefaultRiotPlatform(detectLocale()));
-  const [activeTab, setActiveTab] = useState<TabId>('coach');
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [roleFilter, setRoleFilter] = useState('ALL');
   const [coachRoles, setCoachRoles] = useState<string[]>([]);
   const [queueFilter, setQueueFilter] = useState<'ALL' | 'RANKED' | 'RANKED_SOLO' | 'RANKED_FLEX' | 'OTHER'>('ALL');
@@ -1571,69 +1608,73 @@ function AppShell() {
           </div>
         </section>
 
-        <AccountCenter
-          open={accountPanelOpen}
-          locale={locale}
-          authUser={authUser}
-          actorUser={actorUser}
-          authMe={authMe}
-          currentPlan={currentPlan}
-          currentPlanPriceLabel={currentPlanPriceLabel}
-          membership={membership}
-          membershipCatalog={membershipCatalog}
-          billingReady={billingReady}
-          canOpenBillingPortal={canOpenBillingPortal}
-          canManageCoachRoster={canManageCoachRoster}
-          isAdmin={isAdmin}
-          accountPanelTab={accountPanelTab}
-          authMode={authMode}
-          authEmail={authEmail}
-          authPassword={authPassword}
-          authDisplayName={authDisplayName}
-          resetToken={resetToken}
-          newPassword={newPassword}
-          resetTokenPreview={resetTokenPreview}
-          resetLinkPreview={resetLinkPreview}
-          authActionLoading={authActionLoading}
-          membershipActionLoading={membershipActionLoading}
-          authError={authError}
-          membershipError={membershipError}
-          adminLoading={adminLoading}
-          safeAdminUsers={safeAdminUsers}
-            coachRosterLoading={coachRosterLoading}
-            safeCoachRoster={safeCoachRoster}
-            coachPlayerEmail={coachPlayerEmail}
-            coachPlayerGameName={coachPlayerGameName}
-            coachPlayerTagLine={coachPlayerTagLine}
-            coachPlayerPlatform={coachPlayerPlatform}
-            coachPlayerNote={coachPlayerNote}
-          onClose={() => setAccountPanelOpen(false)}
-          onTabChange={setAccountPanelTab}
-          onAuthModeChange={setAuthMode}
-          onAuthEmailChange={setAuthEmail}
-          onAuthPasswordChange={setAuthPassword}
-          onAuthDisplayNameChange={setAuthDisplayName}
-            onResetTokenChange={setResetToken}
-            onNewPasswordChange={setNewPassword}
-            onCoachPlayerEmailChange={setCoachPlayerEmail}
-            onCoachPlayerGameNameChange={setCoachPlayerGameName}
-            onCoachPlayerTagLineChange={setCoachPlayerTagLine}
-            onCoachPlayerPlatformChange={(value) => setCoachPlayerPlatform(value as RiotPlatform)}
-            onCoachPlayerNoteChange={setCoachPlayerNote}
-          onAuthSubmit={handleAuthSubmit}
-          onResetPasswordConfirm={handleResetPasswordConfirm}
-          onLogout={handleLogout}
-          onPasswordChange={handlePasswordChange}
-          onBillingPortal={handleBillingPortal}
-          onCheckout={handleCheckout}
-          onDevPlanChange={handleDevPlanChange}
-          onStopImpersonation={handleStopImpersonation}
-          onAddCoachPlayer={handleAddCoachPlayer}
-          onRemoveCoachPlayer={handleRemoveCoachRosterPlayer}
-          onAdminRoleChange={handleAdminRoleUpdate}
-          onAdminPlanChange={handleAdminPlanUpdate}
-          onAdminImpersonation={handleAdminImpersonation}
-        />
+        {accountPanelOpen ? (
+          <Suspense fallback={null}>
+            <AccountCenter
+              open={accountPanelOpen}
+              locale={locale}
+              authUser={authUser}
+              actorUser={actorUser}
+              authMe={authMe}
+              currentPlan={currentPlan}
+              currentPlanPriceLabel={currentPlanPriceLabel}
+              membership={membership}
+              membershipCatalog={membershipCatalog}
+              billingReady={billingReady}
+              canOpenBillingPortal={canOpenBillingPortal}
+              canManageCoachRoster={canManageCoachRoster}
+              isAdmin={isAdmin}
+              accountPanelTab={accountPanelTab}
+              authMode={authMode}
+              authEmail={authEmail}
+              authPassword={authPassword}
+              authDisplayName={authDisplayName}
+              resetToken={resetToken}
+              newPassword={newPassword}
+              resetTokenPreview={resetTokenPreview}
+              resetLinkPreview={resetLinkPreview}
+              authActionLoading={authActionLoading}
+              membershipActionLoading={membershipActionLoading}
+              authError={authError}
+              membershipError={membershipError}
+              adminLoading={adminLoading}
+              safeAdminUsers={safeAdminUsers}
+              coachRosterLoading={coachRosterLoading}
+              safeCoachRoster={safeCoachRoster}
+              coachPlayerEmail={coachPlayerEmail}
+              coachPlayerGameName={coachPlayerGameName}
+              coachPlayerTagLine={coachPlayerTagLine}
+              coachPlayerPlatform={coachPlayerPlatform}
+              coachPlayerNote={coachPlayerNote}
+              onClose={() => setAccountPanelOpen(false)}
+              onTabChange={setAccountPanelTab}
+              onAuthModeChange={setAuthMode}
+              onAuthEmailChange={setAuthEmail}
+              onAuthPasswordChange={setAuthPassword}
+              onAuthDisplayNameChange={setAuthDisplayName}
+              onResetTokenChange={setResetToken}
+              onNewPasswordChange={setNewPassword}
+              onCoachPlayerEmailChange={setCoachPlayerEmail}
+              onCoachPlayerGameNameChange={setCoachPlayerGameName}
+              onCoachPlayerTagLineChange={setCoachPlayerTagLine}
+              onCoachPlayerPlatformChange={(value) => setCoachPlayerPlatform(value as RiotPlatform)}
+              onCoachPlayerNoteChange={setCoachPlayerNote}
+              onAuthSubmit={handleAuthSubmit}
+              onResetPasswordConfirm={handleResetPasswordConfirm}
+              onLogout={handleLogout}
+              onPasswordChange={handlePasswordChange}
+              onBillingPortal={handleBillingPortal}
+              onCheckout={handleCheckout}
+              onDevPlanChange={handleDevPlanChange}
+              onStopImpersonation={handleStopImpersonation}
+              onAddCoachPlayer={handleAddCoachPlayer}
+              onRemoveCoachPlayer={handleRemoveCoachRosterPlayer}
+              onAdminRoleChange={handleAdminRoleUpdate}
+              onAdminPlanChange={handleAdminPlanUpdate}
+              onAdminImpersonation={handleAdminImpersonation}
+            />
+          </Suspense>
+        ) : null}
 
 
         <section style={heroGridStyle}>
@@ -2201,7 +2242,26 @@ function AppShell() {
         {error ? <Card title={locale === 'en' ? 'Error' : 'Error'}>{error}</Card> : null}
 
         {viewDataset ? (
-          renderedTab
+          <Suspense
+            fallback={
+              <Card
+                title={locale === 'en' ? 'Loading workspace' : 'Cargando espacio'}
+                subtitle={locale === 'en'
+                  ? 'Preparing the selected view without blocking the rest of the dashboard.'
+                  : 'Preparando la vista elegida sin bloquear el resto del dashboard.'}
+              >
+                <div style={{ display: 'grid', gap: 10, color: '#90a0b4', lineHeight: 1.6 }}>
+                  <div>
+                    {locale === 'en'
+                      ? 'The app is loading that module on demand so one heavy section does not break the whole product.'
+                      : 'La app está cargando ese módulo bajo demanda para que una sección pesada no rompa todo el producto.'}
+                  </div>
+                </div>
+              </Card>
+            }
+          >
+            {renderedTab}
+          </Suspense>
         ) : (
           <Card title={locale === 'en' ? 'Waiting for analysis' : 'Esperando análisis'} subtitle={locale === 'en' ? 'The goal is for the product to feel more like a premium personal account than a technical dashboard' : 'La idea es que el producto se sienta más cuenta personal premium que panel técnico'}>
             <div style={{ display: 'grid', gap: 12, color: '#c7d4ea', lineHeight: 1.7 }}>
