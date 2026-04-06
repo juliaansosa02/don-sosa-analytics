@@ -21,8 +21,8 @@ import {
 } from './coachIntelligenceSchemas.js';
 
 const intelligenceDir = fileURLToPath(new URL('../../data/coach-kb/intelligence', import.meta.url));
-const INTELLIGENCE_VERSION = '2026-04-coach-intelligence-v1';
-const RUNTIME_SIGNALS = new Set(['match_summary', 'timeline_gold_xp', 'objective_windows', 'rank_context']);
+const INTELLIGENCE_VERSION = '2026-04-coach-intelligence-v2';
+const RUNTIME_SIGNALS = new Set(['match_summary', 'timeline_gold_xp', 'objective_windows', 'items_runes', 'rank_context']);
 
 type LoadedIntelligenceConfig = {
   taxonomy: ProblemTaxonomyEntry[];
@@ -77,6 +77,12 @@ function getMetricLabel(metric: string, locale: 'es' | 'en') {
     gold_diff_at_15: { es: 'diff. de oro al 15', en: 'gold diff at 15' },
     kill_participation: { es: 'participacion en kills', en: 'kill participation' },
     objective_fight_deaths: { es: 'muertes en peleas de objetivo', en: 'objective fight deaths' },
+    lane_volatility: { es: 'volatilidad de linea', en: 'lane volatility' },
+    reset_timing: { es: 'timing de reset', en: 'reset timing' },
+    objective_setup_quality: { es: 'calidad de setup de objetivo', en: 'objective setup quality' },
+    champion_identity_execution: { es: 'ejecucion de identidad de campeon', en: 'champion identity execution' },
+    itemization_read: { es: 'lectura de itemizacion', en: 'itemization read' },
+    rune_setup_read: { es: 'lectura de runas', en: 'rune setup read' },
     lead_conversion: { es: 'conversion de ventaja', en: 'lead conversion' },
     champion_pool_stability: { es: 'estabilidad de champion pool', en: 'champion pool stability' },
     matchup_review: { es: 'review de matchup', en: 'matchup review' },
@@ -199,6 +205,30 @@ function getMetricSignalValue(metric: string, context: CoachContextWithKnowledge
         higherIsBetter: true,
         target: context.knowledge.roleIdentity.killParticipationTarget
       };
+    case 'lane_volatility':
+      return {
+        baseline: trend.baselineLaneVolatility,
+        recent: trend.recentLaneVolatility,
+        delta: trend.laneVolatilityDelta,
+        higherIsBetter: false,
+        target: 1.05
+      };
+    case 'reset_timing':
+      return {
+        baseline: trend.baselineResetTiming,
+        recent: trend.recentResetTiming,
+        delta: trend.resetTimingDelta,
+        higherIsBetter: false,
+        target: 0.8
+      };
+    case 'objective_setup_quality':
+      return {
+        baseline: trend.baselineObjectiveSetup,
+        recent: trend.recentObjectiveSetup,
+        delta: trend.objectiveSetupDelta,
+        higherIsBetter: false,
+        target: 0.7
+      };
     case 'lead_conversion':
       return {
         baseline: trend.baselineWinRate,
@@ -228,6 +258,13 @@ function classifyMetricSignal(params: {
   const baselineMatches = context.coaching.trend.baselineMatches;
   const recentMatches = context.coaching.trend.recentMatches;
   const smallSample = baselineMatches < 4 || recentMatches < 3 || context.player.visibleMatches < 8;
+  const measurementType: CoachSignalStabilityEntry['measurementType'] = metric === 'lane_volatility'
+    || metric === 'reset_timing'
+    || metric === 'objective_setup_quality'
+    ? 'derived'
+    : metric === 'lead_conversion'
+      ? 'proxy'
+      : 'measured';
 
   let state: IntelligenceSignalState = 'stable_signal';
 
@@ -235,6 +272,12 @@ function classifyMetricSignal(params: {
     ? 220
     : metric === 'kill_participation'
       ? 6
+      : metric === 'lane_volatility'
+        ? 0.32
+        : metric === 'reset_timing'
+          ? 0.28
+          : metric === 'objective_setup_quality'
+            ? 0.28
       : metric === 'lead_conversion'
         ? 7
         : 0.55;
@@ -243,6 +286,12 @@ function classifyMetricSignal(params: {
     ? 420
     : metric === 'kill_participation'
       ? 10
+      : metric === 'lane_volatility'
+        ? 0.55
+        : metric === 'reset_timing'
+          ? 0.48
+          : metric === 'objective_setup_quality'
+            ? 0.52
       : metric === 'lead_conversion'
         ? 11
         : 0.95;
@@ -300,14 +349,30 @@ function classifyMetricSignal(params: {
     }
   };
 
+  const measurementNote = measurementType === 'measured'
+    ? localize(locale, {
+      es: 'Es una lectura medida directamente desde el sample.',
+      en: 'This read is measured directly from the sample.'
+    })
+    : measurementType === 'derived'
+      ? localize(locale, {
+        es: 'Es una lectura derivada a partir de varios proxies internos, no una telemetria pura de VOD.',
+        en: 'This read is derived from multiple internal proxies, not from pure VOD-grade telemetry.'
+      })
+      : localize(locale, {
+        es: 'Es una lectura por proxy y conviene validarla contra replay antes de tratarla como verdad fuerte.',
+        en: 'This is a proxy read and should be replay-validated before treating it as a strong truth.'
+      });
+
   return {
     metric,
     label: getMetricLabel(metric, locale),
+    measurementType,
     state,
     baselineValue,
     recentValue,
     delta,
-    summary: localize(locale, summaryMap[state])
+    summary: `${localize(locale, summaryMap[state])} ${measurementNote}`
   };
 }
 
@@ -353,11 +418,18 @@ function getFocusBoost(entry: ProblemTaxonomyEntry, context: CoachContextWithKno
     score += 0.08;
   }
 
-  if (entry.id === 'objective_setup' && context.performance.avgObjectiveFightDeaths > 0.4) {
+  if (entry.id === 'objective_setup' && (context.performance.avgObjectiveSetupScore > 0.55 || context.performance.avgObjectiveFightDeaths > 0.4)) {
     score += 0.08;
   }
 
-  if (entry.id === 'resource_discipline' && context.performance.avgDeathsPre14 > context.knowledge.roleIdentity.stableDeathsPre14) {
+  if (
+    entry.id === 'resource_discipline' &&
+    (
+      context.performance.avgDeathsPre14 > context.knowledge.roleIdentity.stableDeathsPre14 ||
+      context.performance.avgLaneVolatilityScore > 1.2 ||
+      context.performance.avgResetTimingScore > 0.8
+    )
+  ) {
     score += 0.08;
   }
 
@@ -596,18 +668,18 @@ function buildReferenceFrames(context: CoachContextWithKnowledge, registry: Refe
 function buildMetaReadiness(context: CoachContextWithKnowledge): CoachIntelligenceSummary['metaReadiness'] {
   const locale = context.player.locale;
   const availableSignals = Array.from(RUNTIME_SIGNALS.values());
-  const missingSignals = ['items_runes', 'spell_casts', 'ability_usage', 'position_frames', 'ward_events'];
+  const missingSignals = ['spell_casts', 'ability_usage', 'position_frames', 'ward_events'];
   const futureSources = locale === 'en'
     ? [
       'Riot patch notes normalized by patch and role',
       'Champion tier/build/rune feeds by patch and lane',
-      'Item and rune telemetry from match payload',
+      'Deeper item and rune branch validation against patch-aware references',
       'Spell cast, position frame and ward event telemetry for VOD-grade reads'
     ]
     : [
       'Patch notes de Riot normalizadas por parche y rol',
       'Feeds de tier/build/runas por parche y línea',
-      'Telemetría de items y runas desde el payload de match',
+      'Validacion mas profunda de ramas de items y runas contra referencias sensibles a parche',
       'Telemetría de spell cast, position frames y ward events para lecturas de nivel VOD'
     ];
 

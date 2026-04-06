@@ -1,0 +1,60 @@
+{
+  "championName": "Lee Sin",
+  "roles": ["JUNGLE"],
+  "archetypes": ["skirmisher", "tempo", "playmaker", "dive"],
+  "economyProfile": "standard",
+  "mapProfiles": ["early_tempo", "skirmish_access", "objective_setup"],
+  "evaluationWeights": {
+    "gold_diff_at_15": 0.14,
+    "kill_participation": 0.14,
+    "lane_volatility": 0.1,
+    "reset_timing": 0.16,
+    "objective_setup_quality": 0.22,
+    "champion_identity_execution": 0.24,
+    "lead_conversion": 0.16
+  },
+  "performanceAxes": [
+    { "en": "Convert first tempo into repeatable map pressure", "es": "Convertir el primer tempo en presión de mapa repetible" },
+    { "en": "Arrive to objective windows with route and resource integrity intact", "es": "Llegar a ventanas de objetivo con integridad de ruta y recursos intacta" }
+  ],
+  "misreadWarnings": [
+    {
+      "focusMetric": "cs_at_15",
+      "message": {
+        "en": "Lee Sin should not be judged like a pure full-clear champion if the map pressure is actually creating returns.",
+        "es": "A Lee Sin no conviene juzgarlo como un campeón de full clear puro si la presión de mapa realmente está devolviendo valor."
+      }
+    }
+  ],
+  "priorityNotes": [
+    {
+      "bracket": "all",
+      "message": {
+        "en": "The question on Lee Sin is not only activity. It is whether route breaks produced enough setup, cover or conversion.",
+        "es": "La pregunta en Lee Sin no es solo actividad. Es si los desvíos de ruta produjeron suficiente setup, cover o conversión."
+      }
+    }
+  ],
+  "heuristics": [
+    {
+      "id": "leesin-tempo-conversion",
+      "title": { "en": "Tempo into conversion", "es": "Tempo hacia conversión" },
+      "status": "active",
+      "requiredSignals": ["match_summary", "timeline_gold_xp", "objective_windows"],
+      "note": {
+        "en": "The system can already check whether Lee Sin's early state is turning into map control instead of only noisy action.",
+        "es": "El sistema ya puede chequear si el estado temprano de Lee Sin se convierte en control de mapa y no solo en acción ruidosa."
+      }
+    },
+    {
+      "id": "leesin-mechanics-window",
+      "title": { "en": "Mechanical punish window", "es": "Ventana de castigo mecánica" },
+      "status": "blocked_by_missing_data",
+      "requiredSignals": ["ability_usage", "position_frames"],
+      "note": {
+        "en": "To separate route errors from missed mechanics on Lee Sin, the system still needs spell and position telemetry.",
+        "es": "Para separar errores de ruta de mecánicas falladas en Lee Sin, el sistema todavía necesita telemetría de hechizos y posición."
+      }
+    }
+  ]
+}

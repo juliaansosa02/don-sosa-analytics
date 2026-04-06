@@ -1,0 +1,60 @@
+{
+  "championName": "Thresh",
+  "roles": ["UTILITY"],
+  "archetypes": ["engage", "protect_carry", "pick", "utility_frontline"],
+  "economyProfile": "low_econ",
+  "mapProfiles": ["vision_line", "pick_setup", "carry_protection"],
+  "evaluationWeights": {
+    "kill_participation": 0.14,
+    "deaths_pre_14": 0.18,
+    "reset_timing": 0.1,
+    "objective_setup_quality": 0.24,
+    "champion_identity_execution": 0.24,
+    "itemization_read": 0.06,
+    "rune_setup_read": 0.04
+  },
+  "performanceAxes": [
+    { "en": "Arrive first with vision line or lantern value still available", "es": "Llegar primero con línea de visión o valor de linterna todavía disponible" },
+    { "en": "Choose whether the fight needs pick, peel or front access before throwing the first hook", "es": "Elegir si la pelea necesita pick, peel o acceso frontal antes de tirar el primer hook" }
+  ],
+  "misreadWarnings": [
+    {
+      "focusMetric": "cs_at_15",
+      "message": {
+        "en": "Thresh should never be judged by ADC-style income metrics.",
+        "es": "Thresh nunca debería evaluarse con métricas de ingresos estilo ADC."
+      }
+    }
+  ],
+  "priorityNotes": [
+    {
+      "bracket": "all",
+      "message": {
+        "en": "Thresh coaching should start from setup quality and role choice in the fight, not from raw hook highlight rate.",
+        "es": "El coaching de Thresh debería arrancar desde calidad de setup y elección de rol en la pelea, no desde tasa de highlight con hook."
+      }
+    }
+  ],
+  "heuristics": [
+    {
+      "id": "thresh-setup-line",
+      "title": { "en": "Setup line emphasis", "es": "Énfasis en línea de setup" },
+      "status": "active",
+      "requiredSignals": ["match_summary", "objective_windows"],
+      "note": {
+        "en": "The system can already judge whether Thresh is reaching objective windows with enough setup quality to matter.",
+        "es": "El sistema ya puede juzgar si Thresh está llegando a ventanas de objetivo con suficiente calidad de setup como para importar."
+      }
+    },
+    {
+      "id": "thresh-hook-role-choice",
+      "title": { "en": "Hook role choice", "es": "Elección de rol con hook" },
+      "status": "blocked_by_missing_data",
+      "requiredSignals": ["position_frames", "ability_usage"],
+      "note": {
+        "en": "To tell whether the hook should have started, peeled or threatened space, the system still needs frame-level telemetry.",
+        "es": "Para distinguir si el hook debía iniciar, peel o amenazar espacio, el sistema todavía necesita telemetría frame a frame."
+      }
+    }
+  ]
+}

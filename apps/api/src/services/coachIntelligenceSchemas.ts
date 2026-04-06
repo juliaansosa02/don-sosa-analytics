@@ -84,6 +84,7 @@ export interface CoachProblemMapping {
 export interface CoachSignalStabilityEntry {
   metric: string;
   label: string;
+  measurementType: 'measured' | 'derived' | 'proxy';
   state: IntelligenceSignalState;
   baselineValue: number | null;
   recentValue: number | null;

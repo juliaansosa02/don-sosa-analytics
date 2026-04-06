@@ -14,12 +14,81 @@ import type { collectPlayerSnapshot } from './collectionService.js';
 import { assertCoachEntitlement, limitDatasetToMembership, type MembershipContext } from './membershipService.js';
 
 type StoredDataset = Awaited<ReturnType<typeof collectPlayerSnapshot>>;
-const AI_COACH_LOGIC_VERSION = '2026-04-intelligence-layer-v1';
+const AI_COACH_LOGIC_VERSION = '2026-04-intelligence-layer-v2';
 
 const openai = env.OPENAI_API_KEY ? new OpenAI({ apiKey: env.OPENAI_API_KEY }) : null;
 
 function roundUsd(value: number) {
   return Number(value.toFixed(4));
+}
+
+function averageNullable(values: Array<number | null | undefined>, digits = 1) {
+  const valid = values.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+  if (!valid.length) return null;
+  const average = valid.reduce((total, value) => total + value, 0) / valid.length;
+  return Number(average.toFixed(digits));
+}
+
+function buildAnchorLoadoutSummary(matches: StoredDataset['matches'], anchorChampion: string | null) {
+  if (!anchorChampion) {
+    return {
+      anchorChampion: null,
+      sampleGames: 0,
+      primaryKeystone: null,
+      firstCompletedItem: null,
+      runeStability: null,
+      buildStability: null
+    };
+  }
+
+  const anchorMatches = matches.filter((match) => match.championName === anchorChampion);
+  if (!anchorMatches.length) {
+    return {
+      anchorChampion,
+      sampleGames: 0,
+      primaryKeystone: null,
+      firstCompletedItem: null,
+      runeStability: null,
+      buildStability: null
+    };
+  }
+
+  const keystoneCounts = new Map<number, number>();
+  const firstItemCounts = new Map<number, number>();
+
+  for (const match of anchorMatches) {
+    const keystone = match.primaryRunes[0]?.perk;
+    if (keystone) {
+      keystoneCounts.set(keystone, (keystoneCounts.get(keystone) ?? 0) + 1);
+    }
+
+    const firstItemId = match.items?.milestones.firstCompletedItemId;
+    if (firstItemId) {
+      firstItemCounts.set(firstItemId, (firstItemCounts.get(firstItemId) ?? 0) + 1);
+    }
+  }
+
+  const topKeystone = Array.from(keystoneCounts.entries()).sort((left, right) => right[1] - left[1])[0] ?? null;
+  const topFirstItem = Array.from(firstItemCounts.entries()).sort((left, right) => right[1] - left[1])[0] ?? null;
+
+  return {
+    anchorChampion,
+    sampleGames: anchorMatches.length,
+    primaryKeystone: topKeystone
+      ? {
+          perk: topKeystone[0],
+          share: Number((topKeystone[1] / anchorMatches.length).toFixed(2))
+        }
+      : null,
+    firstCompletedItem: topFirstItem
+      ? {
+          itemId: topFirstItem[0],
+          share: Number((topFirstItem[1] / anchorMatches.length).toFixed(2))
+        }
+      : null,
+    runeStability: topKeystone ? Number((topKeystone[1] / anchorMatches.length).toFixed(2)) : null,
+    buildStability: topFirstItem ? Number((topFirstItem[1] / anchorMatches.length).toFixed(2)) : null
+  };
 }
 
 function getModelPricingPer1M(model: string) {
@@ -447,6 +516,34 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
   const avgObjectiveFightDeaths = matches.length
     ? Number((matches.reduce((total, match) => total + (match.timeline.objectiveFightDeaths ?? 0), 0) / matches.length).toFixed(1))
     : 0;
+  const avgFirstDeathMinute = averageNullable(matches.map((match) => match.timeline.firstDeathMinute), 1);
+  const avgDeathsAfterFirstDeathPre14 = matches.length
+    ? Number((matches.reduce((total, match) => total + (match.timeline.deathsAfterFirstDeathPre14 ?? 0), 0) / matches.length).toFixed(2))
+    : 0;
+  const avgDeathClusterCountPre14 = matches.length
+    ? Number((matches.reduce((total, match) => total + (match.timeline.deathClusterCountPre14 ?? 0), 0) / matches.length).toFixed(2))
+    : 0;
+  const avgLaneVolatilityScore = matches.length
+    ? Number((matches.reduce((total, match) => total + (match.timeline.laneVolatilityScore ?? 0), 0) / matches.length).toFixed(2))
+    : 0;
+  const avgFirstBaseMinute = averageNullable(matches.map((match) => match.timeline.firstBaseMinute), 1);
+  const avgBasesPre14 = matches.length
+    ? Number((matches.reduce((total, match) => total + (match.timeline.basesPre14 ?? 0), 0) / matches.length).toFixed(2))
+    : 0;
+  const avgFirstCompletedItemMinute = averageNullable(matches.map((match) => match.items?.milestones.firstCompletedItemMinute), 1);
+  const avgResetTimingScore = matches.length
+    ? Number((matches.reduce((total, match) => total + (match.timeline.resetTimingScore ?? 0), 0) / matches.length).toFixed(2))
+    : 0;
+  const avgObjectiveSetupDeaths = matches.length
+    ? Number((matches.reduce((total, match) => total + (match.timeline.objectiveSetupDeaths ?? 0), 0) / matches.length).toFixed(2))
+    : 0;
+  const avgObjectiveSetupTakedowns = matches.length
+    ? Number((matches.reduce((total, match) => total + (match.timeline.objectiveSetupTakedowns ?? 0), 0) / matches.length).toFixed(2))
+    : 0;
+  const avgObjectiveSetupScore = matches.length
+    ? Number((matches.reduce((total, match) => total + (match.timeline.objectiveSetupScore ?? 0), 0) / matches.length).toFixed(2))
+    : 0;
+  const loadout = buildAnchorLoadoutSummary(matches, anchorChampion);
   const visibleMatchIds = matches.map((match) => match.matchId).slice(0, 20);
   const sampleSignature = createHash('sha1')
     .update(JSON.stringify({
@@ -491,6 +588,17 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       avgDeathsPre14: summary.avgDeathsPre14,
       avgLaneDeathsPre10,
       avgObjectiveFightDeaths,
+      avgFirstDeathMinute,
+      avgDeathsAfterFirstDeathPre14,
+      avgDeathClusterCountPre14,
+      avgLaneVolatilityScore,
+      avgFirstBaseMinute,
+      avgBasesPre14,
+      avgFirstCompletedItemMinute,
+      avgResetTimingScore,
+      avgObjectiveSetupDeaths,
+      avgObjectiveSetupTakedowns,
+      avgObjectiveSetupScore,
       consistencyIndex: summary.consistencyIndex
     },
     coaching: {
@@ -537,6 +645,7 @@ async function buildCoachContext(dataset: StoredDataset, input: AICoachRequest):
       activePlan: summary.coaching.activePlan,
       trend: summary.coaching.trend
     },
+    loadout,
     positiveSignals: summary.positiveSignals.map((signal) => ({
       id: signal.id,
       problem: signal.problem,

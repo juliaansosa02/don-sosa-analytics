@@ -128,6 +128,17 @@ export interface ParticipantSnapshot {
     laneDeathsPre10: number;
     deathsPre14: number;
     firstMoveMinute?: number | null;
+    firstDeathMinute?: number | null;
+    deathsAfterFirstDeathPre14: number;
+    deathClusterCountPre14: number;
+    takedownsPre14: number;
+    firstBaseMinute?: number | null;
+    basesPre14: number;
+    objectiveSetupDeaths: number;
+    objectiveSetupTakedowns: number;
+    laneVolatilityScore: number;
+    resetTimingScore: number;
+    objectiveSetupScore: number;
     objectiveFightDeaths: number;
   };
   score: {
@@ -209,6 +220,15 @@ export interface PerformanceTrend {
   baselineDeathsPre14: number;
   recentDeathsPre14: number;
   deathsPre14Delta: number;
+  baselineLaneVolatility: number;
+  recentLaneVolatility: number;
+  laneVolatilityDelta: number;
+  baselineResetTiming: number;
+  recentResetTiming: number;
+  resetTimingDelta: number;
+  baselineObjectiveSetup: number;
+  recentObjectiveSetup: number;
+  objectiveSetupDelta: number;
 }
 
 export interface ProblematicMatchupSummary {
@@ -2313,6 +2333,15 @@ export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: C
   const baselineDeathsPre14 = round(avg(baselineWindow.map((match) => match.timeline.deathsPre14)));
   const recentDeathsPre14 = round(avg(recentWindow.map((match) => match.timeline.deathsPre14)));
   const deathsPre14Delta = round(recentDeathsPre14 - baselineDeathsPre14, 1);
+  const baselineLaneVolatility = round(avg(baselineWindow.map((match) => match.timeline.laneVolatilityScore ?? 0)), 2);
+  const recentLaneVolatility = round(avg(recentWindow.map((match) => match.timeline.laneVolatilityScore ?? 0)), 2);
+  const laneVolatilityDelta = round(recentLaneVolatility - baselineLaneVolatility, 2);
+  const baselineResetTiming = round(avg(baselineWindow.map((match) => match.timeline.resetTimingScore ?? 0)), 2);
+  const recentResetTiming = round(avg(recentWindow.map((match) => match.timeline.resetTimingScore ?? 0)), 2);
+  const resetTimingDelta = round(recentResetTiming - baselineResetTiming, 2);
+  const baselineObjectiveSetup = round(avg(baselineWindow.map((match) => match.timeline.objectiveSetupScore ?? 0)), 2);
+  const recentObjectiveSetup = round(avg(recentWindow.map((match) => match.timeline.objectiveSetupScore ?? 0)), 2);
+  const objectiveSetupDelta = round(recentObjectiveSetup - baselineObjectiveSetup, 2);
 
   let activePlan: ImprovementCycle | null = null;
   if (measurableProblem) {
@@ -2453,7 +2482,16 @@ export function buildCoachingSummary(matches: ParticipantSnapshot[], insights: C
       killParticipationDelta,
       baselineDeathsPre14,
       recentDeathsPre14,
-      deathsPre14Delta
+      deathsPre14Delta,
+      baselineLaneVolatility,
+      recentLaneVolatility,
+      laneVolatilityDelta,
+      baselineResetTiming,
+      recentResetTiming,
+      resetTimingDelta,
+      baselineObjectiveSetup,
+      recentObjectiveSetup,
+      objectiveSetupDelta
     }
   };
 }

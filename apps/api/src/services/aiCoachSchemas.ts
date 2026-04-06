@@ -122,6 +122,17 @@ export interface AICoachContext {
     avgDeathsPre14: number;
     avgLaneDeathsPre10: number;
     avgObjectiveFightDeaths: number;
+    avgFirstDeathMinute: number | null;
+    avgDeathsAfterFirstDeathPre14: number;
+    avgDeathClusterCountPre14: number;
+    avgLaneVolatilityScore: number;
+    avgFirstBaseMinute: number | null;
+    avgBasesPre14: number;
+    avgFirstCompletedItemMinute: number | null;
+    avgResetTimingScore: number;
+    avgObjectiveSetupDeaths: number;
+    avgObjectiveSetupTakedowns: number;
+    avgObjectiveSetupScore: number;
     consistencyIndex: number;
   };
   coaching: {
@@ -205,7 +216,30 @@ export interface AICoachContext {
       baselineDeathsPre14: number;
       recentDeathsPre14: number;
       deathsPre14Delta: number;
+      baselineLaneVolatility: number;
+      recentLaneVolatility: number;
+      laneVolatilityDelta: number;
+      baselineResetTiming: number;
+      recentResetTiming: number;
+      resetTimingDelta: number;
+      baselineObjectiveSetup: number;
+      recentObjectiveSetup: number;
+      objectiveSetupDelta: number;
     };
+  };
+  loadout: {
+    anchorChampion: string | null;
+    sampleGames: number;
+    primaryKeystone: {
+      perk: number | null;
+      share: number;
+    } | null;
+    firstCompletedItem: {
+      itemId: number | null;
+      share: number;
+    } | null;
+    runeStability: number | null;
+    buildStability: number | null;
   };
   positiveSignals: Array<{
     id: string;

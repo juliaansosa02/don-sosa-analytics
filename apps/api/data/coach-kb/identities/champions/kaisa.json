@@ -1,0 +1,60 @@
+{
+  "championName": "Kai'Sa",
+  "roles": ["BOTTOM"],
+  "archetypes": ["marksman", "dive_followup", "hybrid_carry", "item_spike"],
+  "economyProfile": "high_econ",
+  "mapProfiles": ["item_spike", "followup_dive", "objective_dps"],
+  "evaluationWeights": {
+    "cs_at_15": 0.2,
+    "deaths_pre_14": 0.22,
+    "reset_timing": 0.22,
+    "lane_volatility": 0.14,
+    "champion_identity_execution": 0.24,
+    "itemization_read": 0.12,
+    "rune_setup_read": 0.08
+  },
+  "performanceAxes": [
+    { "en": "Reach item spikes on time without donating lane tempo", "es": "Llegar a spikes de items a tiempo sin regalar tempo de línea" },
+    { "en": "Enter fights when follow-up access is real, not just because the ultimate exists", "es": "Entrar a peleas cuando el follow-up realmente existe, no solo porque la ultimate está disponible" }
+  ],
+  "misreadWarnings": [
+    {
+      "focusMetric": "kill_participation",
+      "message": {
+        "en": "Kai'Sa can look inactive before the fight if the real issue is that she reached the window with no stable item curve.",
+        "es": "Kai'Sa puede parecer poco activa antes de la pelea si el problema real es que llegó a la ventana sin curva de items estable."
+      }
+    }
+  ],
+  "priorityNotes": [
+    {
+      "bracket": "all",
+      "message": {
+        "en": "Judge Kai'Sa first by curve, reset and fight entry quality before overfocusing on highlight mechanics.",
+        "es": "Juzgá a Kai'Sa primero por curva, reset y calidad de entrada a pelea antes de sobrefocalizarte en mecánicas de highlight."
+      }
+    }
+  ],
+  "heuristics": [
+    {
+      "id": "kaisa-spike-curve",
+      "title": { "en": "Spike curve emphasis", "es": "Énfasis en curva de spike" },
+      "status": "active",
+      "requiredSignals": ["match_summary", "timeline_gold_xp", "items_runes"],
+      "note": {
+        "en": "The system can already treat reset timing, first item pace and early economy as high-value reads on Kai'Sa.",
+        "es": "El sistema ya puede tratar timing de reset, ritmo del primer item y economía temprana como lecturas de alto valor en Kai'Sa."
+      }
+    },
+    {
+      "id": "kaisa-entry-discipline",
+      "title": { "en": "Fight entry discipline", "es": "Disciplina de entrada a pelea" },
+      "status": "blocked_by_missing_data",
+      "requiredSignals": ["position_frames", "ability_usage"],
+      "note": {
+        "en": "To judge whether Kai'Sa ults were actually playable, the system still needs position and spell telemetry.",
+        "es": "Para juzgar si las ultis de Kai'Sa eran realmente jugables, el sistema todavía necesita telemetría de posición y hechizos."
+      }
+    }
+  ]
+}

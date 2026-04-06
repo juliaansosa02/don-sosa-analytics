@@ -1,0 +1,60 @@
+{
+  "championName": "Ahri",
+  "roles": ["MIDDLE"],
+  "archetypes": ["mage", "roamer", "pick", "tempo"],
+  "economyProfile": "standard",
+  "mapProfiles": ["mid_priority", "pick_window", "side_connection"],
+  "evaluationWeights": {
+    "gold_diff_at_15": 0.18,
+    "kill_participation": 0.16,
+    "lane_volatility": 0.14,
+    "reset_timing": 0.14,
+    "objective_setup_quality": 0.12,
+    "champion_identity_execution": 0.24,
+    "lead_conversion": 0.12
+  },
+  "performanceAxes": [
+    { "en": "Create first move without donating mid control", "es": "Crear primer move sin regalar el control de medio" },
+    { "en": "Turn picks and charm windows into clean map state", "es": "Convertir picks y ventanas de charm en estado de mapa limpio" }
+  ],
+  "misreadWarnings": [
+    {
+      "focusMetric": "kill_participation",
+      "message": {
+        "en": "Ahri should not be judged only by raw KP if the real issue is whether her move actually converted into pressure.",
+        "es": "A Ahri no conviene juzgarla solo por KP bruto si el problema real es si su move se convirtió en presión."
+      }
+    }
+  ],
+  "priorityNotes": [
+    {
+      "bracket": "all",
+      "message": {
+        "en": "Ahri wins by preserving mid priority and arriving first to the live side, not by coinflipping every roam.",
+        "es": "Ahri gana preservando prioridad de medio y llegando primero al lado vivo, no coinflipeando cada roam."
+      }
+    }
+  ],
+  "heuristics": [
+    {
+      "id": "ahri-mid-priority",
+      "title": { "en": "Mid priority into move quality", "es": "Prioridad de medio hacia calidad de move" },
+      "status": "active",
+      "requiredSignals": ["match_summary", "timeline_gold_xp"],
+      "note": {
+        "en": "The system can already evaluate whether Ahri is entering mid game with enough state to move first.",
+        "es": "El sistema ya puede evaluar si Ahri entra al mid game con suficiente estado como para moverse primero."
+      }
+    },
+    {
+      "id": "ahri-pick-conversion",
+      "title": { "en": "Charm window conversion", "es": "Conversión de ventana de charm" },
+      "status": "blocked_by_missing_data",
+      "requiredSignals": ["ability_usage", "position_frames"],
+      "note": {
+        "en": "To judge charm discipline and target access directly, the system still needs ability and position telemetry.",
+        "es": "Para juzgar directamente la disciplina de charm y el acceso a objetivo, el sistema todavía necesita telemetría de habilidades y posición."
+      }
+    }
+  ]
+}

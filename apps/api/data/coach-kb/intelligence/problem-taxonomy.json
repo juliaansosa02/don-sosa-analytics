@@ -53,7 +53,7 @@
       "es": "La muestra pierde valor porque resets, rutas o rotaciones se rompen demasiado seguido antes de la siguiente buena jugada."
     },
     "priorityBand": "foundational",
-    "focusMetrics": ["deaths_pre_14", "cs_at_15", "gold_diff_at_15", "kill_participation"],
+    "focusMetrics": ["deaths_pre_14", "cs_at_15", "gold_diff_at_15", "kill_participation", "reset_timing"],
     "roleBias": ["JUNGLE", "TOP", "MIDDLE", "BOTTOM"],
     "championArchetypes": ["side_pressure", "tempo", "roamer"],
     "skillBrackets": ["all"],
@@ -76,7 +76,7 @@
       "es": "El jugador probablemente llega tarde al siguiente estado porque los recalls se atrasan o se hacen mal."
     },
     "priorityBand": "foundational",
-    "focusMetrics": ["cs_at_15", "gold_diff_at_15", "deaths_pre_14"],
+    "focusMetrics": ["cs_at_15", "gold_diff_at_15", "deaths_pre_14", "reset_timing"],
     "roleBias": ["TOP", "MIDDLE", "BOTTOM", "UTILITY"],
     "championArchetypes": ["marksman", "mage", "side_pressure"],
     "skillBrackets": ["all"],
@@ -99,7 +99,7 @@
       "es": "La muestra probablemente pierde ventanas de alto valor antes de la pelea porque el minuto de setup es débil."
     },
     "priorityBand": "structural",
-    "focusMetrics": ["objective_fight_deaths", "lead_conversion", "kill_participation"],
+    "focusMetrics": ["objective_fight_deaths", "objective_setup_quality", "lead_conversion", "kill_participation"],
     "roleBias": ["JUNGLE", "UTILITY", "MIDDLE", "TOP", "BOTTOM"],
     "championArchetypes": ["global", "utility_frontline", "engage", "roamer"],
     "skillBrackets": ["all"],
@@ -145,7 +145,7 @@
       "es": "El jugador puede estar usando el campeón como un pick genérico en vez de alrededor de su patrón real de valor."
     },
     "priorityBand": "structural",
-    "focusMetrics": ["cs_at_15", "kill_participation", "lead_conversion", "matchup_review", "primary_pick"],
+    "focusMetrics": ["cs_at_15", "kill_participation", "lead_conversion", "champion_identity_execution", "matchup_review", "primary_pick"],
     "roleBias": ["ALL", "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"],
     "championArchetypes": ["global", "low_econ", "side_pressure", "protect_carry", "roamer"],
     "skillBrackets": ["all"],
@@ -168,7 +168,7 @@
       "es": "El jugador probablemente está desconectado del lado vivo del mapa, así que llega tarde o vacío a ventajas y peleas."
     },
     "priorityBand": "structural",
-    "focusMetrics": ["kill_participation", "lead_conversion", "objective_fight_deaths"],
+    "focusMetrics": ["kill_participation", "lead_conversion", "objective_fight_deaths", "objective_setup_quality"],
     "roleBias": ["JUNGLE", "MIDDLE", "UTILITY", "TOP"],
     "championArchetypes": ["roamer", "global", "utility_frontline"],
     "skillBrackets": ["all"],
@@ -237,7 +237,7 @@
       "es": "El jugador puede estar construyendo el perfil de combate incorrecto para el matchup, la compo o el parche."
     },
     "priorityBand": "advanced",
-    "focusMetrics": ["gold_diff_at_15", "lead_conversion", "primary_pick"],
+    "focusMetrics": ["gold_diff_at_15", "lead_conversion", "itemization_read", "primary_pick"],
     "roleBias": ["ALL", "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"],
     "championArchetypes": [],
     "skillBrackets": ["mid_elo", "high_elo", "apex"],
@@ -260,7 +260,7 @@
       "es": "La fuga puede empezar antes de la partida por runas que no encajan con línea, matchup o tarea del rol."
     },
     "priorityBand": "advanced",
-    "focusMetrics": ["gold_diff_at_15", "matchup_review", "primary_pick"],
+    "focusMetrics": ["gold_diff_at_15", "rune_setup_read", "matchup_review", "primary_pick"],
     "roleBias": ["ALL", "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"],
     "championArchetypes": [],
     "skillBrackets": ["mid_elo", "high_elo", "apex"],
@@ -283,7 +283,7 @@
       "es": "El jugador probablemente regala oro, xp, cooldowns o vida antes de que la partida lo demande."
     },
     "priorityBand": "foundational",
-    "focusMetrics": ["deaths_pre_14", "cs_at_15", "gold_diff_at_15"],
+    "focusMetrics": ["deaths_pre_14", "lane_volatility", "reset_timing", "cs_at_15", "gold_diff_at_15"],
     "roleBias": ["ALL", "TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"],
     "championArchetypes": [],
     "skillBrackets": ["all"],
