@@ -225,6 +225,19 @@ function BaselineBuildPanel({ dataset, baseline, locale }: { dataset: Dataset; b
 }
 
 function BuildComparisonCard({ dataset, comparison, locale }: { dataset: Dataset; comparison: BuildComparison; locale: Locale }) {
+  const deltaMetrics = [
+    { label: 'WR', value: formatSignedNumber(comparison.deltas.winRate, 1, '%') },
+    { label: locale === 'en' ? 'Score' : 'Score', value: formatSignedNumber(comparison.deltas.score) },
+    { label: locale === 'en' ? 'Champ dmg' : 'Daño champs', value: formatSignedNumber(comparison.deltas.damageToChampions, 0) },
+    { label: 'CS@15', value: formatSignedNumber(comparison.deltas.csAt15) },
+    { label: 'GD@15', value: formatSignedNumber(comparison.deltas.goldDiffAt15, 0) },
+    { label: locale === 'en' ? 'Pre14 deaths' : 'Muertes pre14', value: formatSignedNumber(comparison.deltas.deathsPre14) },
+    { label: locale === 'en' ? 'Volatility' : 'Volatilidad', value: formatSignedNumber(comparison.deltas.laneVolatility) },
+    ...(comparison.deltas.firstItemMinute !== null
+      ? [{ label: locale === 'en' ? '1st item' : '1er item', value: formatSignedNumber(comparison.deltas.firstItemMinute, 1, 'm') }]
+      : [])
+  ];
+
   return (
     <div style={comparisonCardStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'start' }}>
@@ -242,14 +255,7 @@ function BuildComparisonCard({ dataset, comparison, locale }: { dataset: Dataset
       </div>
 
       <div style={deltaGridStyle}>
-        <DeltaBox label="WR" value={formatSignedNumber(comparison.deltas.winRate, 1, '%')} />
-        <DeltaBox label={locale === 'en' ? 'Score' : 'Score'} value={formatSignedNumber(comparison.deltas.score)} />
-        <DeltaBox label={locale === 'en' ? 'Champ dmg' : 'Daño champs'} value={formatSignedNumber(comparison.deltas.damageToChampions, 0)} />
-        <DeltaBox label="CS@15" value={formatSignedNumber(comparison.deltas.csAt15)} />
-        <DeltaBox label="GD@15" value={formatSignedNumber(comparison.deltas.goldDiffAt15, 0)} />
-        <DeltaBox label={locale === 'en' ? 'Pre14 deaths' : 'Muertes pre14'} value={formatSignedNumber(comparison.deltas.deathsPre14)} />
-        <DeltaBox label={locale === 'en' ? 'Volatility' : 'Volatilidad'} value={formatSignedNumber(comparison.deltas.laneVolatility)} />
-        <DeltaBox label={locale === 'en' ? '1st item' : '1er item'} value={comparison.deltas.firstItemMinute !== null ? formatSignedNumber(comparison.deltas.firstItemMinute, 1, 'm') : '—'} />
+        {deltaMetrics.map((metric) => <DeltaBox key={`${comparison.variant.key}-${metric.label}`} label={metric.label} value={metric.value} />)}
       </div>
 
       <div style={{ display: 'grid', gap: 8 }}>
@@ -288,7 +294,16 @@ function ItemSignalColumn({
       <div style={sectionLabelStyle}>{title}</div>
       {items.length ? (
         <div style={{ display: 'grid', gap: 10 }}>
-          {items.map((item) => (
+          {items.map((item) => {
+            const impactMetrics = [
+              { label: 'WR', value: formatSignedNumber(item.winRateDelta, 1, '%') },
+              { label: locale === 'en' ? 'Score' : 'Score', value: formatSignedNumber(item.scoreDelta) },
+              { label: locale === 'en' ? 'Champ dmg' : 'Daño champs', value: formatSignedNumber(item.damageDelta, 0) },
+              { label: locale === 'en' ? 'Stable early' : 'Early estable', value: formatSignedNumber(item.earlyStateDelta, 1, '%') },
+              ...(item.avgCompletionMinute !== null ? [{ label: locale === 'en' ? 'Completion' : 'Completa', value: `${formatDecimal(item.avgCompletionMinute)}m` }] : [])
+            ];
+
+            return (
             <div key={`${title}-${item.itemId}`} style={itemImpactCardStyle}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -304,14 +319,11 @@ function ItemSignalColumn({
               </div>
 
               <div style={itemImpactMetricsStyle}>
-                <DeltaBox label="WR" value={formatSignedNumber(item.winRateDelta, 1, '%')} />
-                <DeltaBox label={locale === 'en' ? 'Score' : 'Score'} value={formatSignedNumber(item.scoreDelta)} />
-                <DeltaBox label={locale === 'en' ? 'Champ dmg' : 'Daño champs'} value={formatSignedNumber(item.damageDelta, 0)} />
-                <DeltaBox label={locale === 'en' ? 'Stable early' : 'Early estable'} value={formatSignedNumber(item.earlyStateDelta, 1, '%')} />
-                <DeltaBox label={locale === 'en' ? 'Completion' : 'Completa'} value={item.avgCompletionMinute !== null ? `${formatDecimal(item.avgCompletionMinute)}m` : '—'} />
+                {impactMetrics.map((metric) => <DeltaBox key={`${title}-${item.itemId}-${metric.label}`} label={metric.label} value={metric.value} />)}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div style={emptyStateStyle}>{emptyLabel}</div>
