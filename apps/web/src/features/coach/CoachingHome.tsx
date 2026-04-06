@@ -1,12 +1,17 @@
-import { type PropsWithChildren, type ReactNode, useMemo } from 'react';
+import { Suspense, lazy, type PropsWithChildren, type ReactNode, useMemo, useState } from 'react';
 import { Badge, Card, ChampionIdentity, InfoHint, TrendIndicator, type TrendDirection, type TrendTone } from '../../components/ui';
 import type { AICoachResult, Dataset, RoleReferenceProfile } from '../../types';
 import { formatDecimal, formatInteger } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
 import { formatChampionName, getProfileIconUrl } from '../../lib/lol';
 import { evidenceBadgeLabel, evidenceTone } from '../premium-analysis/evidence';
-import { CoachPremiumWorkspace, type CoachWorkspaceRosterPlayer } from './CoachPremiumWorkspace';
+import type { CoachWorkspaceRosterPlayer } from './CoachPremiumWorkspace';
 import { buildChampionPrepBrief } from './prepBrief';
+
+const CoachPremiumWorkspace = lazy(async () => {
+  const module = await import('./CoachPremiumWorkspace');
+  return { default: module.CoachPremiumWorkspace };
+});
 
 type TrendSignal = { direction: TrendDirection; tone: TrendTone; label?: string };
 type MatchEntry = Dataset['matches'][number];
@@ -245,6 +250,7 @@ export function CoachingHome({
   coachRosterPlayers?: CoachWorkspaceRosterPlayer[];
   canManageCoachRoster?: boolean;
 }) {
+  const [workspaceOpen, setWorkspaceOpen] = useState(false);
   const { summary } = dataset;
   const matchesByDate = [...dataset.matches].sort((a, b) => a.gameCreation - b.gameCreation);
   const recentSeven = [...dataset.matches].sort((a, b) => b.gameCreation - a.gameCreation).slice(0, Math.min(7, dataset.matches.length));
@@ -425,13 +431,45 @@ export function CoachingHome({
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <CoachPremiumWorkspace
-        dataset={dataset}
-        locale={locale}
-        rosterPlayers={coachRosterPlayers}
-        roleReferences={roleReferences}
-        canManageRoster={canManageCoachRoster}
-      />
+      <Card
+        title={t(locale, 'Espacio coach', 'Coach workspace')}
+        subtitle={t(
+          locale,
+          'Abrilo cuando quieras trabajar con seguimiento, review workflow y staff view, sin mezclarlo de entrada con el dashboard del jugador.',
+          'Open it when you want staff tracking, review workflow and the coach view, without mixing it into the player dashboard by default.'
+        )}
+      >
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ color: '#a9b6c8', lineHeight: 1.7 }}>
+            {t(
+              locale,
+              'La mesa de trabajo del coach ahora se carga bajo demanda para mantener la experiencia principal más limpia y estable.',
+              'The coach desk now loads on demand to keep the main experience cleaner and more stable.'
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button type="button" style={buttonStyle} onClick={() => setWorkspaceOpen((value) => !value)}>
+              {workspaceOpen
+                ? t(locale, 'Ocultar workspace coach', 'Hide coach workspace')
+                : t(locale, 'Abrir workspace coach', 'Open coach workspace')}
+            </button>
+            <Badge tone="default">
+              {t(locale, 'Seguimiento, review y benchmarks', 'Tracking, review and benchmarks')}
+            </Badge>
+          </div>
+          {workspaceOpen ? (
+            <Suspense fallback={<div style={panelStyle}>{t(locale, 'Cargando workspace coach...', 'Loading coach workspace...')}</div>}>
+              <CoachPremiumWorkspace
+                dataset={dataset}
+                locale={locale}
+                rosterPlayers={coachRosterPlayers}
+                roleReferences={roleReferences}
+                canManageRoster={canManageCoachRoster}
+              />
+            </Suspense>
+          ) : null}
+        </div>
+      </Card>
 
       <Card title={t(locale, 'Lectura central del bloque', 'Central block read')} subtitle={t(locale, 'Una sola lectura para decidir qué corregir primero, por qué confiar en ella y qué dejar para después.', 'One read to decide what to correct first, why it deserves trust and what should wait.')}>
         <div className="coaching-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.45fr) minmax(320px, 0.95fr)', gap: 16, alignItems: 'start' }}>
