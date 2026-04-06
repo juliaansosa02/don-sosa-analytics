@@ -40,6 +40,7 @@ import { Shell, Card, Badge } from '../components/ui';
 import { CoachingHome } from '../features/coach/CoachingHome';
 import { AccountCenter, type AccountPanelTab } from '../features/account/AccountCenter';
 import { RankBadge, RankEmblem } from '../features/profile/ProfilePrimitives';
+import { OverviewTab } from '../features/overview/OverviewTab';
 import { StatsTab } from '../features/stats/StatsTab';
 import { MatchupsTab } from '../features/matchups/MatchupsTab';
 import { RunesTab } from '../features/runes/RunesTab';
@@ -51,6 +52,7 @@ import { buildProfileIdentityKey, getProfileIconUrl, getQueueBucket, getQueueLab
 import { buildCs15Benchmark } from '../lib/benchmarks';
 
 const tabs = [
+  { id: 'overview', label: { es: 'Overview', en: 'Overview' } },
   { id: 'coach', label: { es: 'Coaching', en: 'Coaching' } },
   { id: 'stats', label: { es: 'Métricas', en: 'Stats' } },
   { id: 'matchups', label: { es: 'Cruces', en: 'Matchups' } },
@@ -894,6 +896,8 @@ function AppShell() {
     if (!viewDataset) return null;
 
     switch (activeTab) {
+      case 'overview':
+        return <OverviewTab dataset={viewDataset} locale={locale} />;
       case 'stats':
         return <StatsTab dataset={viewDataset} locale={locale} />;
       case 'matchups':
@@ -2058,6 +2062,7 @@ function AppShell() {
             <div style={{ display: 'grid', gap: 12, color: '#c7d4ea', lineHeight: 1.7 }}>
               {locale === 'en' ? (
                 <>
+                  <div><strong>Overview:</strong> live pulse of the block, spotlight matches and what to review first.</div>
                   <div><strong>Coach:</strong> main blocker, evidence, impact and active plan.</div>
                   <div><strong>Stats:</strong> aggregated metrics and recent evolution.</div>
                   <div><strong>Matchups:</strong> real performance into direct opponents.</div>
@@ -2067,6 +2072,7 @@ function AppShell() {
                 </>
               ) : (
                 <>
+                  <div><strong>Overview:</strong> pulso vivo del bloque, partidas spotlight y qué revisar primero.</div>
                   <div><strong>Coach:</strong> problema principal, evidencia, impacto y plan activo.</div>
                   <div><strong>Stats:</strong> métricas agregadas y evolución.</div>
                   <div><strong>Matchups:</strong> rendimiento real frente a rivales directos.</div>

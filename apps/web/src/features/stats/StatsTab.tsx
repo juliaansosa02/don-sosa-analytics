@@ -4,6 +4,13 @@ import { formatDecimal, formatSignedNumber } from '../../lib/format';
 import { buildCs15ProgressionBenchmark, buildLevel15ProgressionBenchmark, type TierProgressionBenchmark } from '../../lib/benchmarks';
 import { formatChampionName, getQueueBucket, getRoleLabel } from '../../lib/lol';
 import { translateRole, type Locale } from '../../lib/i18n';
+import {
+  buildMatchQuickRead,
+  findAnchorChampion,
+  findReferenceMatch,
+  findReviewPriorityMatch,
+  getChampionAccent
+} from '../dashboard/dashboardSignals';
 
 const ROLE_BENCHMARK_MIN_SAMPLE = 30;
 const CHAMPION_BENCHMARK_MIN_SAMPLE = 15;
@@ -164,6 +171,11 @@ export function StatsTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
   const primaryRole = detectPrimaryRole(dataset);
   const averageLevel = averageLevelAt15(dataset);
   const benchmarkContext = resolveBenchmarkContext(dataset, primaryRole, locale);
+  const anchorChampion = findAnchorChampion(dataset.matches);
+  const accent = getChampionAccent(anchorChampion);
+  const primaryInsight = dataset.summary.coaching.primaryInsight;
+  const referenceMatch = findReferenceMatch(dataset.matches);
+  const reviewPriorityMatch = findReviewPriorityMatch(dataset.matches);
   const csBenchmark = benchmarkContext.current
     ? buildRealBenchmark(dataset.summary.avgCsAt15, 'avgCsAt15', benchmarkContext.current, benchmarkContext.next)
     : buildCs15ProgressionBenchmark(primaryRole, benchmarkContext.tier, dataset.summary.avgCsAt15);
@@ -187,7 +199,48 @@ export function StatsTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
 
   return (
     <div style={{ display: 'grid', gap: 16 }}>
-      <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.05fr 1.05fr .9fr', gap: 16, alignItems: 'start' }}>
+      <section
+        style={{
+          display: 'grid',
+          gap: 14,
+          padding: 18,
+          borderRadius: 22,
+          background: accent.panel,
+          border: `1px solid ${accent.border}`,
+          boxShadow: `0 18px 46px rgba(0,0,0,0.22), 0 0 26px ${accent.glow}`
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'start' }}>
+          <div style={{ display: 'grid', gap: 8, maxWidth: 720 }}>
+            <div style={{ color: accent.muted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.09em', fontWeight: 800 }}>
+              {locale === 'en' ? 'Slice read' : 'Lectura del slice'}
+            </div>
+            <div style={{ color: accent.text, fontSize: 26, lineHeight: 1.08, fontWeight: 900 }}>
+              {primaryInsight?.headline ?? (locale === 'en' ? 'This slice already has a visible metric shape' : 'Este slice ya tiene una forma métrica visible')}
+            </div>
+            <div style={{ color: '#dde7f7', lineHeight: 1.7 }}>
+              {primaryInsight?.summary ?? (locale === 'en'
+                ? 'Stats should tell you what this slice is doing well, where it gets expensive and which game is worth copying.'
+                : 'Las métricas deberían decirte qué está haciendo bien este slice, dónde se vuelve caro y qué partida vale la pena copiar.')}
+            </div>
+          </div>
+          {anchorChampion ? (
+            <ChampionIdentity
+              championName={anchorChampion}
+              version={dataset.ddragonVersion}
+              subtitle={locale === 'en' ? 'Most repeated pick in this slice' : 'Pick más repetido del slice'}
+              size={54}
+            />
+          ) : null}
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Badge tone="default">{locale === 'en' ? `${dataset.summary.matches} visible matches` : `${dataset.summary.matches} partidas visibles`}</Badge>
+          <Badge tone="default">{locale === 'en' ? translateRole(primaryRole, 'en') : getRoleLabel(primaryRole)}</Badge>
+          <Badge tone="low">{locale === 'en' ? `${dataset.summary.consistencyIndex} consistency` : `${dataset.summary.consistencyIndex} consistencia`}</Badge>
+        </div>
+      </section>
+
+      <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, alignItems: 'start' }}>
         <Card title={locale === 'en' ? 'What is already holding your level up' : 'Qué ya está sosteniendo tu nivel'} subtitle={locale === 'en' ? 'Signals that are currently giving you competitive baseline' : 'Señales que hoy te están dando base competitiva'}>
           <div style={{ display: 'grid', gap: 10 }}>
             {strengths.map((entry) => (
@@ -213,7 +266,7 @@ export function StatsTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
         </Card>
       </div>
 
-      <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.15fr .85fr', gap: 16, alignItems: 'start' }}>
+      <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, alignItems: 'start' }}>
         <Card title={locale === 'en' ? 'Economy benchmark' : 'Benchmark de economía'} subtitle={benchmarkContext.description}>
           <div style={{ display: 'grid', gap: 12 }}>
             <BenchmarkLane
@@ -246,7 +299,7 @@ export function StatsTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
           </div>
         </Card>
 
-        <Card title={locale === 'en' ? 'Most recent stretch' : 'Tramo más reciente'} subtitle={locale === 'en' ? 'The latest matches matter most if you want coaching you can apply today' : 'Las últimas partidas cuentan más si querés coaching aplicable hoy'}>
+        <Card title={locale === 'en' ? 'Recent stretch with meaning' : 'Tramo reciente con sentido'} subtitle={locale === 'en' ? 'Instead of only recent numbers, this tells you what the last games are teaching.' : 'En vez de solo números recientes, esto te dice qué están enseñando las últimas partidas.'}>
           <div style={{ display: 'grid', gap: 10 }}>
             {recentMatches.map((match) => (
               <div key={match.matchId} style={recentMatchRowStyle}>
@@ -256,17 +309,33 @@ export function StatsTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
                   subtitle={new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
                   size={42}
                 />
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'end' }}>
-                  <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota')}</Badge>
-                  <Badge>{`${locale === 'en' ? 'Score' : 'Score'} ${Math.round(match.score.total)}`}</Badge>
-                  <Badge>{`KDA ${formatDecimal((match.kills + match.assists) / Math.max(match.deaths, 1))}`}</Badge>
-                  <Badge>{`${formatDecimal(match.timeline.csAt15)} CS@15`}</Badge>
-                  <Badge>{locale === 'en' ? `${formatDecimal(match.timeline.levelAt15 ?? 0)} lvl@15` : `${formatDecimal(match.timeline.levelAt15 ?? 0)} lvl@15`}</Badge>
+                <div style={{ display: 'grid', gap: 7, justifyItems: 'end' }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'end' }}>
+                    <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota')}</Badge>
+                    <Badge>{`${locale === 'en' ? 'Score' : 'Score'} ${Math.round(match.score.total)}`}</Badge>
+                    <Badge>{`${formatDecimal(match.timeline.csAt15)} CS@15`}</Badge>
+                  </div>
+                  <div style={{ maxWidth: 340, color: '#8fa1b8', fontSize: 12, lineHeight: 1.6, textAlign: 'right' }}>
+                    {buildMatchQuickRead(match, dataset, locale).title}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </Card>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+        {referenceMatch ? (
+          <Card title={locale === 'en' ? 'Mirror game' : 'Partida espejo'} subtitle={locale === 'en' ? 'The best match to copy when you want cleaner numbers.' : 'La mejor partida para copiar cuando querés números más limpios.'}>
+            <SpotlightMetricMatch match={referenceMatch} dataset={dataset} locale={locale} />
+          </Card>
+        ) : null}
+        {reviewPriorityMatch ? (
+          <Card title={locale === 'en' ? 'Metric review priority' : 'Prioridad de review métrica'} subtitle={locale === 'en' ? 'The loss that best explains why the slice still feels expensive.' : 'La derrota que mejor explica por qué este slice todavía se siente caro.'}>
+            <SpotlightMetricMatch match={reviewPriorityMatch} dataset={dataset} locale={locale} />
+          </Card>
+        ) : null}
       </div>
     </div>
   );
@@ -372,6 +441,33 @@ function BenchmarkBar({ label, value, maxValue, tone }: { label: string; value: 
       </div>
       <div style={{ height: 10, borderRadius: 999, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
         <div style={{ width: `${Math.max(4, (value / Math.max(maxValue, 1)) * 100)}%`, height: '100%', background: fill, borderRadius: 999 }} />
+      </div>
+    </div>
+  );
+}
+
+function SpotlightMetricMatch({ match, dataset, locale }: { match: Dataset['matches'][number]; dataset: Dataset; locale: Locale }) {
+  const quickRead = buildMatchQuickRead(match, dataset, locale);
+
+  return (
+    <div style={{ display: 'grid', gap: 12 }}>
+      <ChampionIdentity
+        championName={match.championName}
+        version={dataset.ddragonVersion}
+        subtitle={new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
+        meta={
+          <>
+            <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota')}</Badge>
+            <Badge tone={quickRead.tone === 'reference' ? 'low' : quickRead.tone === 'warning' ? 'high' : 'default'}>{quickRead.toneLabel}</Badge>
+          </>
+        }
+      />
+      <div style={{ color: '#eef4ff', fontSize: 19, lineHeight: 1.18, fontWeight: 850 }}>{quickRead.title}</div>
+      <div style={{ color: '#90a1b8', lineHeight: 1.7 }}>{quickRead.body}</div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <Badge>{`${locale === 'en' ? 'Score' : 'Score'} ${Math.round(match.score.total)}`}</Badge>
+        <Badge>{`${formatDecimal(match.timeline.csAt15)} CS@15`}</Badge>
+        <Badge>{`${formatSignedNumber(match.timeline.goldDiffAt15, 0)}`}</Badge>
       </div>
     </div>
   );

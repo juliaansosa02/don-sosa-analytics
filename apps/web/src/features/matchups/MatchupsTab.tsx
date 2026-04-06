@@ -5,6 +5,7 @@ import { formatChampionName, getChampionIconUrl, getRoleLabel } from '../../lib/
 import { formatDecimal, formatInteger, formatPercent, formatSignedNumber } from '../../lib/format';
 import type { Locale } from '../../lib/i18n';
 import { translateRole } from '../../lib/i18n';
+import { getChampionAccent } from '../dashboard/dashboardSignals';
 
 function average(values: number[]) {
   return values.length ? values.reduce((total, value) => total + value, 0) / values.length : 0;
@@ -70,6 +71,30 @@ function aggregateMatchups(dataset: Dataset) {
     .sort((a, b) => b.games - a.games || b.winRate - a.winRate);
 }
 
+function buildMatchupNarrative(matchup: ReturnType<typeof aggregateMatchups>[number], baseline: { winRate: number; avgDeathsPre14: number }, locale: Locale) {
+  if (matchup.winRate < baseline.winRate - 8 && matchup.avgDeathsPre14 > baseline.avgDeathsPre14 + 0.4) {
+    return locale === 'en'
+      ? 'This matchup is punishing your early stability first. Review the first bad trade, route or recall before reviewing the last fight.'
+      : 'Este cruce te está castigando primero en estabilidad temprana. Revisá el primer trade, ruta o recall malo antes de mirar la última pelea.';
+  }
+
+  if (matchup.avgGoldDiffAt15 <= -220) {
+    return locale === 'en'
+      ? 'By minute 15 you are usually already behind here, so the matchup prep should start from lane state and first reset, not from late-game theory.'
+      : 'Al minuto 15 normalmente ya llegás por detrás acá, así que la preparación del cruce debería arrancar desde lane state y primer reset, no desde teoría de late.';
+  }
+
+  if (matchup.winRate >= baseline.winRate + 6 && matchup.avgGoldDiffAt15 >= 0) {
+    return locale === 'en'
+      ? 'This is already a playable or favorable cross. It works best as a mirror matchup to compare your dirtier losses against.'
+      : 'Este ya es un cruce jugable o favorable. Sirve muy bien como matchup espejo para comparar contra derrotas más sucias.';
+  }
+
+  return locale === 'en'
+    ? 'This matchup is still mixed. The useful question is whether it breaks through lane, reset timing or map connection once the lane ends.'
+    : 'Este matchup sigue mixto. La pregunta útil es si se rompe por línea, timing de reset o conexión al mapa una vez termina la lane.';
+}
+
 export function MatchupsTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?: Locale }) {
   const championOptions = useMemo(() => ['ALL', ...Array.from(new Set(dataset.matches.map((match) => match.championName))).sort()], [dataset.matches]);
   const [championFilter, setChampionFilter] = useState('ALL');
@@ -130,9 +155,19 @@ export function MatchupsTab({ dataset, locale = 'es' }: { dataset: Dataset; loca
         </div>
         {matchups.length ? matchups.map((matchup) => {
           const iconUrl = getChampionIconUrl(matchup.opponent, dataset.ddragonVersion);
+          const accent = getChampionAccent(matchup.opponent);
+          const narrative = buildMatchupNarrative(matchup, filteredBaseline, locale);
 
           return (
-            <div key={`${matchup.opponent}-${matchup.role}`} style={matchupCardStyle}>
+            <div
+              key={`${matchup.opponent}-${matchup.role}`}
+              style={{
+                ...matchupCardStyle,
+                background: accent.panel,
+                border: `1px solid ${accent.border}`,
+                boxShadow: `0 18px 42px rgba(0,0,0,0.16), 0 0 24px ${accent.glow}`
+              }}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', alignItems: 'start' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   {iconUrl ? <img src={iconUrl} alt={formatChampionName(matchup.opponent)} width={52} height={52} style={iconStyle} /> : null}
@@ -146,6 +181,8 @@ export function MatchupsTab({ dataset, locale = 'es' }: { dataset: Dataset; loca
                   {matchup.winRate >= 55 ? (locale === 'en' ? 'FAVORABLE' : 'FAVORABLE') : matchup.winRate < 45 ? (locale === 'en' ? 'TOUGH' : 'COMPLICADO') : (locale === 'en' ? 'EVEN' : 'PAREJO')}
                 </Badge>
               </div>
+
+              <div style={{ color: '#d7e1f0', lineHeight: 1.7, fontSize: 14 }}>{narrative}</div>
 
               <div className="seven-col-grid" style={metricGridStyle}>
                 <MetricBlock label={locale === 'en' ? 'Games' : 'Partidas'} value={formatInteger(matchup.games)} info={locale === 'en' ? 'How many times you faced this champion inside the current sample.' : 'Cantidad de veces que enfrentaste a este campeón en la muestra actual.'} />
@@ -207,7 +244,7 @@ const matchupCardStyle = {
 
 const metricGridStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
   gap: 12
 } as const;
 
