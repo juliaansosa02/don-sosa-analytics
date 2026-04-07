@@ -17,9 +17,9 @@ const tabs = [
     { id: 'champions', label: { es: 'Campeones', en: 'Champions' } },
     { id: 'matches', label: { es: 'Partidas', en: 'Matches' } }
 ];
-const CoachTab = lazy(async () => {
-    const module = await import('../features/coach/CoachTab');
-    return { default: module.CoachTab };
+const CoachPremiumWorkspace = lazy(async () => {
+    const module = await import('../features/coach/CoachPremiumWorkspace');
+    return { default: module.CoachPremiumWorkspace };
 });
 const AccountCenter = lazy(async () => {
     const module = await import('../features/account/AccountCenter');
@@ -304,6 +304,7 @@ function AppShell() {
     const [adminLoading, setAdminLoading] = useState(false);
     const [coachRoster, setCoachRoster] = useState([]);
     const [coachRosterLoading, setCoachRosterLoading] = useState(false);
+    const [coachRosterDatasets, setCoachRosterDatasets] = useState({});
     const [coachPlayerEmail, setCoachPlayerEmail] = useState('');
     const [coachPlayerGameName, setCoachPlayerGameName] = useState('');
     const [coachPlayerTagLine, setCoachPlayerTagLine] = useState('');
@@ -539,6 +540,7 @@ function AppShell() {
         if (!actorUser) {
             setAdminUsers([]);
             setCoachRoster([]);
+            setCoachRosterDatasets({});
             return;
         }
         if (actorUser.role === 'admin') {
@@ -552,7 +554,42 @@ function AppShell() {
         }
         setAdminUsers([]);
         setCoachRoster([]);
+        setCoachRosterDatasets({});
     }, [actorUser?.id, actorUser?.role]);
+    useEffect(() => {
+        let cancelled = false;
+        async function hydrateCoachRosterDatasets() {
+            if (!safeCoachRoster.length) {
+                setCoachRosterDatasets({});
+                return;
+            }
+            const results = await Promise.all(safeCoachRoster.map(async (entry) => {
+                if (!entry.profile)
+                    return [entry.assignmentId, null];
+                const localDataset = readCachedDataset(entry.profile.gameName, entry.profile.tagLine, entry.profile.platform);
+                if (localDataset) {
+                    return [entry.assignmentId, localDataset];
+                }
+                try {
+                    const serverDataset = await fetchCachedProfile(entry.profile.gameName, entry.profile.tagLine, entry.profile.platform, locale);
+                    if (serverDataset) {
+                        window.localStorage.setItem(datasetStorageKey(serverDataset.player, serverDataset.tagLine, serverDataset.summary.platform), JSON.stringify(serverDataset));
+                    }
+                    return [entry.assignmentId, serverDataset];
+                }
+                catch {
+                    return [entry.assignmentId, null];
+                }
+            }));
+            if (cancelled)
+                return;
+            setCoachRosterDatasets(Object.fromEntries(results));
+        }
+        void hydrateCoachRosterDatasets();
+        return () => {
+            cancelled = true;
+        };
+    }, [safeCoachRoster, locale]);
     useEffect(() => {
         if (!authUser) {
             setAccountPanelTab('auth');
@@ -853,31 +890,6 @@ function AppShell() {
             cancelled = true;
         };
     }, [dataset?.summary.platform, coachReferenceRole, locale]);
-    const renderedTab = useMemo(() => {
-        if (activeTab === 'coach') {
-            if (!coachDataset)
-                return null;
-            return (_jsx(CoachTab, { dataset: coachDataset }));
-        }
-        if (!viewDataset)
-            return null;
-        switch (activeTab) {
-            case 'overview':
-                return _jsx(OverviewTab, { dataset: viewDataset, locale: locale });
-            case 'stats':
-                return _jsx(StatsTab, { dataset: viewDataset, locale: locale });
-            case 'matchups':
-                return _jsx(MatchupsTab, { dataset: viewDataset, locale: locale });
-            case 'runes':
-                return _jsx(RunesTab, { dataset: viewDataset, locale: locale });
-            case 'builds':
-                return _jsx(BuildsTab, { dataset: viewDataset, locale: locale });
-            case 'champions':
-                return _jsx(ChampionPoolTab, { dataset: viewDataset, locale: locale });
-            case 'matches':
-                return _jsx(MatchesTab, { dataset: viewDataset, locale: locale });
-        }
-    }, [activeTab, coachDataset, viewDataset, locale, aiCoach, aiCoachLoading, aiCoachError, roleReferences, roleReferencesLoading, roleReferencesError]);
     const csBenchmark = useMemo(() => {
         if (!viewDataset?.rank)
             return null;
@@ -1003,6 +1015,73 @@ function AppShell() {
         setDataset(null);
         setShowAccountControls(true);
         void hydrateFromServer(profile.gameName, profile.tagLine, profile.platform ?? guessDefaultRiotPlatform(locale));
+    }
+    async function handleOpenCoachRosterPlayer(player) {
+        if (!player.profile)
+            return;
+        const nextPlatform = player.profile.platform;
+        const targetMatches = Math.min(player.localProfile?.targetMatches ?? 50, planEntitlements?.maxStoredMatchesPerProfile ?? 50);
+        const cachedDataset = coachRosterDatasets[player.assignmentId]
+            ?? readCachedDataset(player.profile.gameName, player.profile.tagLine, player.profile.platform);
+        setActiveTab('coach');
+        setGameName(player.profile.gameName);
+        setTagLine(player.profile.tagLine);
+        setPlatform(nextPlatform);
+        setMatchCount(targetMatches);
+        setError(null);
+        setSyncMessage(null);
+        if (cachedDataset) {
+            setDataset(cachedDataset);
+            setShowAccountControls(false);
+            setCoachRoles(buildDefaultCoachRoles(cachedDataset));
+            window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({
+                gameName: cachedDataset.player,
+                tagLine: cachedDataset.tagLine,
+                platform: cachedDataset.summary.platform,
+                matchCount: targetMatches
+            }));
+            persistSavedProfile(cachedDataset, targetMatches);
+            return;
+        }
+        const hydrated = await hydrateFromServer(player.profile.gameName, player.profile.tagLine, player.profile.platform);
+        if (hydrated) {
+            setShowAccountControls(false);
+            return;
+        }
+        setLoading(true);
+        setShowAccountControls(false);
+        setProgress({ stage: 'queued', current: 0, total: 1, message: locale === 'en' ? 'Preparing roster sync' : 'Preparando sync del roster' });
+        try {
+            const result = await collectProfile(player.profile.gameName, player.profile.tagLine, targetMatches, {
+                platform: player.profile.platform,
+                locale,
+                onProgress: (nextProgress) => setProgress(nextProgress),
+                knownMatchIds: []
+            });
+            const limitedDataset = limitDatasetMatches(result, Math.min(targetMatches, planEntitlements?.maxStoredMatchesPerProfile ?? targetMatches), locale);
+            setDataset(limitedDataset);
+            setCoachRoles(buildDefaultCoachRoles(limitedDataset));
+            setCoachRosterDatasets((current) => ({ ...current, [player.assignmentId]: limitedDataset }));
+            window.localStorage.setItem(datasetStorageKey(limitedDataset.player, limitedDataset.tagLine, limitedDataset.summary.platform), JSON.stringify(limitedDataset));
+            window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({
+                gameName: limitedDataset.player,
+                tagLine: limitedDataset.tagLine,
+                platform: limitedDataset.summary.platform,
+                matchCount: targetMatches
+            }));
+            persistSavedProfile(limitedDataset, targetMatches);
+            setSyncMessage(locale === 'en'
+                ? 'The roster player was synced and opened in the coaching workspace.'
+                : 'El jugador del roster se sincronizó y ya quedó abierto en el workspace de coaching.');
+            await refreshIdentity();
+        }
+        catch (err) {
+            setError(err instanceof Error ? err.message : 'Unknown error');
+        }
+        finally {
+            setLoading(false);
+            setProgress(null);
+        }
     }
     async function runAnalysis(requestedCount = matchCount) {
         const cappedRequestedCount = Math.min(requestedCount, planEntitlements?.maxStoredMatchesPerProfile ?? requestedCount);
@@ -1292,9 +1371,70 @@ function AppShell() {
                 rankLabel: localProfile.rankLabel,
                 profileIconId: localProfile.profileIconId,
                 ddragonVersion: localProfile.ddragonVersion
-            } : null
+            } : null,
+            snapshot: (() => {
+                const sourceDataset = coachRosterDatasets[entry.assignmentId]
+                    ?? (rosterProfile ? readCachedDataset(rosterProfile.gameName, rosterProfile.tagLine, rosterProfile.platform) : null);
+                if (!sourceDataset)
+                    return null;
+                const lastMatch = sourceDataset.matches[0] ?? null;
+                const totalObjectives = sourceDataset.matches.reduce((sum, match) => sum + (match.dragonKills ?? 0) + (match.baronKills ?? 0) + (match.turretKills ?? 0), 0);
+                return {
+                    matches: sourceDataset.summary.matches,
+                    wins: sourceDataset.summary.wins,
+                    losses: sourceDataset.summary.losses,
+                    winRate: sourceDataset.summary.winRate,
+                    avgKda: sourceDataset.summary.avgKda,
+                    avgCsPerMinute: sourceDataset.summary.avgCsPerMinute,
+                    primaryRole: sourceDataset.summary.primaryRole,
+                    avgCsAt15: sourceDataset.summary.avgCsAt15,
+                    avgGoldDiffAt15: sourceDataset.summary.avgGoldDiffAt15,
+                    avgObjectives: sourceDataset.matches.length ? totalObjectives / sourceDataset.matches.length : 0,
+                    recentWinRateDelta: sourceDataset.summary.coaching.trend.winRateDelta,
+                    recentScoreDelta: sourceDataset.summary.coaching.trend.scoreDelta,
+                    currentRankLabel: sourceDataset.rank?.highest.label ?? localProfile?.rankLabel ?? null,
+                    currentLp: sourceDataset.rank?.soloQueue.tier && sourceDataset.rank.soloQueue.tier !== 'UNRANKED'
+                        ? sourceDataset.rank.soloQueue.leaguePoints
+                        : null,
+                    rivalLabel: sourceDataset.summary.problematicMatchup?.opponentChampionName ?? lastMatch?.opponentChampionName ?? null
+                };
+            })()
         };
-    }), [activeProfileIdentity, locale, safeCoachRoster, savedProfiles]);
+    }), [activeProfileIdentity, coachRosterDatasets, locale, safeCoachRoster, savedProfiles]);
+    const renderedTab = useMemo(() => {
+        if (activeTab === 'coach') {
+            if (!coachDataset)
+                return null;
+            return (_jsx(CoachPremiumWorkspace, { dataset: coachDataset, locale: locale, rosterPlayers: coachWorkspaceRosterPlayers, roleReferences: roleReferences, canManageRoster: canManageCoachRoster, onOpenPlayer: handleOpenCoachRosterPlayer }));
+        }
+        if (!viewDataset)
+            return null;
+        switch (activeTab) {
+            case 'overview':
+                return _jsx(OverviewTab, { dataset: viewDataset, locale: locale });
+            case 'stats':
+                return _jsx(StatsTab, { dataset: viewDataset, locale: locale });
+            case 'matchups':
+                return _jsx(MatchupsTab, { dataset: viewDataset, locale: locale });
+            case 'runes':
+                return _jsx(RunesTab, { dataset: viewDataset, locale: locale });
+            case 'builds':
+                return _jsx(BuildsTab, { dataset: viewDataset, locale: locale });
+            case 'champions':
+                return _jsx(ChampionPoolTab, { dataset: viewDataset, locale: locale });
+            case 'matches':
+                return _jsx(MatchesTab, { dataset: viewDataset, locale: locale });
+        }
+    }, [
+        activeTab,
+        coachDataset,
+        coachWorkspaceRosterPlayers,
+        viewDataset,
+        locale,
+        roleReferences,
+        canManageCoachRoster,
+        handleOpenCoachRosterPlayer
+    ]);
     const accountHubTitle = !dataset
         ? (locale === 'en' ? 'Load your next competitive profile' : 'Cargá tu próximo perfil competitivo')
         : showAccountControls

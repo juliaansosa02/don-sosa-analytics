@@ -32,6 +32,23 @@ export interface CoachWorkspaceRosterPlayer {
     profileIconId?: number;
     ddragonVersion?: string;
   } | null;
+  snapshot?: {
+    matches: number;
+    wins: number;
+    losses: number;
+    winRate: number;
+    avgKda: number;
+    avgCsPerMinute: number;
+    primaryRole: string;
+    avgCsAt15: number;
+    avgGoldDiffAt15: number;
+    avgObjectives: number;
+    recentWinRateDelta: number;
+    recentScoreDelta: number;
+    currentRankLabel?: string | null;
+    currentLp?: number | null;
+    rivalLabel?: string | null;
+  } | null;
 }
 
 const t = (locale: Locale, es: string, en: string) => (locale === 'en' ? en : es);
@@ -797,13 +814,15 @@ export function CoachPremiumWorkspace({
   locale = 'es',
   rosterPlayers = [],
   roleReferences = [],
-  canManageRoster = false
+  canManageRoster = false,
+  onOpenPlayer
 }: {
   dataset: Dataset;
   locale?: Locale;
   rosterPlayers?: CoachWorkspaceRosterPlayer[];
   roleReferences?: RoleReferenceProfile[];
   canManageRoster?: boolean;
+  onOpenPlayer?: (player: CoachWorkspaceRosterPlayer) => void;
 }) {
   const [activeView, setActiveView] = useState<WorkspaceView>('desk');
   const trendData = useMemo(() => buildMatchTrend(dataset.matches), [dataset.matches]);
@@ -973,8 +992,31 @@ export function CoachPremiumWorkspace({
                     const syncLabel = player.localProfile
                       ? formatRelativeDate(player.localProfile.lastSyncedAt, locale)
                       : t(locale, 'Nunca sincronizado', 'Never synced');
+                    const snapshot = player.snapshot;
+                    const canOpen = Boolean(player.profile && onOpenPlayer);
+                    const trendTone = snapshot
+                      ? snapshot.recentScoreDelta >= 0.4 || snapshot.recentWinRateDelta >= 4
+                        ? 'low'
+                        : snapshot.recentScoreDelta <= -0.4 || snapshot.recentWinRateDelta <= -4
+                          ? 'high'
+                          : 'default'
+                      : 'medium';
                     return (
-                      <div key={player.assignmentId} style={{ ...rosterCardStyle, ...(player.isLoaded ? activeRosterCardStyle : {}) }}>
+                      <button
+                        key={player.assignmentId}
+                        type="button"
+                        onClick={() => {
+                          if (canOpen) onOpenPlayer?.(player);
+                        }}
+                        disabled={!canOpen}
+                        style={{
+                          ...rosterCardStyle,
+                          ...(player.isLoaded ? activeRosterCardStyle : {}),
+                          textAlign: 'left',
+                          cursor: canOpen ? 'pointer' : 'default',
+                          opacity: canOpen ? 1 : 0.92
+                        }}
+                      >
                         <div style={{ display: 'grid', gridTemplateColumns: iconUrl ? '44px minmax(0, 1fr)' : '1fr', gap: 12, alignItems: 'center' }}>
                           {iconUrl ? <img src={iconUrl} alt={player.displayName} width={44} height={44} style={{ width: 44, height: 44, borderRadius: 14, border: '1px solid rgba(255,255,255,0.08)' }} /> : null}
                           <div style={{ display: 'grid', gap: 4 }}>
@@ -983,6 +1025,7 @@ export function CoachPremiumWorkspace({
                               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                                 {player.isLoaded ? <Badge tone="low">{t(locale, 'Abierto', 'Open')}</Badge> : null}
                                 <Badge tone={player.localProfile ? 'default' : 'medium'}>{player.localProfile ? t(locale, 'Listo', 'Ready') : t(locale, 'Pendiente', 'Pending')}</Badge>
+                                {snapshot?.currentRankLabel ? <Badge tone="low">{snapshot.currentLp ? `${snapshot.currentRankLabel} · ${snapshot.currentLp} LP` : snapshot.currentRankLabel}</Badge> : null}
                               </div>
                             </div>
                             <div style={{ color: '#8d9bb0', fontSize: 13, lineHeight: 1.55 }}>
@@ -990,13 +1033,42 @@ export function CoachPremiumWorkspace({
                             </div>
                           </div>
                         </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: snapshot ? 'repeat(4, minmax(0, 1fr))' : 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
                           <RosterMetric label={t(locale, 'Cobertura', 'Coverage')} value={coverageLabel} />
                           <RosterMetric label={t(locale, 'Sync', 'Sync')} value={syncLabel} />
-                          <RosterMetric label={t(locale, 'Rank', 'Rank')} value={player.localProfile?.rankLabel ?? '—'} />
+                          <RosterMetric label={t(locale, 'Rank', 'Rank')} value={snapshot?.currentRankLabel ?? player.localProfile?.rankLabel ?? '—'} />
+                          {snapshot ? <RosterMetric label={t(locale, 'Rol', 'Role')} value={snapshot.primaryRole} /> : null}
                         </div>
+                        {snapshot ? (
+                          <>
+                            <div className="coach-roster-snapshot-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 10 }}>
+                              <RosterMetric label="KDA" value={formatDecimal(snapshot.avgKda)} />
+                              <RosterMetric label="CS/min" value={formatDecimal(snapshot.avgCsPerMinute)} />
+                              <RosterMetric label="WR" value={`${formatDecimal(snapshot.winRate)}%`} />
+                              <RosterMetric label="CS@15" value={formatDecimal(snapshot.avgCsAt15)} />
+                              <RosterMetric label={t(locale, 'Gold diff15', 'Gold diff15')} value={formatInteger(snapshot.avgGoldDiffAt15)} />
+                              <RosterMetric label={t(locale, 'Objetivos', 'Objectives')} value={formatDecimal(snapshot.avgObjectives)} />
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                <Badge tone={trendTone}>
+                                  {snapshot.recentWinRateDelta > 0 ? '+' : ''}{formatDecimal(snapshot.recentWinRateDelta)} WR
+                                </Badge>
+                                <Badge tone={trendTone}>
+                                  {snapshot.recentScoreDelta > 0 ? '+' : ''}{formatDecimal(snapshot.recentScoreDelta)} score
+                                </Badge>
+                                {snapshot.rivalLabel ? <Badge tone="medium">{`${t(locale, 'Rival', 'Rival')}: ${snapshot.rivalLabel}`}</Badge> : null}
+                              </div>
+                              {canOpen ? (
+                                <div style={{ color: '#d8fdf1', fontSize: 12, fontWeight: 800 }}>
+                                  {t(locale, 'Click para abrir coaching', 'Click to open coaching')}
+                                </div>
+                              ) : null}
+                            </div>
+                          </>
+                        ) : null}
                         {player.note ? <div style={{ color: '#9aa8bc', lineHeight: 1.6 }}>{player.note}</div> : null}
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
