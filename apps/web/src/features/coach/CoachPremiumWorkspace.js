@@ -6,7 +6,11 @@ import { formatDecimal, formatInteger } from '../../lib/format';
 import { buildCs15ProgressionBenchmark, buildLevel15ProgressionBenchmark } from '../../lib/benchmarks';
 import { getProfileIconUrl } from '../../lib/lol';
 const t = (locale, es, en) => (locale === 'en' ? en : es);
-const avg = (values) => values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
+const safeNumber = (value, fallback = 0) => (typeof value === 'number' && Number.isFinite(value) ? value : fallback);
+const avg = (values) => {
+    const valid = values.filter((value) => typeof value === 'number' && Number.isFinite(value));
+    return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : 0;
+};
 const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 function formatRelativeDate(value, locale) {
     const timestamp = typeof value === 'number' ? value : new Date(value).getTime();
@@ -26,17 +30,17 @@ function buildMatchTrend(matches) {
         .sort((a, b) => a.gameCreation - b.gameCreation)
         .map((match, index) => ({
         game: index + 1,
-        score: Number(match.score.total.toFixed(1)),
-        goldDiffAt15: Number((match.timeline.goldDiffAt15 ?? 0).toFixed(0)),
-        laneVolatility: Number(match.timeline.laneVolatilityScore.toFixed(1))
+        score: Number(safeNumber(match.score.total).toFixed(1)),
+        goldDiffAt15: Number(safeNumber(match.timeline.goldDiffAt15).toFixed(0)),
+        laneVolatility: Number(safeNumber(match.timeline.laneVolatilityScore).toFixed(1))
     }));
 }
 function computeLaneControlScore(match) {
     return clamp(58
-        + (match.timeline.goldDiffAt15 ?? 0) / 28
-        + (match.timeline.levelDiffAt15 ?? 0) * 14
-        - match.timeline.laneDeathsPre10 * 20
-        - Math.max(0, match.timeline.deathsPre14 - 1) * 8);
+        + safeNumber(match.timeline.goldDiffAt15) / 28
+        + safeNumber(match.timeline.levelDiffAt15) * 14
+        - safeNumber(match.timeline.laneDeathsPre10) * 20
+        - Math.max(0, safeNumber(match.timeline.deathsPre14) - 1) * 8);
 }
 function MiniMeta({ label, value }) {
     return (_jsxs("div", { style: rosterMetricStyle, children: [_jsx("div", { style: coachMetaLabelStyle, children: label }), _jsx("div", { style: rosterMetricValueStyle, children: value })] }));
@@ -240,16 +244,16 @@ const emptyStateStyle = {
     lineHeight: 1.65
 };
 function computeResourceScore(match) {
-    return clamp(25 + match.timeline.csAt15 * 0.62 + (match.timeline.goldDiffAt15 ?? 0) / 40 - match.timeline.deathsPre14 * 11);
+    return clamp(25 + safeNumber(match.timeline.csAt15) * 0.62 + safeNumber(match.timeline.goldDiffAt15) / 40 - safeNumber(match.timeline.deathsPre14) * 11);
 }
 function computeSetupScore(match) {
     return clamp(24
-        + match.timeline.objectiveSetupScore * 0.62
-        + match.killParticipation * 0.34
-        - match.timeline.objectiveFightDeaths * 18);
+        + safeNumber(match.timeline.objectiveSetupScore) * 0.62
+        + safeNumber(match.killParticipation) * 0.34
+        - safeNumber(match.timeline.objectiveFightDeaths) * 18);
 }
 function computeConversionScore(match) {
-    return clamp(34 + match.score.macro * 0.45 + (match.win ? 18 : -10) + (match.timeline.goldDiffAt15 ?? 0) / 38 - match.timeline.objectiveFightDeaths * 10);
+    return clamp(34 + safeNumber(match.score.macro) * 0.45 + (match.win ? 18 : -10) + safeNumber(match.timeline.goldDiffAt15) / 38 - safeNumber(match.timeline.objectiveFightDeaths) * 10);
 }
 function buildPhaseChartData(matches, locale) {
     const ordered = [...matches].sort((a, b) => a.gameCreation - b.gameCreation);
@@ -296,11 +300,11 @@ function buildPhaseChartData(matches, locale) {
     ];
 }
 function buildOperationalSignals(matches, locale) {
-    const stableOpenings = matches.filter((match) => match.timeline.laneDeathsPre10 === 0);
-    const playableTo15 = matches.filter((match) => match.timeline.deathsPre14 <= 1 && (match.timeline.goldDiffAt15 ?? 0) >= -250);
-    const cleanResets = matches.filter((match) => match.timeline.resetTimingScore >= 62);
-    const objectiveClean = matches.filter((match) => match.timeline.objectiveFightDeaths === 0);
-    const leadSamples = matches.filter((match) => (match.timeline.goldDiffAt15 ?? 0) >= 250);
+    const stableOpenings = matches.filter((match) => safeNumber(match.timeline.laneDeathsPre10) === 0);
+    const playableTo15 = matches.filter((match) => safeNumber(match.timeline.deathsPre14) <= 1 && safeNumber(match.timeline.goldDiffAt15) >= -250);
+    const cleanResets = matches.filter((match) => safeNumber(match.timeline.resetTimingScore) >= 62);
+    const objectiveClean = matches.filter((match) => safeNumber(match.timeline.objectiveFightDeaths) === 0);
+    const leadSamples = matches.filter((match) => safeNumber(match.timeline.goldDiffAt15) >= 250);
     const convertedLeads = leadSamples.filter((match) => match.win);
     return [
         {
@@ -340,28 +344,28 @@ function classifyCollapse(match, locale) {
             reason: t(locale, 'Consigue ventaja, pero no la transforma en control estable.', 'Gets an advantage, but does not turn it into stable control.')
         };
     }
-    if (match.timeline.objectiveFightDeaths > 0 || match.timeline.objectiveSetupDeaths > 0) {
+    if (safeNumber(match.timeline.objectiveFightDeaths) > 0 || safeNumber(match.timeline.objectiveSetupDeaths) > 0) {
         return {
             id: 'setup-break',
             label: t(locale, 'Se rompe en setup', 'Breaks in setup'),
             reason: t(locale, 'La fuga aparece antes o durante la ventana de objetivo.', 'The leak appears before or during the objective window.')
         };
     }
-    if (match.timeline.deathsPre14 >= 2 || match.timeline.laneDeathsPre10 >= 1) {
+    if (safeNumber(match.timeline.deathsPre14) >= 2 || safeNumber(match.timeline.laneDeathsPre10) >= 1) {
         return {
             id: 'early-collapse',
             label: t(locale, 'Se cae temprano', 'Collapses early'),
             reason: t(locale, 'La partida pierde jugabilidad demasiado pronto.', 'The game loses playability too early.')
         };
     }
-    if ((match.timeline.goldDiffAt15 ?? 0) <= -400 || (match.timeline.levelDiffAt15 ?? 0) <= -0.8) {
+    if (safeNumber(match.timeline.goldDiffAt15) <= -400 || safeNumber(match.timeline.levelDiffAt15) <= -0.8) {
         return {
             id: 'lane-deficit',
             label: t(locale, 'Cede línea/tempo', 'Gives lane/tempo'),
             reason: t(locale, 'Llega al 15 desde desventaja real de oro o nivel.', 'Reaches minute 15 from a real gold or level deficit.')
         };
     }
-    if (match.killParticipation < 45) {
+    if (safeNumber(match.killParticipation) < 45) {
         return {
             id: 'map-disconnect',
             label: t(locale, 'Llega desconectado', 'Arrives disconnected'),
@@ -392,25 +396,25 @@ function buildCollapsePatterns(matches, locale) {
         .sort((a, b) => b.count - a.count);
 }
 function inferBreakpoint(match, locale) {
-    if ((match.timeline.goldDiffAt15 ?? 0) >= 250 && !match.win) {
+    if (safeNumber(match.timeline.goldDiffAt15) >= 250 && !match.win) {
         return {
             label: t(locale, 'Post-15: mala conversión', 'Post-15: poor conversion'),
             description: t(locale, 'La partida llegó jugable, pero no sostuvo control después de la ventaja.', 'The game reached a playable state, but did not sustain control after the lead.')
         };
     }
-    if (match.timeline.objectiveFightDeaths > 0 || match.timeline.objectiveSetupDeaths > 0) {
+    if (safeNumber(match.timeline.objectiveFightDeaths) > 0 || safeNumber(match.timeline.objectiveSetupDeaths) > 0) {
         return {
             label: t(locale, 'Ventana de objetivo', 'Objective window'),
             description: t(locale, 'El mayor quiebre aparece en setup, llegada o ejecución alrededor del objetivo.', 'The biggest break appears in setup, arrival or execution around the objective.')
         };
     }
-    if (match.timeline.deathsPre14 >= 2) {
+    if (safeNumber(match.timeline.deathsPre14) >= 2) {
         return {
             label: t(locale, '0-14: disciplina', '0-14: discipline'),
             description: t(locale, 'La primera muerte evitable parece cambiar toda la jugabilidad posterior.', 'The first avoidable death seems to change the entire later game state.')
         };
     }
-    if ((match.timeline.goldDiffAt15 ?? 0) <= -350) {
+    if (safeNumber(match.timeline.goldDiffAt15) <= -350) {
         return {
             label: t(locale, '10-15: economía', '10-15: economy'),
             description: t(locale, 'La partida se queda corta en recursos antes del primer tramo serio de mapa.', 'The game runs short on resources before the first serious map segment.')

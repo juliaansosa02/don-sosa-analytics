@@ -83,8 +83,9 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
   const emblem = getRankEmblemDataUrl(tier);
   const palette = getRankPalette(tier);
   const usesOfficialEmblem = Boolean(tier && tier !== 'UNRANKED');
-  const tuning = rankEmblemTuning[tier ?? 'UNRANKED'] ?? rankEmblemTuning.DEFAULT;
-  const assetSize = Math.round(size * (usesOfficialEmblem ? tuning.assetScale : 1.76));
+  const tuning = rankEmblemCropTuning[tier ?? 'UNRANKED'] ?? rankEmblemCropTuning.DEFAULT;
+  const assetWidth = Math.round(size * (usesOfficialEmblem ? tuning.assetScale : 1.76));
+  const haloSize = Math.round(size * (usesOfficialEmblem ? tuning.haloScale : 0.7));
 
   return (
     <div
@@ -93,34 +94,47 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
         width: size,
         height: size,
         display: 'inline-flex',
-        alignItems: usesOfficialEmblem ? 'end' : 'center',
+        alignItems: 'center',
         justifyContent: 'center',
         position: 'relative',
         flexShrink: 0,
-        overflow: 'visible',
+        overflow: 'hidden',
         borderRadius: '50%',
-        paddingBottom: usesOfficialEmblem ? Math.round(size * 0.01) : 0,
-        background: usesOfficialEmblem
-          ? `radial-gradient(circle at 50% 54%, rgba(255,255,255,0.12) 0%, ${palette.glow}22 18%, ${palette.primary}12 36%, rgba(10,16,24,0.22) 56%, rgba(10,16,24,0) 78%)`
-          : 'radial-gradient(circle at 50% 52%, rgba(255,255,255,0.08), rgba(255,255,255,0) 72%)',
-        boxShadow: usesOfficialEmblem
-          ? `inset 0 0 42px rgba(255,255,255,0.035), 0 22px 40px ${palette.primary}22`
-          : 'none',
-        filter: usesOfficialEmblem ? `drop-shadow(0 14px 26px ${palette.primary}22)` : `drop-shadow(0 14px 24px ${palette.primary}18)`
+        boxShadow: usesOfficialEmblem ? `0 18px 34px ${palette.primary}16` : 'none'
       }}
     >
+      {usesOfficialEmblem ? (
+        <div
+          style={{
+            position: 'absolute',
+            inset: '50% auto auto 50%',
+            width: haloSize,
+            height: haloSize,
+            borderRadius: '50%',
+            transform: 'translate(-50%, -50%)',
+            background: `radial-gradient(circle at 50% 52%, ${palette.glow}1e 0%, ${palette.primary}18 26%, rgba(11,17,26,0.34) 54%, rgba(11,17,26,0) 76%)`,
+            boxShadow: `inset 0 0 28px rgba(255,255,255,0.03), 0 0 36px ${palette.primary}18`
+          }}
+        />
+      ) : null}
       <img
         src={emblem}
         alt={label}
-        width={assetSize}
-        height={assetSize}
+        width={assetWidth}
+        height={assetWidth}
         style={{
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
           display: 'block',
-          width: assetSize,
-          height: assetSize,
+          width: assetWidth,
+          height: assetWidth,
           objectFit: 'contain',
           maxWidth: 'none',
-          transform: usesOfficialEmblem ? `translateY(${tuning.translateY}px)` : 'translateY(0px)'
+          transform: usesOfficialEmblem
+            ? `translate(-50%, -50%) translateY(${tuning.offsetY}px)`
+            : 'translate(-50%, -50%)',
+          filter: usesOfficialEmblem ? `drop-shadow(0 10px 24px ${palette.primary}20)` : `drop-shadow(0 14px 24px ${palette.primary}18)`
         }}
       />
     </div>
@@ -185,17 +199,17 @@ const rankQueueSummaryStyle: CSSProperties = {
   minWidth: 0
 };
 
-const rankEmblemTuning: Record<string, { assetScale: number; translateY: number }> = {
-  DEFAULT: { assetScale: 1.42, translateY: 4 },
-  IRON: { assetScale: 1.36, translateY: 3 },
-  BRONZE: { assetScale: 1.38, translateY: 3 },
-  SILVER: { assetScale: 1.38, translateY: 3 },
-  GOLD: { assetScale: 1.4, translateY: 4 },
-  PLATINUM: { assetScale: 1.48, translateY: 4 },
-  EMERALD: { assetScale: 1.48, translateY: 4 },
-  DIAMOND: { assetScale: 1.44, translateY: 4 },
-  MASTER: { assetScale: 1.38, translateY: 2 },
-  GRANDMASTER: { assetScale: 1.38, translateY: 2 },
-  CHALLENGER: { assetScale: 1.38, translateY: 1 },
-  UNRANKED: { assetScale: 1, translateY: 0 }
+const rankEmblemCropTuning: Record<string, { assetScale: number; offsetY: number; haloScale: number }> = {
+  DEFAULT: { assetScale: 4.3, offsetY: 8, haloScale: 0.76 },
+  IRON: { assetScale: 4.75, offsetY: 10, haloScale: 0.74 },
+  BRONZE: { assetScale: 4.7, offsetY: 10, haloScale: 0.74 },
+  SILVER: { assetScale: 4.65, offsetY: 10, haloScale: 0.74 },
+  GOLD: { assetScale: 4.85, offsetY: 10, haloScale: 0.74 },
+  PLATINUM: { assetScale: 4.45, offsetY: 10, haloScale: 0.75 },
+  EMERALD: { assetScale: 4.35, offsetY: 10, haloScale: 0.75 },
+  DIAMOND: { assetScale: 4.2, offsetY: 10, haloScale: 0.75 },
+  MASTER: { assetScale: 4.1, offsetY: 8, haloScale: 0.75 },
+  GRANDMASTER: { assetScale: 3.95, offsetY: 8, haloScale: 0.75 },
+  CHALLENGER: { assetScale: 3.9, offsetY: 8, haloScale: 0.75 },
+  UNRANKED: { assetScale: 1, offsetY: 0, haloScale: 0.7 }
 };
