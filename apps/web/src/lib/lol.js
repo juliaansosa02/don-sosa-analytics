@@ -86,6 +86,18 @@ const rankEmblemUrlMap = {
     GRANDMASTER: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-grandmaster.png',
     CHALLENGER: 'https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-challenger.png'
 };
+const rankCrestTierConfig = {
+    IRON: { directory: '01_iron', slug: 'iron' },
+    BRONZE: { directory: '02_bronze', slug: 'bronze' },
+    SILVER: { directory: '03_silver', slug: 'silver' },
+    GOLD: { directory: '04_gold', slug: 'gold' },
+    PLATINUM: { directory: '05_platinum', slug: 'platinum' },
+    EMERALD: { directory: '06_emerald', slug: 'emerald' },
+    DIAMOND: { directory: '07_diamond', slug: 'diamond' },
+    MASTER: { directory: '08_master', slug: 'master' },
+    GRANDMASTER: { directory: '09_grandmaster', slug: 'grandmaster' },
+    CHALLENGER: { directory: '10_challenger', slug: 'challenger' }
+};
 export function normalizeChampionKey(championName) {
     return championKeyMap[championName] ?? championName.replace(/[\s'.]/g, '');
 }
@@ -242,4 +254,27 @@ export function getRankEmblemDataUrl(tier) {
     </svg>
   `;
     return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+function extractRankDivision(label) {
+    if (!label)
+        return null;
+    const match = label.toUpperCase().match(/\b(IV|III|II|I)\b/);
+    if (!match)
+        return null;
+    const divisionMap = { I: 1, II: 2, III: 3, IV: 4 };
+    return divisionMap[match[1]] ?? null;
+}
+export function getRankCrestLayerUrls(tier, label) {
+    const config = tier ? rankCrestTierConfig[tier] : null;
+    if (!config)
+        return null;
+    const basePath = `https://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/content/src/leagueclient/rankedcrests/${config.directory}/images`;
+    const division = extractRankDivision(label) ?? 1;
+    return {
+        backlight: `${basePath}/backlight.png`,
+        base: `${basePath}/${config.slug}_base.png`,
+        plate: `${basePath}/${config.slug}_plate.png`,
+        face: `${basePath}/${config.slug}_face.png`,
+        crown: `${basePath}/${config.slug}_crown_d${division}.png`
+    };
 }

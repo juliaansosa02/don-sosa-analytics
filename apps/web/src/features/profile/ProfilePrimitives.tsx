@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { Dataset } from '../../types';
 import type { Locale } from '../../lib/i18n';
-import { getRankEmblemDataUrl, getRankPalette } from '../../lib/lol';
+import { getRankCrestLayerUrls, getRankEmblemDataUrl, getRankPalette } from '../../lib/lol';
 
 export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonNullable<Dataset['rank']>; compact?: boolean; locale?: Locale }) {
   const palette = getRankPalette(rank.highest.tier);
@@ -81,10 +81,11 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
 
 export function RankEmblem({ tier, label, size }: { tier?: string; label: string; size: number }) {
   const emblem = getRankEmblemDataUrl(tier);
+  const crestLayers = getRankCrestLayerUrls(tier, label);
   const palette = getRankPalette(tier);
   const usesOfficialEmblem = Boolean(tier && tier !== 'UNRANKED');
   const tuning = rankEmblemTuning[tier ?? 'UNRANKED'] ?? rankEmblemTuning.DEFAULT;
-  const assetSize = Math.round(size * (usesOfficialEmblem ? tuning.assetScale : 1.76));
+  const assetSize = Math.round(size * 1.76);
 
   return (
     <div
@@ -98,27 +99,43 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
         position: 'relative',
         flexShrink: 0,
         overflow: 'visible',
-        paddingBottom: usesOfficialEmblem ? Math.round(size * 0.01) : 0,
+        paddingBottom: usesOfficialEmblem ? Math.round(size * 0.02) : 0,
         background: usesOfficialEmblem
-          ? `radial-gradient(circle at 50% 66%, ${palette.primary}26 0%, rgba(255,255,255,0.08) 24%, rgba(255,255,255,0.03) 44%, rgba(255,255,255,0) 80%)`
+          ? `radial-gradient(circle at 50% 72%, ${palette.primary}18 0%, rgba(255,255,255,0.06) 26%, rgba(255,255,255,0.02) 42%, rgba(255,255,255,0) 78%)`
           : 'radial-gradient(circle at 50% 52%, rgba(255,255,255,0.08), rgba(255,255,255,0) 72%)',
-        filter: `drop-shadow(0 22px 38px ${palette.primary}36)`
+        filter: `drop-shadow(0 22px 40px ${palette.primary}2f)`
       }}
     >
-      <img
-        src={emblem}
-        alt={label}
-        width={assetSize}
-        height={assetSize}
-        style={{
-          display: 'block',
-          width: assetSize,
-          height: assetSize,
-          objectFit: 'contain',
-          maxWidth: 'none',
-          transform: usesOfficialEmblem ? `translateY(${tuning.translateY}px)` : 'translateY(0px)'
-        }}
-      />
+      {usesOfficialEmblem && crestLayers ? (
+        <div
+          style={{
+            width: size,
+            height: size,
+            position: 'relative',
+            transform: `translateY(${tuning.translateY}px)`
+          }}
+        >
+          <img src={crestLayers.backlight} alt="" aria-hidden="true" style={{ ...crestLayerStyle, transform: 'scale(1.1)' }} />
+          <img src={crestLayers.base} alt="" aria-hidden="true" style={crestLayerStyle} />
+          <img src={crestLayers.face} alt="" aria-hidden="true" style={crestLayerStyle} />
+          <img src={crestLayers.plate} alt="" aria-hidden="true" style={crestLayerStyle} />
+          <img src={crestLayers.crown} alt={label} style={crestLayerStyle} />
+        </div>
+      ) : (
+        <img
+          src={emblem}
+          alt={label}
+          width={assetSize}
+          height={assetSize}
+          style={{
+            display: 'block',
+            width: assetSize,
+            height: assetSize,
+            objectFit: 'contain',
+            maxWidth: 'none'
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -181,17 +198,27 @@ const rankQueueSummaryStyle: CSSProperties = {
   minWidth: 0
 };
 
-const rankEmblemTuning: Record<string, { assetScale: number; translateY: number }> = {
-  DEFAULT: { assetScale: 1.4, translateY: 4 },
-  IRON: { assetScale: 1.34, translateY: 3 },
-  BRONZE: { assetScale: 1.36, translateY: 3 },
-  SILVER: { assetScale: 1.36, translateY: 3 },
-  GOLD: { assetScale: 1.38, translateY: 4 },
-  PLATINUM: { assetScale: 1.48, translateY: 5 },
-  EMERALD: { assetScale: 1.46, translateY: 5 },
-  DIAMOND: { assetScale: 1.42, translateY: 4 },
-  MASTER: { assetScale: 1.38, translateY: 3 },
-  GRANDMASTER: { assetScale: 1.38, translateY: 2 },
-  CHALLENGER: { assetScale: 1.38, translateY: 1 },
-  UNRANKED: { assetScale: 1, translateY: 0 }
+const crestLayerStyle: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  width: '100%',
+  height: '100%',
+  objectFit: 'contain',
+  pointerEvents: 'none',
+  userSelect: 'none'
+};
+
+const rankEmblemTuning: Record<string, { translateY: number }> = {
+  DEFAULT: { translateY: 4 },
+  IRON: { translateY: 4 },
+  BRONZE: { translateY: 4 },
+  SILVER: { translateY: 4 },
+  GOLD: { translateY: 4 },
+  PLATINUM: { translateY: 5 },
+  EMERALD: { translateY: 5 },
+  DIAMOND: { translateY: 5 },
+  MASTER: { translateY: 3 },
+  GRANDMASTER: { translateY: 2 },
+  CHALLENGER: { translateY: 2 },
+  UNRANKED: { translateY: 0 }
 };
