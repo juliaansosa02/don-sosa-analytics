@@ -306,13 +306,14 @@ export function StatsTab({ dataset, locale = 'es' }: { dataset: Dataset; locale?
                 <ChampionIdentity
                   championName={match.championName}
                   version={dataset.ddragonVersion}
-                  subtitle={new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
+                  subtitle={`${new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')} · ${match.opponentChampionName ? `vs ${formatChampionName(match.opponentChampionName)}` : (locale === 'en' ? 'Opponent unknown' : 'Rival sin detectar')}`}
                   size={42}
                 />
                 <div style={{ display: 'grid', gap: 7, justifyItems: 'end' }}>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'end' }}>
                     <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota')}</Badge>
                     <Badge>{`${locale === 'en' ? 'Score' : 'Score'} ${Math.round(match.score.total)}`}</Badge>
+                    <Badge>{`${match.kills}/${match.deaths}/${match.assists}`}</Badge>
                     <Badge>{`${formatDecimal(match.timeline.csAt15)} CS@15`}</Badge>
                   </div>
                   <div style={{ maxWidth: 340, color: '#8fa1b8', fontSize: 12, lineHeight: 1.6, textAlign: 'right' }}>
@@ -448,13 +449,16 @@ function BenchmarkBar({ label, value, maxValue, tone }: { label: string; value: 
 
 function SpotlightMetricMatch({ match, dataset, locale }: { match: Dataset['matches'][number]; dataset: Dataset; locale: Locale }) {
   const quickRead = buildMatchQuickRead(match, dataset, locale);
+  const matchupLabel = match.opponentChampionName
+    ? `vs ${formatChampionName(match.opponentChampionName)}`
+    : (locale === 'en' ? 'Opponent unknown' : 'Rival sin detectar');
 
   return (
     <div style={{ display: 'grid', gap: 12 }}>
       <ChampionIdentity
         championName={match.championName}
         version={dataset.ddragonVersion}
-        subtitle={new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
+        subtitle={`${new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')} · ${matchupLabel}`}
         meta={
           <>
             <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota')}</Badge>
@@ -464,11 +468,24 @@ function SpotlightMetricMatch({ match, dataset, locale }: { match: Dataset['matc
       />
       <div style={{ color: '#eef4ff', fontSize: 19, lineHeight: 1.18, fontWeight: 850 }}>{quickRead.title}</div>
       <div style={{ color: '#90a1b8', lineHeight: 1.7 }}>{quickRead.body}</div>
+      <div style={spotlightMetricGridStyle}>
+        <SpotlightMetricPill label="KDA" value={`${match.kills}/${match.deaths}/${match.assists}`} />
+        <SpotlightMetricPill label={locale === 'en' ? 'Matchup' : 'Matchup'} value={matchupLabel} wide />
+      </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <Badge>{`${locale === 'en' ? 'Score' : 'Score'} ${Math.round(match.score.total)}`}</Badge>
         <Badge>{`${formatDecimal(match.timeline.csAt15)} CS@15`}</Badge>
         <Badge>{`${formatSignedNumber(match.timeline.goldDiffAt15, 0)}`}</Badge>
       </div>
+    </div>
+  );
+}
+
+function SpotlightMetricPill({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  return (
+    <div style={{ ...spotlightMetricPillStyle, ...(wide ? { minWidth: 170 } : {}) }}>
+      <div style={spotlightMetricPillLabelStyle}>{label}</div>
+      <div style={spotlightMetricPillValueStyle}>{value}</div>
     </div>
   );
 }
@@ -511,4 +528,33 @@ const recentMatchRowStyle = {
   borderRadius: 14,
   background: '#080d15',
   border: '1px solid rgba(255,255,255,0.06)'
+} as const;
+
+const spotlightMetricGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+  gap: 10
+} as const;
+
+const spotlightMetricPillStyle = {
+  display: 'grid',
+  gap: 4,
+  padding: '10px 12px',
+  borderRadius: 14,
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.018))',
+  border: '1px solid rgba(255,255,255,0.06)'
+} as const;
+
+const spotlightMetricPillLabelStyle = {
+  color: '#7f8fa6',
+  fontSize: 11,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em'
+} as const;
+
+const spotlightMetricPillValueStyle = {
+  color: '#eef4ff',
+  fontSize: 14,
+  fontWeight: 800,
+  lineHeight: 1.35
 } as const;

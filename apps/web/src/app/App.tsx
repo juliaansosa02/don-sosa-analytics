@@ -1487,7 +1487,7 @@ function AppShell() {
                   <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
                     <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-                      {rankTier ? <RankEmblem tier={rankTier} label={profile.rankLabel ?? ''} size={54} /> : null}
+                      {rankTier ? <RankEmblem tier={rankTier} label={profile.rankLabel ?? ''} size={74} /> : null}
                       <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible')}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

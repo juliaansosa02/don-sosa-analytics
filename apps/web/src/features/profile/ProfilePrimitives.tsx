@@ -18,20 +18,21 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
         display: 'grid',
         gap: 8,
         minWidth: 0,
-        padding: '14px 16px 14px',
-        borderRadius: 18,
-        background: 'rgba(9, 14, 22, 0.86)',
-        border: `1px solid ${palette.primary}33`
+        padding: '16px 18px 16px',
+        borderRadius: 22,
+        background: 'linear-gradient(180deg, rgba(8, 14, 22, 0.94), rgba(10, 17, 28, 0.9))',
+        border: `1px solid ${palette.primary}30`,
+        boxShadow: `0 22px 44px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.03), 0 0 28px ${palette.primary}1a`
       }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '114px minmax(0, 1fr)', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '144px minmax(0, 1fr)', alignItems: 'center', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={118} />
+            <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={142} />
           </div>
           <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
             <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Competitive rank' : 'Rango competitivo'}</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 19, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{soloText}</span>
-              {rank.soloQueue.tier !== 'UNRANKED' ? <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.soloQueue.leaguePoints} LP`}</span> : null}
+              <span style={{ fontSize: 22, fontWeight: 900, color: '#edf2ff', letterSpacing: '-0.03em' }}>{soloText}</span>
+              {rank.soloQueue.tier !== 'UNRANKED' ? <span style={{ color: palette.glow, fontSize: 15, fontWeight: 900 }}>{`${rank.soloQueue.leaguePoints} LP`}</span> : null}
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               <span style={rankQueueSummaryStyle}>{`${rank.soloQueue.winRate}% WR`}</span>
@@ -52,17 +53,18 @@ export function RankBadge({ rank, compact = false, locale = 'es' }: { rank: NonN
         gap: compact ? 8 : 10,
         minWidth: 0,
         padding: compact ? '12px 14px' : '16px 18px',
-      borderRadius: 16,
-      background: compact ? 'rgba(9, 14, 22, 0.86)' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
-      border: `1px solid ${palette.primary}33`
+      borderRadius: 18,
+      background: compact ? 'linear-gradient(180deg, rgba(8,14,22,0.94), rgba(10,17,28,0.9))' : 'linear-gradient(180deg, rgba(10,14,22,0.96), rgba(19,24,37,0.92))',
+      border: `1px solid ${palette.primary}33`,
+      boxShadow: `0 18px 36px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.03), 0 0 20px ${palette.primary}16`
     }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '112px minmax(0, 1fr)', alignItems: 'center', gap: 12 }}>
-        <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={112} />
+      <div style={{ display: 'grid', gridTemplateColumns: '126px minmax(0, 1fr)', alignItems: 'center', gap: 12 }}>
+        <RankEmblem tier={anchorQueue.tier} label={anchorQueue.label} size={126} />
         <div style={{ display: 'grid', gap: 6, minWidth: 0 }}>
           <div style={{ color: '#8d97aa', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Competitive rank' : 'Rango competitivo'}</div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 20, fontWeight: 800, color: '#edf2ff', letterSpacing: '-0.02em' }}>{soloText}</span>
-            {rank.soloQueue.tier !== 'UNRANKED' ? <span style={{ color: palette.glow, fontSize: 13, fontWeight: 800 }}>{`${rank.soloQueue.leaguePoints} LP`}</span> : null}
+            <span style={{ fontSize: 22, fontWeight: 900, color: '#edf2ff', letterSpacing: '-0.03em' }}>{soloText}</span>
+            {rank.soloQueue.tier !== 'UNRANKED' ? <span style={{ color: palette.glow, fontSize: 14, fontWeight: 900 }}>{`${rank.soloQueue.leaguePoints} LP`}</span> : null}
           </div>
           <div style={{ display: 'grid', gap: 7 }}>
             <span style={rankQueueSummaryStyle}>{`${rank.soloQueue.winRate}% WR · Solo/Duo`}</span>
@@ -82,8 +84,7 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
   const palette = getRankPalette(tier);
   const usesOfficialEmblem = Boolean(tier && tier !== 'UNRANKED');
   const tuning = rankEmblemTuning[tier ?? 'UNRANKED'] ?? rankEmblemTuning.DEFAULT;
-  const emblemHeight = usesOfficialEmblem ? Math.round(size * 0.82) : size;
-  const assetSize = Math.round(size * (usesOfficialEmblem ? 1.18 : 1.82));
+  const assetSize = Math.round(size * (usesOfficialEmblem ? tuning.assetScale : 1.76));
 
   return (
     <div
@@ -96,41 +97,28 @@ export function RankEmblem({ tier, label, size }: { tier?: string; label: string
         justifyContent: 'center',
         position: 'relative',
         flexShrink: 0,
-        paddingBottom: usesOfficialEmblem ? Math.round(size * 0.02) : 0,
+        overflow: 'visible',
+        paddingBottom: usesOfficialEmblem ? Math.round(size * 0.01) : 0,
         background: usesOfficialEmblem
-          ? `radial-gradient(circle at 50% 64%, ${palette.primary}22 0%, rgba(255,255,255,0.08) 22%, rgba(255,255,255,0.03) 42%, rgba(255,255,255,0) 78%)`
+          ? `radial-gradient(circle at 50% 66%, ${palette.primary}26 0%, rgba(255,255,255,0.08) 24%, rgba(255,255,255,0.03) 44%, rgba(255,255,255,0) 80%)`
           : 'radial-gradient(circle at 50% 52%, rgba(255,255,255,0.08), rgba(255,255,255,0) 72%)',
-        filter: `drop-shadow(0 18px 34px ${palette.primary}2e)`
+        filter: `drop-shadow(0 22px 38px ${palette.primary}36)`
       }}
     >
-      {usesOfficialEmblem ? (
-        <div
-          aria-hidden="true"
-          style={{
-            width: '100%',
-            height: '100%',
-            backgroundImage: `url(${emblem})`,
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: tuning.position,
-            backgroundSize: tuning.scale,
-            transform: tuning.transform
-          }}
-        />
-      ) : (
-        <img
-          src={emblem}
-          alt={label}
-          width={assetSize}
-          height={assetSize}
-          style={{
-            display: 'block',
-            width: assetSize,
-            height: assetSize,
-            objectFit: 'contain',
-            maxWidth: 'none'
-          }}
-        />
-      )}
+      <img
+        src={emblem}
+        alt={label}
+        width={assetSize}
+        height={assetSize}
+        style={{
+          display: 'block',
+          width: assetSize,
+          height: assetSize,
+          objectFit: 'contain',
+          maxWidth: 'none',
+          transform: usesOfficialEmblem ? `translateY(${tuning.translateY}px)` : 'translateY(0px)'
+        }}
+      />
     </div>
   );
 }
@@ -193,17 +181,17 @@ const rankQueueSummaryStyle: CSSProperties = {
   minWidth: 0
 };
 
-const rankEmblemTuning: Record<string, { scale: string; position: string; transform: string }> = {
-  DEFAULT: { scale: '176%', position: '50% 56%', transform: 'translateY(0px)' },
-  IRON: { scale: '162%', position: '50% 56%', transform: 'translateY(0px)' },
-  BRONZE: { scale: '166%', position: '50% 56%', transform: 'translateY(0px)' },
-  SILVER: { scale: '166%', position: '50% 56%', transform: 'translateY(0px)' },
-  GOLD: { scale: '170%', position: '50% 57%', transform: 'translateY(0px)' },
-  PLATINUM: { scale: '182%', position: '50% 59%', transform: 'translateY(1px)' },
-  EMERALD: { scale: '180%', position: '50% 58%', transform: 'translateY(0px)' },
-  DIAMOND: { scale: '176%', position: '50% 57%', transform: 'translateY(0px)' },
-  MASTER: { scale: '170%', position: '50% 56%', transform: 'translateY(0px)' },
-  GRANDMASTER: { scale: '170%', position: '50% 55%', transform: 'translateY(-1px)' },
-  CHALLENGER: { scale: '170%', position: '50% 54%', transform: 'translateY(-1px)' },
-  UNRANKED: { scale: '100%', position: '50% 50%', transform: 'translateY(0px)' }
+const rankEmblemTuning: Record<string, { assetScale: number; translateY: number }> = {
+  DEFAULT: { assetScale: 1.4, translateY: 4 },
+  IRON: { assetScale: 1.34, translateY: 3 },
+  BRONZE: { assetScale: 1.36, translateY: 3 },
+  SILVER: { assetScale: 1.36, translateY: 3 },
+  GOLD: { assetScale: 1.38, translateY: 4 },
+  PLATINUM: { assetScale: 1.48, translateY: 5 },
+  EMERALD: { assetScale: 1.46, translateY: 5 },
+  DIAMOND: { assetScale: 1.42, translateY: 4 },
+  MASTER: { assetScale: 1.38, translateY: 3 },
+  GRANDMASTER: { assetScale: 1.38, translateY: 2 },
+  CHALLENGER: { assetScale: 1.38, translateY: 1 },
+  UNRANKED: { assetScale: 1, translateY: 0 }
 };

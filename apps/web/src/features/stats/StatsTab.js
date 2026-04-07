@@ -182,7 +182,7 @@ export function StatsTab({ dataset, locale = 'es' }) {
                                         ? (locale === 'en' ? 'Until we accumulate enough internal sample, this metric should not be read as an exact comparison against your rank.' : 'Hasta que no juntamos una muestra propia suficiente, esta métrica no debería leerse como comparación exacta contra tu elo.')
                                         : (locale === 'en' ? 'Compares your experience pacing against the internal benchmark base accumulated in the same competitive context.' : 'Compara tu ritmo de experiencia contra la base propia acumulada en el mismo contexto competitivo.'), actual: averageLevel, benchmark: levelBenchmark, mode: benchmarkContext.mode, locale: locale }), dataset.benchmarks ? (_jsx("div", { style: { color: '#7f8ca1', fontSize: 12, lineHeight: 1.6 }, children: locale === 'en'
                                         ? `Internal benchmark note: ${dataset.benchmarks.note} The accumulated base currently contains ${dataset.benchmarks.totalTrackedEntries} processed records.`
-                                        : `${dataset.benchmarks.note} Hoy la base acumulada lleva ${dataset.benchmarks.totalTrackedEntries} registros procesados.` })) : null] }) }), _jsx(Card, { title: locale === 'en' ? 'Recent stretch with meaning' : 'Tramo reciente con sentido', subtitle: locale === 'en' ? 'Instead of only recent numbers, this tells you what the last games are teaching.' : 'En vez de solo números recientes, esto te dice qué están enseñando las últimas partidas.', children: _jsx("div", { style: { display: 'grid', gap: 10 }, children: recentMatches.map((match) => (_jsxs("div", { style: recentMatchRowStyle, children: [_jsx(ChampionIdentity, { championName: match.championName, version: dataset.ddragonVersion, subtitle: new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR'), size: 42 }), _jsxs("div", { style: { display: 'grid', gap: 7, justifyItems: 'end' }, children: [_jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'end' }, children: [_jsx(Badge, { tone: match.win ? 'low' : 'high', children: match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota') }), _jsx(Badge, { children: `${locale === 'en' ? 'Score' : 'Score'} ${Math.round(match.score.total)}` }), _jsx(Badge, { children: `${formatDecimal(match.timeline.csAt15)} CS@15` })] }), _jsx("div", { style: { maxWidth: 340, color: '#8fa1b8', fontSize: 12, lineHeight: 1.6, textAlign: 'right' }, children: buildMatchQuickRead(match, dataset, locale).title })] })] }, match.matchId))) }) })] }), _jsxs("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }, children: [referenceMatch ? (_jsx(Card, { title: locale === 'en' ? 'Mirror game' : 'Partida espejo', subtitle: locale === 'en' ? 'The best match to copy when you want cleaner numbers.' : 'La mejor partida para copiar cuando querés números más limpios.', children: _jsx(SpotlightMetricMatch, { match: referenceMatch, dataset: dataset, locale: locale }) })) : null, reviewPriorityMatch ? (_jsx(Card, { title: locale === 'en' ? 'Metric review priority' : 'Prioridad de review métrica', subtitle: locale === 'en' ? 'The loss that best explains why the slice still feels expensive.' : 'La derrota que mejor explica por qué este slice todavía se siente caro.', children: _jsx(SpotlightMetricMatch, { match: reviewPriorityMatch, dataset: dataset, locale: locale }) })) : null] })] }));
+                                        : `${dataset.benchmarks.note} Hoy la base acumulada lleva ${dataset.benchmarks.totalTrackedEntries} registros procesados.` })) : null] }) }), _jsx(Card, { title: locale === 'en' ? 'Recent stretch with meaning' : 'Tramo reciente con sentido', subtitle: locale === 'en' ? 'Instead of only recent numbers, this tells you what the last games are teaching.' : 'En vez de solo números recientes, esto te dice qué están enseñando las últimas partidas.', children: _jsx("div", { style: { display: 'grid', gap: 10 }, children: recentMatches.map((match) => (_jsxs("div", { style: recentMatchRowStyle, children: [_jsx(ChampionIdentity, { championName: match.championName, version: dataset.ddragonVersion, subtitle: `${new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')} · ${match.opponentChampionName ? `vs ${formatChampionName(match.opponentChampionName)}` : (locale === 'en' ? 'Opponent unknown' : 'Rival sin detectar')}`, size: 42 }), _jsxs("div", { style: { display: 'grid', gap: 7, justifyItems: 'end' }, children: [_jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'end' }, children: [_jsx(Badge, { tone: match.win ? 'low' : 'high', children: match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota') }), _jsx(Badge, { children: `${locale === 'en' ? 'Score' : 'Score'} ${Math.round(match.score.total)}` }), _jsx(Badge, { children: `${match.kills}/${match.deaths}/${match.assists}` }), _jsx(Badge, { children: `${formatDecimal(match.timeline.csAt15)} CS@15` })] }), _jsx("div", { style: { maxWidth: 340, color: '#8fa1b8', fontSize: 12, lineHeight: 1.6, textAlign: 'right' }, children: buildMatchQuickRead(match, dataset, locale).title })] })] }, match.matchId))) }) })] }), _jsxs("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }, children: [referenceMatch ? (_jsx(Card, { title: locale === 'en' ? 'Mirror game' : 'Partida espejo', subtitle: locale === 'en' ? 'The best match to copy when you want cleaner numbers.' : 'La mejor partida para copiar cuando querés números más limpios.', children: _jsx(SpotlightMetricMatch, { match: referenceMatch, dataset: dataset, locale: locale }) })) : null, reviewPriorityMatch ? (_jsx(Card, { title: locale === 'en' ? 'Metric review priority' : 'Prioridad de review métrica', subtitle: locale === 'en' ? 'The loss that best explains why the slice still feels expensive.' : 'La derrota que mejor explica por qué este slice todavía se siente caro.', children: _jsx(SpotlightMetricMatch, { match: reviewPriorityMatch, dataset: dataset, locale: locale }) })) : null] })] }));
 }
 function InsightRow({ label, value, note, tone }) {
     const borderColor = tone === 'positive'
@@ -218,7 +218,13 @@ function BenchmarkBar({ label, value, maxValue, tone }) {
 }
 function SpotlightMetricMatch({ match, dataset, locale }) {
     const quickRead = buildMatchQuickRead(match, dataset, locale);
-    return (_jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsx(ChampionIdentity, { championName: match.championName, version: dataset.ddragonVersion, subtitle: new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR'), meta: _jsxs(_Fragment, { children: [_jsx(Badge, { tone: match.win ? 'low' : 'high', children: match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota') }), _jsx(Badge, { tone: quickRead.tone === 'reference' ? 'low' : quickRead.tone === 'warning' ? 'high' : 'default', children: quickRead.toneLabel })] }) }), _jsx("div", { style: { color: '#eef4ff', fontSize: 19, lineHeight: 1.18, fontWeight: 850 }, children: quickRead.title }), _jsx("div", { style: { color: '#90a1b8', lineHeight: 1.7 }, children: quickRead.body }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { children: `${locale === 'en' ? 'Score' : 'Score'} ${Math.round(match.score.total)}` }), _jsx(Badge, { children: `${formatDecimal(match.timeline.csAt15)} CS@15` }), _jsx(Badge, { children: `${formatSignedNumber(match.timeline.goldDiffAt15, 0)}` })] })] }));
+    const matchupLabel = match.opponentChampionName
+        ? `vs ${formatChampionName(match.opponentChampionName)}`
+        : (locale === 'en' ? 'Opponent unknown' : 'Rival sin detectar');
+    return (_jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsx(ChampionIdentity, { championName: match.championName, version: dataset.ddragonVersion, subtitle: `${new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')} · ${matchupLabel}`, meta: _jsxs(_Fragment, { children: [_jsx(Badge, { tone: match.win ? 'low' : 'high', children: match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota') }), _jsx(Badge, { tone: quickRead.tone === 'reference' ? 'low' : quickRead.tone === 'warning' ? 'high' : 'default', children: quickRead.toneLabel })] }) }), _jsx("div", { style: { color: '#eef4ff', fontSize: 19, lineHeight: 1.18, fontWeight: 850 }, children: quickRead.title }), _jsx("div", { style: { color: '#90a1b8', lineHeight: 1.7 }, children: quickRead.body }), _jsxs("div", { style: spotlightMetricGridStyle, children: [_jsx(SpotlightMetricPill, { label: "KDA", value: `${match.kills}/${match.deaths}/${match.assists}` }), _jsx(SpotlightMetricPill, { label: locale === 'en' ? 'Matchup' : 'Matchup', value: matchupLabel, wide: true })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { children: `${locale === 'en' ? 'Score' : 'Score'} ${Math.round(match.score.total)}` }), _jsx(Badge, { children: `${formatDecimal(match.timeline.csAt15)} CS@15` }), _jsx(Badge, { children: `${formatSignedNumber(match.timeline.goldDiffAt15, 0)}` })] })] }));
+}
+function SpotlightMetricPill({ label, value, wide = false }) {
+    return (_jsxs("div", { style: { ...spotlightMetricPillStyle, ...(wide ? { minWidth: 170 } : {}) }, children: [_jsx("div", { style: spotlightMetricPillLabelStyle, children: label }), _jsx("div", { style: spotlightMetricPillValueStyle, children: value })] }));
 }
 const insightRowStyle = {
     display: 'flex',
@@ -255,4 +261,29 @@ const recentMatchRowStyle = {
     borderRadius: 14,
     background: '#080d15',
     border: '1px solid rgba(255,255,255,0.06)'
+};
+const spotlightMetricGridStyle = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+    gap: 10
+};
+const spotlightMetricPillStyle = {
+    display: 'grid',
+    gap: 4,
+    padding: '10px 12px',
+    borderRadius: 14,
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.018))',
+    border: '1px solid rgba(255,255,255,0.06)'
+};
+const spotlightMetricPillLabelStyle = {
+    color: '#7f8fa6',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em'
+};
+const spotlightMetricPillValueStyle = {
+    color: '#eef4ff',
+    fontSize: 14,
+    fontWeight: 800,
+    lineHeight: 1.35
 };

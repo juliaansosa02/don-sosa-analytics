@@ -38,15 +38,15 @@ function formatObjectives(match: Dataset['matches'][number], locale: Locale) {
 }
 
 function buildObjectiveTokens(match: Dataset['matches'][number], locale: Locale) {
-  const tokens: Array<{ key: string; label: string; value?: number; tone?: 'default' | 'high' | 'medium' | 'low' }> = [];
+  const tokens: Array<{ key: string; label: string; value?: number; tone?: 'default' | 'high' | 'medium' | 'low'; icon: ObjectiveIconKind }> = [];
 
-  if (match.dragonKills) tokens.push({ key: 'dragon', label: locale === 'en' ? 'Drake' : 'Dragón', value: match.dragonKills, tone: 'low' });
-  if (match.baronKills) tokens.push({ key: 'baron', label: 'Nashor', value: match.baronKills, tone: 'default' });
-  if (match.turretKills) tokens.push({ key: 'tower', label: locale === 'en' ? 'Tower' : 'Torre', value: match.turretKills, tone: 'default' });
-  if (match.firstBloodKill) tokens.push({ key: 'fb', label: 'FB', tone: 'medium' });
-  if (match.firstTowerKill) tokens.push({ key: 'ft', label: 'FT', tone: 'medium' });
+  if (match.dragonKills) tokens.push({ key: 'dragon', label: locale === 'en' ? 'Drake' : 'Dragón', value: match.dragonKills, tone: 'low', icon: 'dragon' });
+  if (match.baronKills) tokens.push({ key: 'baron', label: 'Baron', value: match.baronKills, tone: 'default', icon: 'baron' });
+  if (match.turretKills) tokens.push({ key: 'tower', label: locale === 'en' ? 'Tower' : 'Torre', value: match.turretKills, tone: 'default', icon: 'tower' });
+  if (match.firstBloodKill) tokens.push({ key: 'fb', label: 'FB', tone: 'medium', icon: 'blood' });
+  if (match.firstTowerKill) tokens.push({ key: 'ft', label: 'FT', tone: 'medium', icon: 'tower' });
   const multiKills = (match.doubleKills ?? 0) + (match.tripleKills ?? 0) + (match.quadraKills ?? 0) + (match.pentaKills ?? 0);
-  if (multiKills > 0) tokens.push({ key: 'multi', label: locale === 'en' ? 'Multi' : 'Multi', value: multiKills, tone: 'low' });
+  if (multiKills > 0) tokens.push({ key: 'multi', label: locale === 'en' ? 'Multi' : 'Multi', value: multiKills, tone: 'low', icon: 'burst' });
 
   return tokens;
 }
@@ -141,22 +141,36 @@ export function MatchesTab({ dataset, locale = 'es' }: { dataset: Dataset; local
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start', flexWrap: 'wrap' }}>
-              <ChampionIdentity
-                championName={match.championName}
-                version={dataset.ddragonVersion}
-                subtitle={`${formatDetailDate(match.gameCreation, locale)} · ${getQueueLabel(match.queueId)} · ${formatMatchDuration(match.gameDurationSeconds, locale)}`}
-                meta={
-                  <>
-                    <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota')}</Badge>
-                    <Badge tone={toneToBadgeTone(quickRead.tone)}>{quickRead.toneLabel}</Badge>
-                    <Badge tone={toneToBadgeTone(quickRead.tone)}>{quickRead.impactLabel}</Badge>
-                    <Badge>{match.opponentChampionName ? `vs ${formatChampionName(match.opponentChampionName)}` : (locale === 'en' ? 'Opponent unknown' : 'Rival sin detectar')}</Badge>
-                    <Badge>{locale === 'en' ? getRoleLabel(match.role || dataset.summary.primaryRole || 'ALL') : getRoleLabel(match.role || dataset.summary.primaryRole || 'ALL')}</Badge>
-                    <Badge>{`${match.kills}/${match.deaths}/${match.assists}`}</Badge>
-                    <Badge>{`${formatDecimal(match.killParticipation)}% KP`}</Badge>
-                  </>
-                }
-              />
+              <div style={{ display: 'grid', gap: 12, minWidth: 0 }}>
+                <ChampionIdentity
+                  championName={match.championName}
+                  version={dataset.ddragonVersion}
+                  subtitle={`${formatDetailDate(match.gameCreation, locale)} · ${getQueueLabel(match.queueId)} · ${formatMatchDuration(match.gameDurationSeconds, locale)}`}
+                  meta={
+                    <>
+                      <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota')}</Badge>
+                      <Badge tone={toneToBadgeTone(quickRead.tone)}>{quickRead.toneLabel}</Badge>
+                      <Badge tone={toneToBadgeTone(quickRead.tone)}>{quickRead.impactLabel}</Badge>
+                      <Badge>{match.opponentChampionName ? `vs ${formatChampionName(match.opponentChampionName)}` : (locale === 'en' ? 'Opponent unknown' : 'Rival sin detectar')}</Badge>
+                      <Badge>{locale === 'en' ? getRoleLabel(match.role || dataset.summary.primaryRole || 'ALL') : getRoleLabel(match.role || dataset.summary.primaryRole || 'ALL')}</Badge>
+                    </>
+                  }
+                />
+                <div style={matchIdentityStripStyle}>
+                  <div style={heroKdaBlockStyle}>
+                    <div style={heroKdaValueStyle}>{`${match.kills}/${match.deaths}/${match.assists}`}</div>
+                    <div style={heroKdaLabelStyle}>{locale === 'en' ? 'KDA' : 'KDA'}</div>
+                  </div>
+                  <div style={heroMiniMetricStyle}>
+                    <div style={heroMiniMetricValueStyle}>{`${formatDecimal(match.killParticipation)}%`}</div>
+                    <div style={heroMiniMetricLabelStyle}>KP</div>
+                  </div>
+                  <div style={heroMiniMetricStyle}>
+                    <div style={heroMiniMetricValueStyle}>{Math.round(match.score.total)}</div>
+                    <div style={heroMiniMetricLabelStyle}>{locale === 'en' ? 'Score' : 'Score'}</div>
+                  </div>
+                </div>
+              </div>
 
               <div style={{ display: 'grid', gap: 10, justifyItems: 'end' }}>
                 <button
@@ -206,12 +220,16 @@ export function MatchesTab({ dataset, locale = 'es' }: { dataset: Dataset; local
                   />
                 </div>
 
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   {objectiveTokens.length
                     ? objectiveTokens.map((token) => (
-                      <SignalBadge key={`${match.matchId}-${token.key}`} tone={token.tone ?? 'default'}>
-                        {token.value ? `${token.label} ${token.value}` : token.label}
-                      </SignalBadge>
+                      <ObjectiveChip
+                        key={`${match.matchId}-${token.key}`}
+                        icon={token.icon}
+                        label={token.label}
+                        value={token.value}
+                        tone={token.tone ?? 'default'}
+                      />
                     ))
                     : <SignalBadge tone="default">{formatObjectives(match, locale)}</SignalBadge>}
                   {match.timeline.firstDeathMinute !== null ? <SignalBadge tone="medium">{`${detailMetricLabel(locale, 'firstDeath')} ${formatDecimal(match.timeline.firstDeathMinute, 1)}m`}</SignalBadge> : null}
@@ -344,6 +362,76 @@ function SignalBadge({ children, tone = 'default' }: PropsWithChildren<{ tone?: 
   return <Badge tone={tone}>{children}</Badge>;
 }
 
+type ObjectiveIconKind = 'dragon' | 'baron' | 'elder' | 'tower' | 'blood' | 'burst';
+
+function ObjectiveChip({
+  icon,
+  label,
+  value,
+  tone
+}: {
+  icon: ObjectiveIconKind;
+  label: string;
+  value?: number;
+  tone: 'default' | 'high' | 'medium' | 'low';
+}) {
+  return (
+    <span style={objectiveChipShellStyle}>
+      <ObjectiveGlyph kind={icon} size={18} />
+      <span style={{ color: objectiveChipLabelColor[tone], fontWeight: 800, fontSize: 12, letterSpacing: '0.01em' }}>
+        {value ? `${label} ${value}` : label}
+      </span>
+    </span>
+  );
+}
+
+function ObjectiveGlyph({ kind, size = 18 }: { kind: ObjectiveIconKind; size?: number }) {
+  const common = { width: size, height: size, viewBox: '0 0 20 20', fill: 'none' } as const;
+
+  switch (kind) {
+    case 'dragon':
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="M10.7 3.1c2.7 0 5 2 5 4.7 0 2.7-2.1 4.5-4.2 5.3 1.5 0 2.8.8 3.4 2.1-1.2-.6-2.7-.3-3.7.5-1 .7-2.4 1-3.6.7 1-.6 1.8-1.7 1.9-2.9-2.4-.7-4.8-2.4-4.8-5.1 0-2.9 2.6-5.3 6-5.3Z" fill="#59d8c6"/>
+          <path d="M8.2 4.4c.9.8 1.2 2.1.7 3.2 1.1-.6 2.4-.6 3.5 0-.4-1.4-1.8-2.7-4.2-3.2Z" fill="#b8fff0" opacity=".9"/>
+        </svg>
+      );
+    case 'baron':
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="M4.1 13.9c.8-3.8 3.6-7.2 6-8.8 2 1.8 3.3 4.2 3.6 7-1.5-.8-3.2-.7-4.6.2-1.2.8-2.4 1.1-4 .9Z" fill="#8d7aff"/>
+          <path d="M5.6 10.8c1 .2 1.9.8 2.6 1.6.7-.8 1.7-1.4 2.8-1.6" stroke="#ddd8ff" strokeWidth="1.4" strokeLinecap="round"/>
+        </svg>
+      );
+    case 'elder':
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="M15.8 6.1c-1-.4-2.3-.4-3.2.1.1-.9-.2-1.8-.8-2.4-1.7.7-3.2 2-4.1 3.8-1.3.2-2.6.8-3.5 1.9 1.2.2 2.2.8 2.8 1.8-.7.4-1.3 1.2-1.5 2 1.2-.3 2.4-.1 3.4.5 2.5-1 4.8-3.1 6.9-7.7Z" fill="#ff7a38"/>
+          <path d="M9 6.8c.8.6 1.2 1.6 1.1 2.6 1-.6 2.2-.8 3.3-.5" stroke="#ffe6c5" strokeWidth="1.2" strokeLinecap="round"/>
+        </svg>
+      );
+    case 'tower':
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="M6.3 4.2h7.4l-.8 2v7.9l1.3 1.7H5.8l1.3-1.7V6.2l-.8-2Z" fill="#79b5ff"/>
+          <path d="M8 8.2h1.8M10.2 8.2H12" stroke="#edf5ff" strokeWidth="1.2" strokeLinecap="round"/>
+        </svg>
+      );
+    case 'blood':
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="M10 3.3c1.7 2.1 4.1 4.5 4.1 7 0 2.3-1.8 4.2-4.1 4.2S5.9 12.6 5.9 10.3c0-2.5 2.4-4.9 4.1-7Z" fill="#ff6d7c"/>
+        </svg>
+      );
+    default:
+      return (
+        <svg {...common} aria-hidden="true">
+          <path d="M10 3.2l2 4.3 4.7.6-3.4 3.1.9 4.5L10 13.6 5.8 15.7l.9-4.5-3.4-3.1 4.7-.6 2-4.3Z" fill="#9feecf"/>
+        </svg>
+      );
+  }
+}
+
 function DetailSection({ title, subtitle, children }: PropsWithChildren<{ title: string; subtitle: string }>) {
   return (
     <div style={detailSectionStyle}>
@@ -372,6 +460,78 @@ const compactMetricStyle = {
   borderRadius: 16,
   background: 'rgba(7,10,16,0.78)',
   border: '1px solid rgba(255,255,255,0.06)'
+} as const;
+
+const matchIdentityStripStyle = {
+  display: 'flex',
+  gap: 10,
+  flexWrap: 'wrap',
+  alignItems: 'stretch'
+} as const;
+
+const heroKdaBlockStyle = {
+  display: 'grid',
+  gap: 2,
+  padding: '10px 14px',
+  borderRadius: 16,
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.022))',
+  border: '1px solid rgba(255,255,255,0.06)'
+} as const;
+
+const heroKdaValueStyle = {
+  color: '#f7fbff',
+  fontSize: 24,
+  lineHeight: 1,
+  fontWeight: 900,
+  letterSpacing: '-0.04em'
+} as const;
+
+const heroKdaLabelStyle = {
+  color: '#90a1b8',
+  fontSize: 11,
+  textTransform: 'uppercase',
+  letterSpacing: '0.09em'
+} as const;
+
+const heroMiniMetricStyle = {
+  display: 'grid',
+  gap: 2,
+  alignContent: 'center',
+  padding: '10px 12px',
+  borderRadius: 16,
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.05)'
+} as const;
+
+const heroMiniMetricValueStyle = {
+  color: '#eaf2ff',
+  fontSize: 18,
+  lineHeight: 1.1,
+  fontWeight: 800
+} as const;
+
+const heroMiniMetricLabelStyle = {
+  color: '#8ea0b7',
+  fontSize: 11,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em'
+} as const;
+
+const objectiveChipShellStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: 7,
+  padding: '7px 10px',
+  borderRadius: 999,
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))',
+  border: '1px solid rgba(255,255,255,0.06)'
+} as const;
+
+const objectiveChipLabelColor = {
+  default: '#dbe6f7',
+  high: '#ffb3b3',
+  medium: '#ffd989',
+  low: '#a4efd1'
 } as const;
 
 const evidenceRowStyle = {

@@ -31,18 +31,18 @@ function formatObjectives(match, locale) {
 function buildObjectiveTokens(match, locale) {
     const tokens = [];
     if (match.dragonKills)
-        tokens.push({ key: 'dragon', label: locale === 'en' ? 'Drake' : 'Dragón', value: match.dragonKills, tone: 'low' });
+        tokens.push({ key: 'dragon', label: locale === 'en' ? 'Drake' : 'Dragón', value: match.dragonKills, tone: 'low', icon: 'dragon' });
     if (match.baronKills)
-        tokens.push({ key: 'baron', label: 'Nashor', value: match.baronKills, tone: 'default' });
+        tokens.push({ key: 'baron', label: 'Baron', value: match.baronKills, tone: 'default', icon: 'baron' });
     if (match.turretKills)
-        tokens.push({ key: 'tower', label: locale === 'en' ? 'Tower' : 'Torre', value: match.turretKills, tone: 'default' });
+        tokens.push({ key: 'tower', label: locale === 'en' ? 'Tower' : 'Torre', value: match.turretKills, tone: 'default', icon: 'tower' });
     if (match.firstBloodKill)
-        tokens.push({ key: 'fb', label: 'FB', tone: 'medium' });
+        tokens.push({ key: 'fb', label: 'FB', tone: 'medium', icon: 'blood' });
     if (match.firstTowerKill)
-        tokens.push({ key: 'ft', label: 'FT', tone: 'medium' });
+        tokens.push({ key: 'ft', label: 'FT', tone: 'medium', icon: 'tower' });
     const multiKills = (match.doubleKills ?? 0) + (match.tripleKills ?? 0) + (match.quadraKills ?? 0) + (match.pentaKills ?? 0);
     if (multiKills > 0)
-        tokens.push({ key: 'multi', label: locale === 'en' ? 'Multi' : 'Multi', value: multiKills, tone: 'low' });
+        tokens.push({ key: 'multi', label: locale === 'en' ? 'Multi' : 'Multi', value: multiKills, tone: 'low', icon: 'burst' });
     return tokens;
 }
 function formatDetailDate(gameCreation, locale) {
@@ -109,10 +109,10 @@ export function MatchesTab({ dataset, locale = 'es' }) {
                     background: accent.panel,
                     border: `1px solid ${accent.border}`,
                     boxShadow: `0 18px 38px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.02), 0 0 16px ${accent.glow}`
-                }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start', flexWrap: 'wrap' }, children: [_jsx(ChampionIdentity, { championName: match.championName, version: dataset.ddragonVersion, subtitle: `${formatDetailDate(match.gameCreation, locale)} · ${getQueueLabel(match.queueId)} · ${formatMatchDuration(match.gameDurationSeconds, locale)}`, meta: _jsxs(_Fragment, { children: [_jsx(Badge, { tone: match.win ? 'low' : 'high', children: match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota') }), _jsx(Badge, { tone: toneToBadgeTone(quickRead.tone), children: quickRead.toneLabel }), _jsx(Badge, { tone: toneToBadgeTone(quickRead.tone), children: quickRead.impactLabel }), _jsx(Badge, { children: match.opponentChampionName ? `vs ${formatChampionName(match.opponentChampionName)}` : (locale === 'en' ? 'Opponent unknown' : 'Rival sin detectar') }), _jsx(Badge, { children: locale === 'en' ? getRoleLabel(match.role || dataset.summary.primaryRole || 'ALL') : getRoleLabel(match.role || dataset.summary.primaryRole || 'ALL') }), _jsx(Badge, { children: `${match.kills}/${match.deaths}/${match.assists}` }), _jsx(Badge, { children: `${formatDecimal(match.killParticipation)}% KP` })] }) }), _jsx("div", { style: { display: 'grid', gap: 10, justifyItems: 'end' }, children: _jsx("button", { type: "button", onClick: () => setExpandedMatchId(expanded ? null : match.matchId), style: detailToggleStyle, children: expanded
+                }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'start', flexWrap: 'wrap' }, children: [_jsxs("div", { style: { display: 'grid', gap: 12, minWidth: 0 }, children: [_jsx(ChampionIdentity, { championName: match.championName, version: dataset.ddragonVersion, subtitle: `${formatDetailDate(match.gameCreation, locale)} · ${getQueueLabel(match.queueId)} · ${formatMatchDuration(match.gameDurationSeconds, locale)}`, meta: _jsxs(_Fragment, { children: [_jsx(Badge, { tone: match.win ? 'low' : 'high', children: match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota') }), _jsx(Badge, { tone: toneToBadgeTone(quickRead.tone), children: quickRead.toneLabel }), _jsx(Badge, { tone: toneToBadgeTone(quickRead.tone), children: quickRead.impactLabel }), _jsx(Badge, { children: match.opponentChampionName ? `vs ${formatChampionName(match.opponentChampionName)}` : (locale === 'en' ? 'Opponent unknown' : 'Rival sin detectar') }), _jsx(Badge, { children: locale === 'en' ? getRoleLabel(match.role || dataset.summary.primaryRole || 'ALL') : getRoleLabel(match.role || dataset.summary.primaryRole || 'ALL') })] }) }), _jsxs("div", { style: matchIdentityStripStyle, children: [_jsxs("div", { style: heroKdaBlockStyle, children: [_jsx("div", { style: heroKdaValueStyle, children: `${match.kills}/${match.deaths}/${match.assists}` }), _jsx("div", { style: heroKdaLabelStyle, children: locale === 'en' ? 'KDA' : 'KDA' })] }), _jsxs("div", { style: heroMiniMetricStyle, children: [_jsx("div", { style: heroMiniMetricValueStyle, children: `${formatDecimal(match.killParticipation)}%` }), _jsx("div", { style: heroMiniMetricLabelStyle, children: "KP" })] }), _jsxs("div", { style: heroMiniMetricStyle, children: [_jsx("div", { style: heroMiniMetricValueStyle, children: Math.round(match.score.total) }), _jsx("div", { style: heroMiniMetricLabelStyle, children: locale === 'en' ? 'Score' : 'Score' })] })] })] }), _jsx("div", { style: { display: 'grid', gap: 10, justifyItems: 'end' }, children: _jsx("button", { type: "button", onClick: () => setExpandedMatchId(expanded ? null : match.matchId), style: detailToggleStyle, children: expanded
                                         ? (locale === 'en' ? 'Hide mini detail' : 'Ocultar mini detail')
-                                        : (locale === 'en' ? 'Open mini detail' : 'Abrir mini detail') }) })] }), _jsxs("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }, children: [_jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(118px, 1fr))', gap: 10 }, children: [_jsx(CompactMetric, { label: locale === 'en' ? 'Score' : 'Score', value: formatDecimal(match.score.total), info: locale === 'en' ? 'Internal execution score for this exact match.' : 'Score interno de ejecución para esta partida exacta.' }), _jsx(CompactMetric, { label: locale === 'en' ? 'Gold diff 15' : 'Diff oro 15', value: formatSignedNumber(match.timeline.goldDiffAt15, 0), info: locale === 'en' ? 'Gold edge against the detected direct opponent at minute 15.' : 'Ventaja de oro contra el rival directo detectado al minuto 15.' }), _jsx(CompactMetric, { label: locale === 'en' ? 'CS 15' : 'CS 15', value: formatDecimal(match.timeline.csAt15), info: locale === 'en' ? 'Lane or jungle economy accumulated by minute 15.' : 'Economía de línea o jungla acumulada al minuto 15.' }), _jsx(CompactMetric, { label: locale === 'en' ? 'Damage' : 'Daño', value: Math.round(match.damageToChampions).toLocaleString(locale === 'en' ? 'en-US' : 'es-AR'), info: locale === 'en' ? 'Damage dealt to enemy champions.' : 'Daño hecho a campeones enemigos.' }), _jsx(CompactMetric, { label: locale === 'en' ? 'Objectives' : 'Objetivos', value: `${(match.turretKills ?? 0) + (match.dragonKills ?? 0) + (match.baronKills ?? 0)}`, info: locale === 'en' ? 'Towers, dragons and barons secured by you.' : 'Torres, dragones y barones asegurados por vos.' }), _jsx(CompactMetric, { label: locale === 'en' ? 'Deaths pre14' : 'Muertes pre14', value: formatDecimal(match.timeline.deathsPre14), info: locale === 'en' ? 'How expensive the early game got before minute 14.' : 'Qué tan caro se volvió el early antes del minuto 14.' })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [objectiveTokens.length
-                                                ? objectiveTokens.map((token) => (_jsx(SignalBadge, { tone: token.tone ?? 'default', children: token.value ? `${token.label} ${token.value}` : token.label }, `${match.matchId}-${token.key}`)))
+                                        : (locale === 'en' ? 'Open mini detail' : 'Abrir mini detail') }) })] }), _jsxs("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }, children: [_jsxs("div", { style: { display: 'grid', gap: 12 }, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(118px, 1fr))', gap: 10 }, children: [_jsx(CompactMetric, { label: locale === 'en' ? 'Score' : 'Score', value: formatDecimal(match.score.total), info: locale === 'en' ? 'Internal execution score for this exact match.' : 'Score interno de ejecución para esta partida exacta.' }), _jsx(CompactMetric, { label: locale === 'en' ? 'Gold diff 15' : 'Diff oro 15', value: formatSignedNumber(match.timeline.goldDiffAt15, 0), info: locale === 'en' ? 'Gold edge against the detected direct opponent at minute 15.' : 'Ventaja de oro contra el rival directo detectado al minuto 15.' }), _jsx(CompactMetric, { label: locale === 'en' ? 'CS 15' : 'CS 15', value: formatDecimal(match.timeline.csAt15), info: locale === 'en' ? 'Lane or jungle economy accumulated by minute 15.' : 'Economía de línea o jungla acumulada al minuto 15.' }), _jsx(CompactMetric, { label: locale === 'en' ? 'Damage' : 'Daño', value: Math.round(match.damageToChampions).toLocaleString(locale === 'en' ? 'en-US' : 'es-AR'), info: locale === 'en' ? 'Damage dealt to enemy champions.' : 'Daño hecho a campeones enemigos.' }), _jsx(CompactMetric, { label: locale === 'en' ? 'Objectives' : 'Objetivos', value: `${(match.turretKills ?? 0) + (match.dragonKills ?? 0) + (match.baronKills ?? 0)}`, info: locale === 'en' ? 'Towers, dragons and barons secured by you.' : 'Torres, dragones y barones asegurados por vos.' }), _jsx(CompactMetric, { label: locale === 'en' ? 'Deaths pre14' : 'Muertes pre14', value: formatDecimal(match.timeline.deathsPre14), info: locale === 'en' ? 'How expensive the early game got before minute 14.' : 'Qué tan caro se volvió el early antes del minuto 14.' })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }, children: [objectiveTokens.length
+                                                ? objectiveTokens.map((token) => (_jsx(ObjectiveChip, { icon: token.icon, label: token.label, value: token.value, tone: token.tone ?? 'default' }, `${match.matchId}-${token.key}`)))
                                                 : _jsx(SignalBadge, { tone: "default", children: formatObjectives(match, locale) }), match.timeline.firstDeathMinute !== null ? _jsx(SignalBadge, { tone: "medium", children: `${detailMetricLabel(locale, 'firstDeath')} ${formatDecimal(match.timeline.firstDeathMinute, 1)}m` }) : null, match.timeline.firstBaseMinute !== null ? _jsx(SignalBadge, { tone: "default", children: `${detailMetricLabel(locale, 'firstBase')} ${formatDecimal(match.timeline.firstBaseMinute, 1)}m` }) : null, firstItemMinute ? _jsx(SignalBadge, { tone: "default", children: `${detailMetricLabel(locale, 'firstItem')} ${formatDecimal(firstItemMinute, 1)}m` }) : null, (match.timeline.laneVolatilityScore ?? 0) >= 1.4 ? _jsx(SignalBadge, { tone: "high", children: locale === 'en' ? 'Volatile early' : 'Early volátil' }) : null, (match.timeline.objectiveSetupScore ?? 0) >= 0.8 ? _jsx(SignalBadge, { tone: "medium", children: locale === 'en' ? 'Setup debt' : 'Deuda de setup' }) : null, (match.timeline.resetTimingScore ?? 0) >= 1 ? _jsx(SignalBadge, { tone: "medium", children: locale === 'en' ? 'Reset debt' : 'Deuda de reset' }) : null, match.firstBloodKill ? _jsx(SignalBadge, { tone: "low", children: locale === 'en' ? 'First blood' : 'First blood' }) : null, match.firstTowerKill ? _jsx(SignalBadge, { tone: "low", children: locale === 'en' ? 'First tower' : 'First tower' }) : null, match.doubleKills > 0 || match.tripleKills > 0 || match.quadraKills > 0 || match.pentaKills > 0
                                                 ? _jsx(SignalBadge, { tone: "low", children: locale === 'en' ? 'Multi-kill pressure' : 'Presión de multi-kill' })
                                                 : null] })] }), _jsxs("div", { style: {
@@ -138,6 +138,26 @@ function CompactMetric({ label, value, info }) {
 function SignalBadge({ children, tone = 'default' }) {
     return _jsx(Badge, { tone: tone, children: children });
 }
+function ObjectiveChip({ icon, label, value, tone }) {
+    return (_jsxs("span", { style: objectiveChipShellStyle, children: [_jsx(ObjectiveGlyph, { kind: icon, size: 18 }), _jsx("span", { style: { color: objectiveChipLabelColor[tone], fontWeight: 800, fontSize: 12, letterSpacing: '0.01em' }, children: value ? `${label} ${value}` : label })] }));
+}
+function ObjectiveGlyph({ kind, size = 18 }) {
+    const common = { width: size, height: size, viewBox: '0 0 20 20', fill: 'none' };
+    switch (kind) {
+        case 'dragon':
+            return (_jsxs("svg", { ...common, "aria-hidden": "true", children: [_jsx("path", { d: "M10.7 3.1c2.7 0 5 2 5 4.7 0 2.7-2.1 4.5-4.2 5.3 1.5 0 2.8.8 3.4 2.1-1.2-.6-2.7-.3-3.7.5-1 .7-2.4 1-3.6.7 1-.6 1.8-1.7 1.9-2.9-2.4-.7-4.8-2.4-4.8-5.1 0-2.9 2.6-5.3 6-5.3Z", fill: "#59d8c6" }), _jsx("path", { d: "M8.2 4.4c.9.8 1.2 2.1.7 3.2 1.1-.6 2.4-.6 3.5 0-.4-1.4-1.8-2.7-4.2-3.2Z", fill: "#b8fff0", opacity: ".9" })] }));
+        case 'baron':
+            return (_jsxs("svg", { ...common, "aria-hidden": "true", children: [_jsx("path", { d: "M4.1 13.9c.8-3.8 3.6-7.2 6-8.8 2 1.8 3.3 4.2 3.6 7-1.5-.8-3.2-.7-4.6.2-1.2.8-2.4 1.1-4 .9Z", fill: "#8d7aff" }), _jsx("path", { d: "M5.6 10.8c1 .2 1.9.8 2.6 1.6.7-.8 1.7-1.4 2.8-1.6", stroke: "#ddd8ff", strokeWidth: "1.4", strokeLinecap: "round" })] }));
+        case 'elder':
+            return (_jsxs("svg", { ...common, "aria-hidden": "true", children: [_jsx("path", { d: "M15.8 6.1c-1-.4-2.3-.4-3.2.1.1-.9-.2-1.8-.8-2.4-1.7.7-3.2 2-4.1 3.8-1.3.2-2.6.8-3.5 1.9 1.2.2 2.2.8 2.8 1.8-.7.4-1.3 1.2-1.5 2 1.2-.3 2.4-.1 3.4.5 2.5-1 4.8-3.1 6.9-7.7Z", fill: "#ff7a38" }), _jsx("path", { d: "M9 6.8c.8.6 1.2 1.6 1.1 2.6 1-.6 2.2-.8 3.3-.5", stroke: "#ffe6c5", strokeWidth: "1.2", strokeLinecap: "round" })] }));
+        case 'tower':
+            return (_jsxs("svg", { ...common, "aria-hidden": "true", children: [_jsx("path", { d: "M6.3 4.2h7.4l-.8 2v7.9l1.3 1.7H5.8l1.3-1.7V6.2l-.8-2Z", fill: "#79b5ff" }), _jsx("path", { d: "M8 8.2h1.8M10.2 8.2H12", stroke: "#edf5ff", strokeWidth: "1.2", strokeLinecap: "round" })] }));
+        case 'blood':
+            return (_jsx("svg", { ...common, "aria-hidden": "true", children: _jsx("path", { d: "M10 3.3c1.7 2.1 4.1 4.5 4.1 7 0 2.3-1.8 4.2-4.1 4.2S5.9 12.6 5.9 10.3c0-2.5 2.4-4.9 4.1-7Z", fill: "#ff6d7c" }) }));
+        default:
+            return (_jsx("svg", { ...common, "aria-hidden": "true", children: _jsx("path", { d: "M10 3.2l2 4.3 4.7.6-3.4 3.1.9 4.5L10 13.6 5.8 15.7l.9-4.5-3.4-3.1 4.7-.6 2-4.3Z", fill: "#9feecf" }) }));
+    }
+}
 function DetailSection({ title, subtitle, children }) {
     return (_jsxs("div", { style: detailSectionStyle, children: [_jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: { color: '#f2f7ff', fontSize: 15, fontWeight: 800 }, children: title }), _jsx("div", { style: { color: '#8d9cb2', fontSize: 13, lineHeight: 1.55 }, children: subtitle })] }), children] }));
 }
@@ -151,6 +171,69 @@ const compactMetricStyle = {
     borderRadius: 16,
     background: 'rgba(7,10,16,0.78)',
     border: '1px solid rgba(255,255,255,0.06)'
+};
+const matchIdentityStripStyle = {
+    display: 'flex',
+    gap: 10,
+    flexWrap: 'wrap',
+    alignItems: 'stretch'
+};
+const heroKdaBlockStyle = {
+    display: 'grid',
+    gap: 2,
+    padding: '10px 14px',
+    borderRadius: 16,
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.022))',
+    border: '1px solid rgba(255,255,255,0.06)'
+};
+const heroKdaValueStyle = {
+    color: '#f7fbff',
+    fontSize: 24,
+    lineHeight: 1,
+    fontWeight: 900,
+    letterSpacing: '-0.04em'
+};
+const heroKdaLabelStyle = {
+    color: '#90a1b8',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: '0.09em'
+};
+const heroMiniMetricStyle = {
+    display: 'grid',
+    gap: 2,
+    alignContent: 'center',
+    padding: '10px 12px',
+    borderRadius: 16,
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.05)'
+};
+const heroMiniMetricValueStyle = {
+    color: '#eaf2ff',
+    fontSize: 18,
+    lineHeight: 1.1,
+    fontWeight: 800
+};
+const heroMiniMetricLabelStyle = {
+    color: '#8ea0b7',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em'
+};
+const objectiveChipShellStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 7,
+    padding: '7px 10px',
+    borderRadius: 999,
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))',
+    border: '1px solid rgba(255,255,255,0.06)'
+};
+const objectiveChipLabelColor = {
+    default: '#dbe6f7',
+    high: '#ffb3b3',
+    medium: '#ffd989',
+    low: '#a4efd1'
 };
 const evidenceRowStyle = {
     color: '#d7e0ef',

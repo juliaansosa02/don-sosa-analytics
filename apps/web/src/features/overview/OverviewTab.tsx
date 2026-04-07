@@ -12,6 +12,7 @@ import {
 import { Badge, Card, ChampionIdentity, KPI } from '../../components/ui';
 import type { Dataset } from '../../types';
 import type { Locale } from '../../lib/i18n';
+import { formatChampionName } from '../../lib/lol';
 import {
   buildMatchQuickRead,
   findAnchorChampion,
@@ -213,13 +214,16 @@ function PulseBlock({ title, body, tone }: { title: string; body: string; tone: 
 
 function SpotlightMatch({ match, dataset, locale }: { match: Dataset['matches'][number]; dataset: Dataset; locale: Locale }) {
   const quickRead = buildMatchQuickRead(match, dataset, locale);
+  const matchupLabel = match.opponentChampionName
+    ? `vs ${formatChampionName(match.opponentChampionName)}`
+    : (locale === 'en' ? 'Opponent unknown' : 'Rival sin detectar');
 
   return (
     <div style={{ display: 'grid', gap: 14 }}>
       <ChampionIdentity
         championName={match.championName}
         version={dataset.ddragonVersion}
-        subtitle={`${formatMatchDuration(match.gameDurationSeconds, locale)} · ${match.opponentChampionName ? `vs ${match.opponentChampionName}` : ''}`}
+        subtitle={`${new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')} · ${formatMatchDuration(match.gameDurationSeconds, locale)} · ${matchupLabel}`}
         meta={
           <>
             <Badge tone={match.win ? 'low' : 'high'}>{match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota')}</Badge>
@@ -229,6 +233,11 @@ function SpotlightMatch({ match, dataset, locale }: { match: Dataset['matches'][
       />
       <div style={{ color: '#eef4ff', fontSize: 20, fontWeight: 850, lineHeight: 1.15 }}>{quickRead.title}</div>
       <div style={{ color: '#93a2b7', lineHeight: 1.7 }}>{quickRead.body}</div>
+      <div style={spotlightMetaStripStyle}>
+        <SpotlightPill label="KDA" value={`${match.kills}/${match.deaths}/${match.assists}`} />
+        <SpotlightPill label={locale === 'en' ? 'Matchup' : 'Matchup'} value={matchupLabel} wide />
+        <SpotlightPill label="Score" value={`${Math.round(match.score.total)}`} />
+      </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <Badge>{`${match.kills}/${match.deaths}/${match.assists}`}</Badge>
         <Badge>{`${match.timeline.csAt15} CS15`}</Badge>
@@ -246,4 +255,42 @@ const agendaRowStyle = {
   borderRadius: 14,
   background: '#080d15',
   border: '1px solid rgba(255,255,255,0.05)'
+} as const;
+
+function SpotlightPill({ label, value, wide = false }: { label: string; value: string; wide?: boolean }) {
+  return (
+    <div style={{ ...spotlightPillStyle, ...(wide ? { minWidth: 160 } : {}) }}>
+      <div style={spotlightPillLabelStyle}>{label}</div>
+      <div style={spotlightPillValueStyle}>{value}</div>
+    </div>
+  );
+}
+
+const spotlightMetaStripStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+  gap: 10
+} as const;
+
+const spotlightPillStyle = {
+  display: 'grid',
+  gap: 4,
+  padding: '11px 12px',
+  borderRadius: 16,
+  background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.018))',
+  border: '1px solid rgba(255,255,255,0.06)'
+} as const;
+
+const spotlightPillLabelStyle = {
+  color: '#7f91a9',
+  fontSize: 11,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em'
+} as const;
+
+const spotlightPillValueStyle = {
+  color: '#eef4ff',
+  fontSize: 14,
+  fontWeight: 800,
+  lineHeight: 1.35
 } as const;

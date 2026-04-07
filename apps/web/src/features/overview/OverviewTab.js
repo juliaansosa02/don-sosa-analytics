@@ -1,6 +1,7 @@
 import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
 import { Badge, Card, ChampionIdentity, KPI } from '../../components/ui';
+import { formatChampionName } from '../../lib/lol';
 import { buildMatchQuickRead, findAnchorChampion, findReferenceMatch, findReviewPriorityMatch, formatMatchDuration, getChampionAccent } from '../dashboard/dashboardSignals';
 export function OverviewTab({ dataset, locale = 'es' }) {
     const trend = dataset.matches.slice().reverse().map((match, index) => ({
@@ -48,7 +49,10 @@ function PulseBlock({ title, body, tone }) {
 }
 function SpotlightMatch({ match, dataset, locale }) {
     const quickRead = buildMatchQuickRead(match, dataset, locale);
-    return (_jsxs("div", { style: { display: 'grid', gap: 14 }, children: [_jsx(ChampionIdentity, { championName: match.championName, version: dataset.ddragonVersion, subtitle: `${formatMatchDuration(match.gameDurationSeconds, locale)} · ${match.opponentChampionName ? `vs ${match.opponentChampionName}` : ''}`, meta: _jsxs(_Fragment, { children: [_jsx(Badge, { tone: match.win ? 'low' : 'high', children: match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota') }), _jsx(Badge, { tone: quickRead.tone === 'reference' ? 'low' : quickRead.tone === 'warning' ? 'high' : 'default', children: quickRead.toneLabel })] }) }), _jsx("div", { style: { color: '#eef4ff', fontSize: 20, fontWeight: 850, lineHeight: 1.15 }, children: quickRead.title }), _jsx("div", { style: { color: '#93a2b7', lineHeight: 1.7 }, children: quickRead.body }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { children: `${match.kills}/${match.deaths}/${match.assists}` }), _jsx(Badge, { children: `${match.timeline.csAt15} CS15` }), _jsx(Badge, { children: `${match.timeline.goldDiffAt15 >= 0 ? '+' : ''}${Math.round(match.timeline.goldDiffAt15 ?? 0)} g15` }), _jsx(Badge, { children: `Score ${Math.round(match.score.total)}` })] })] }));
+    const matchupLabel = match.opponentChampionName
+        ? `vs ${formatChampionName(match.opponentChampionName)}`
+        : (locale === 'en' ? 'Opponent unknown' : 'Rival sin detectar');
+    return (_jsxs("div", { style: { display: 'grid', gap: 14 }, children: [_jsx(ChampionIdentity, { championName: match.championName, version: dataset.ddragonVersion, subtitle: `${new Date(match.gameCreation).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')} · ${formatMatchDuration(match.gameDurationSeconds, locale)} · ${matchupLabel}`, meta: _jsxs(_Fragment, { children: [_jsx(Badge, { tone: match.win ? 'low' : 'high', children: match.win ? (locale === 'en' ? 'Win' : 'Victoria') : (locale === 'en' ? 'Loss' : 'Derrota') }), _jsx(Badge, { tone: quickRead.tone === 'reference' ? 'low' : quickRead.tone === 'warning' ? 'high' : 'default', children: quickRead.toneLabel })] }) }), _jsx("div", { style: { color: '#eef4ff', fontSize: 20, fontWeight: 850, lineHeight: 1.15 }, children: quickRead.title }), _jsx("div", { style: { color: '#93a2b7', lineHeight: 1.7 }, children: quickRead.body }), _jsxs("div", { style: spotlightMetaStripStyle, children: [_jsx(SpotlightPill, { label: "KDA", value: `${match.kills}/${match.deaths}/${match.assists}` }), _jsx(SpotlightPill, { label: locale === 'en' ? 'Matchup' : 'Matchup', value: matchupLabel, wide: true }), _jsx(SpotlightPill, { label: "Score", value: `${Math.round(match.score.total)}` })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { children: `${match.kills}/${match.deaths}/${match.assists}` }), _jsx(Badge, { children: `${match.timeline.csAt15} CS15` }), _jsx(Badge, { children: `${match.timeline.goldDiffAt15 >= 0 ? '+' : ''}${Math.round(match.timeline.goldDiffAt15 ?? 0)} g15` }), _jsx(Badge, { children: `Score ${Math.round(match.score.total)}` })] })] }));
 }
 const agendaRowStyle = {
     display: 'grid',
@@ -57,4 +61,32 @@ const agendaRowStyle = {
     borderRadius: 14,
     background: '#080d15',
     border: '1px solid rgba(255,255,255,0.05)'
+};
+function SpotlightPill({ label, value, wide = false }) {
+    return (_jsxs("div", { style: { ...spotlightPillStyle, ...(wide ? { minWidth: 160 } : {}) }, children: [_jsx("div", { style: spotlightPillLabelStyle, children: label }), _jsx("div", { style: spotlightPillValueStyle, children: value })] }));
+}
+const spotlightMetaStripStyle = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+    gap: 10
+};
+const spotlightPillStyle = {
+    display: 'grid',
+    gap: 4,
+    padding: '11px 12px',
+    borderRadius: 16,
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.018))',
+    border: '1px solid rgba(255,255,255,0.06)'
+};
+const spotlightPillLabelStyle = {
+    color: '#7f91a9',
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: '0.08em'
+};
+const spotlightPillValueStyle = {
+    color: '#eef4ff',
+    fontSize: 14,
+    fontWeight: 800,
+    lineHeight: 1.35
 };
