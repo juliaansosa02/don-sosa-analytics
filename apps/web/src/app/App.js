@@ -17,9 +17,9 @@ const tabs = [
     { id: 'champions', label: { es: 'Campeones', en: 'Champions' } },
     { id: 'matches', label: { es: 'Partidas', en: 'Matches' } }
 ];
-const CoachingHome = lazy(async () => {
-    const module = await import('../features/coach/CoachingHome');
-    return { default: module.CoachingHome };
+const CoachTab = lazy(async () => {
+    const module = await import('../features/coach/CoachTab');
+    return { default: module.CoachTab };
 });
 const AccountCenter = lazy(async () => {
     const module = await import('../features/account/AccountCenter');
@@ -857,7 +857,7 @@ function AppShell() {
         if (activeTab === 'coach') {
             if (!coachDataset)
                 return null;
-            return (_jsx(CoachingHome, { dataset: coachDataset, locale: locale, aiCoach: aiCoach, generatingAICoach: aiCoachLoading, aiCoachError: aiCoachError, roleReferences: roleReferences, roleReferencesLoading: roleReferencesLoading, roleReferencesError: roleReferencesError, coachRosterPlayers: coachWorkspaceRosterPlayers, canManageCoachRoster: canManageCoachRoster, onGenerateAICoach: () => void handleGenerateAICoach(true), onSendFeedback: (verdict) => void handleAICoachFeedback(verdict) }));
+            return (_jsx(CoachTab, { dataset: coachDataset }));
         }
         if (!viewDataset)
             return null;

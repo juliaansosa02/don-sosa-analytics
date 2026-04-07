@@ -55,9 +55,9 @@ const tabs = [
   { id: 'matches', label: { es: 'Partidas', en: 'Matches' } }
 ] as const;
 
-const CoachingHome = lazy(async () => {
-  const module = await import('../features/coach/CoachingHome');
-  return { default: module.CoachingHome };
+const CoachTab = lazy(async () => {
+  const module = await import('../features/coach/CoachTab');
+  return { default: module.CoachTab };
 });
 
 const AccountCenter = lazy(async () => {
@@ -947,20 +947,7 @@ function AppShell() {
       if (!coachDataset) return null;
 
       return (
-        <CoachingHome
-          dataset={coachDataset}
-          locale={locale}
-          aiCoach={aiCoach}
-          generatingAICoach={aiCoachLoading}
-          aiCoachError={aiCoachError}
-          roleReferences={roleReferences}
-          roleReferencesLoading={roleReferencesLoading}
-          roleReferencesError={roleReferencesError}
-          coachRosterPlayers={coachWorkspaceRosterPlayers}
-          canManageCoachRoster={canManageCoachRoster}
-          onGenerateAICoach={() => void handleGenerateAICoach(true)}
-          onSendFeedback={(verdict: 'useful' | 'mixed' | 'generic' | 'incorrect') => void handleAICoachFeedback(verdict)}
-        />
+        <CoachTab dataset={coachDataset} />
       );
     }
 
