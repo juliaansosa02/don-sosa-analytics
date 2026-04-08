@@ -1,0 +1,28 @@
+{
+  "id": "jungle-vgm-lane-scan",
+  "title": "Use VGM to decide where early kill pressure actually exists",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "draft",
+  "concept": "vgm_lane_scan",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["VGM", "volatility", "gank setup", "enemy mobility", "draft", "pregame"],
+  "body": "A simple way to plan the early game is to scan each lane through VGM: volatility, gank setup, and enemy mobility. Volatility tells you whether the lane is likely to create health bars and commitment. Gank setup tells you whether your side can reliably start contact. Enemy mobility tells you how hard the lane is to actually finish. This keeps pregame planning simple without making it random.",
+  "actionables": [
+    "Score each lane in loading screen with VGM before deciding your first path.",
+    "Treat the lane with the best VGM profile as your first candidate for early pressure, not as a guaranteed gank.",
+    "Review failed first paths by checking whether you ignored low setup or high enemy mobility in your pregame scan."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "1 Year of Jungle Coaching in 1hr 26mins | 2025 Fundamentals Guide",
+    "url": "https://www.youtube.com/watch?v=ZSLAxbEveM0&t=1s",
+    "notes": "Built from Leo's pregame framework of volatility, gank setup, and enemy mobility."
+  }
+}

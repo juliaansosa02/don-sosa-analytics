@@ -1,0 +1,28 @@
+{
+  "id": "jungle-one-move-window",
+  "title": "Respect one-move windows instead of trying to take three actions from one turn",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "one_move_window",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["turn-based tempo", "trade", "tempo", "crossmap", "decision windows"],
+  "body": "A lot of early jungle mistakes come from trying to fit too many actions into a window that only supports one clean answer. If the enemy jungler spends their turn on grubs, your response might only have room for one real move: dragon, invade, or gank. Trying to stack all three often means the board updates before you finish and the last action becomes a tempo loss or a death.",
+  "actionables": [
+    "When the enemy shows, ask what your single best answer is before chaining extra actions onto it.",
+    "Treat early windows like one-turn exchanges unless lane priority or huge lead clearly gives you more.",
+    "Review failed sequences by marking the first good action and the extra action that made the sequence collapse."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "1 Year of Jungle Coaching in 1hr 26mins | 2025 Fundamentals Guide",
+    "url": "https://www.youtube.com/watch?v=ZSLAxbEveM0&t=1s",
+    "notes": "Built from Leo's turn-based tempo framing: one enemy move usually allows one clean answer before the map updates."
+  }
+}

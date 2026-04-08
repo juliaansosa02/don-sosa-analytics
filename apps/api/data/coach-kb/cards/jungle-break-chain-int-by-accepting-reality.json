@@ -1,0 +1,28 @@
+{
+  "id": "jungle-break-chain-int-by-accepting-reality",
+  "title": "Break chain inting by accepting the new map state immediately",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "mid_game",
+  "concept": "break_chain_int_by_accepting_reality",
+  "skillLevel": "all",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["chain int", "accept reality", "tempo lines", "downtime", "soloq"],
+  "body": "Many games are not lost by the first catch or first bad fight. They are lost by the next two reactions that refuse to accept what the map has already become. Once a teammate gets caught or a play breaks, your job is to update the map state immediately and move into trade, minimize, farm, or reset if that is what the new board requires.",
+  "actionables": [
+    "After every failed play, name the new numbers on map before choosing your next move.",
+    "If your team lost bodies or tempo lines, default to downtime instead of pretending the old play is still alive.",
+    "Review chain deaths by separating the first mistake from the later compensations that made the game collapse."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "The Most MISUNDERSTOOD SoloQ Concept You Can ABUSE To Climb | LoL Guide",
+    "url": "https://www.youtube.com/watch?v=aYCWEbflCwU",
+    "notes": "Built from Leo's repeated anti-chain-int point that good team play often means refusing to compensate after the map already changed."
+  }
+}

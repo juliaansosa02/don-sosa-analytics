@@ -1,0 +1,28 @@
+{
+  "id": "jungle-two-part-pings-for-igl",
+  "title": "Use two-part pings to lead the play instead of only signaling noise",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "two_part_pings_for_igl",
+  "skillLevel": "all",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["pings", "igl", "communication", "assist", "danger", "team play"],
+  "body": "A strong jungle ping usually has two parts: who needs to react and what the play is. Ping the player or lane first, then ping the objective, path, or danger point. This makes your communication directional instead of emotional and helps you act like an in-game leader rather than just another spectator of the chaos.",
+  "actionables": [
+    "When you want help or movement, ping the teammate icon first and the map location second.",
+    "Use danger pings on the likely enemy path before the gank starts, not only after contact is already happening.",
+    "Review your first two pings before each major map event and ask whether they told your team who and what."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "The Most MISUNDERSTOOD SoloQ Concept You Can ABUSE To Climb | LoL Guide",
+    "url": "https://www.youtube.com/watch?v=aYCWEbflCwU",
+    "notes": "Built from Leo's two-part ping explanation: ping the player you want and then ping the action or objective you want."
+  }
+}

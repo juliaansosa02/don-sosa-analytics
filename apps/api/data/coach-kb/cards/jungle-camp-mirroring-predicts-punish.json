@@ -1,0 +1,28 @@
+{
+  "id": "jungle-camp-mirroring-predicts-punish",
+  "title": "Camp mirroring turns enemy reveals into predictable punish windows",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "early_game",
+  "concept": "camp_mirroring_predicts_punish",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["camp mirroring", "tracking", "respawn", "counter jungle", "tempo"],
+  "body": "Camp mirroring means using your own camp order and respawn timing to infer the enemy's. If your third camp lines up with the enemy's third camp, then his future respawn windows often line up with yours unless he wastes time. That turns enemy ganks and off-tempo plays into predictable punish windows on camps you can attack with confidence.",
+  "actionables": [
+    "Use your level-one ward and first clear to determine whether your camp numbers mirror the enemy's.",
+    "When the enemy shows for a low-tempo play, ask which mirrored camp is now most likely delayed or exposed.",
+    "Review missed invade windows by matching the enemy reveal to the camp cycle you should have predicted."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "1 Year of Jungle Coaching in 1hr 26mins | 2025 Fundamentals Guide",
+    "url": "https://www.youtube.com/watch?v=ZSLAxbEveM0&t=1s",
+    "notes": "Built from Leo's explanation that mirrored camp sequencing lets you punish enemy time loss through predictable respawns."
+  }
+}

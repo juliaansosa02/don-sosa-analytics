@@ -1,0 +1,28 @@
+{
+  "id": "jungle-greed-until-objective-demands-base",
+  "title": "Greed the map when nothing important is spawning, then base when the next fight actually cares",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "greed_until_objective_demands_base",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["greed", "base timing", "tempo", "objective timing", "item spike"],
+  "body": "Holding gold is not automatically wrong. If no major objective is spawning, your key cooldowns are down, and your next clear is highly efficient, staying on map can create more value than a low-impact base. The base becomes mandatory when the next objective window is close enough that your buy meaningfully changes the fight you are about to contest.",
+  "actionables": [
+    "Before basing on gold alone, ask whether an objective or real contest will happen before your next clear finishes.",
+    "If the answer is no, greed the efficient camps first and turn the base into a bigger spike.",
+    "If the next dragon, Herald, or Baron fight is your real win-condition window, spend gold early enough to arrive strong and on time."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "1 Year of Jungle Coaching in 1hr 26mins | 2025 Fundamentals Guide",
+    "url": "https://www.youtube.com/watch?v=ZSLAxbEveM0&t=1s",
+    "notes": "Built from Leo's contrast between healthy greed when the map is quiet and tempo bases when the next objective fight actually matters."
+  }
+}

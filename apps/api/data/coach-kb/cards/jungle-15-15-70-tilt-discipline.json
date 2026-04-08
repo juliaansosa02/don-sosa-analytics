@@ -1,0 +1,28 @@
+{
+  "id": "jungle-15-15-70-tilt-discipline",
+  "title": "Use the 15-15-70 mindset to stop tilt from stealing playable games",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "review",
+  "concept": "15_15_70_tilt_discipline",
+  "skillLevel": "all",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["mindset", "tilt", "sample size", "soloq", "discipline"],
+  "body": "A useful SoloQ mindset is to assume some games are effectively lost for reasons outside your control, some are free wins, and the real climb comes from the middle block you can influence. The practical value of this rule is not perfect math. It is preventing one unlucky result from dragging your emotional state into the next playable game.",
+  "actionables": [
+    "After a frustrating loss, ask whether your next queue is likely to protect or damage the next playable game.",
+    "Use the rule to reduce urgency, not to excuse weak review or autopilot.",
+    "Review losing streaks by identifying the first game that was probably playable but got stolen by your previous emotional state."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "1 Year of Jungle Coaching in 1hr 26mins | 2025 Fundamentals Guide",
+    "url": "https://www.youtube.com/watch?v=ZSLAxbEveM0&t=1s",
+    "notes": "Built from Leo's 15-15-70 framing as a tool for tilt prevention and protecting game quality."
+  }
+}

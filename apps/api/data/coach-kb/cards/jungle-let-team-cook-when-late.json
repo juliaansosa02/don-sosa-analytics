@@ -1,0 +1,28 @@
+{
+  "id": "jungle-let-team-cook-when-late",
+  "title": "If you are late to the play, let your team cook and convert elsewhere",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "let_team_cook_when_late",
+  "skillLevel": "gold_plus",
+  "patchSensitivity": "evergreen",
+  "patch": null,
+  "validFromPatch": null,
+  "validToPatch": null,
+  "tags": ["late rotate", "crossmap", "pressure", "soloq", "agency"],
+  "body": "Not every ally play needs your full participation. If you are on camps and your arrival would be late, joining often only adds another body after the decision window already passed. In those spots, the better team play is to let your teammates play their turn and use the pressure they create to take wave, camp, vision, or opposite-side value.",
+  "actionables": [
+    "Before leaving camps, ask whether your arrival changes the result or only witnesses it.",
+    "If the answer is no, convert the enemy's expected movement into nearby farm, wave protection, or crossmap pressure.",
+    "Review late rotations by asking what value existed on your side once the enemy already committed elsewhere."
+  ],
+  "source": {
+    "coach": "Coach Leo",
+    "title": "The Most MISUNDERSTOOD SoloQ Concept You Can ABUSE To Climb | LoL Guide",
+    "url": "https://www.youtube.com/watch?v=aYCWEbflCwU",
+    "notes": "Built from Leo's 'let your team cook' idea: if the play starts too far away, capitalize on what their play reveals instead of arriving late."
+  }
+}
