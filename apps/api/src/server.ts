@@ -154,6 +154,10 @@ if (hasWebBuild) {
 
 app.listen(env.PORT, () => {
   console.log(`Don Sosa API listening on http://localhost:${env.PORT}`);
-  void bootstrapAdminAccounts();
-  void refreshPatchNotesFromOfficialSource(false);
+  void bootstrapAdminAccounts().catch((error) => {
+    console.error('Admin bootstrap skipped because the backing store is unavailable:', error);
+  });
+  void refreshPatchNotesFromOfficialSource(false).catch((error) => {
+    console.error('Patch notes refresh skipped during startup:', error);
+  });
 });

@@ -169,9 +169,7 @@ async function touchUserLogin(user: AuthUserRecord) {
 export async function attachAuthContext(req: Request, _res: Response, next: NextFunction) {
   const requestStore = getRequestStore(req);
   const anonymousViewerId = resolveAnonymousViewerId(req);
-  const token = parseSessionToken(req);
-
-  if (!token) {
+  const setAnonymousContext = () => {
     requestStore[authContextKey] = {
       session: null,
       actorUser: null,
@@ -181,60 +179,56 @@ export async function attachAuthContext(req: Request, _res: Response, next: Next
       anonymousViewerId,
       subjectId: anonymousViewerId ?? 'anon-viewer'
     };
-    next();
-    return;
-  }
-
-  const session = await loadSessionByTokenHash(hashValue(token));
-  if (!session || Date.parse(session.expiresAt) <= Date.now()) {
-    if (session) {
-      await deleteSession(session.id);
-    }
-    requestStore[authContextKey] = {
-      session: null,
-      actorUser: null,
-      effectiveUser: null,
-      isAuthenticated: false,
-      isImpersonating: false,
-      anonymousViewerId,
-      subjectId: anonymousViewerId ?? 'anon-viewer'
-    };
-    next();
-    return;
-  }
-
-  const actorUser = await loadUserById(session.userId);
-  const effectiveUser = session.impersonatedUserId ? await loadUserById(session.impersonatedUserId) : actorUser;
-  if (!actorUser || !effectiveUser) {
-    await deleteSession(session.id);
-    requestStore[authContextKey] = {
-      session: null,
-      actorUser: null,
-      effectiveUser: null,
-      isAuthenticated: false,
-      isImpersonating: false,
-      anonymousViewerId,
-      subjectId: anonymousViewerId ?? 'anon-viewer'
-    };
-    next();
-    return;
-  }
-
-  await saveSession({
-    ...session,
-    lastSeenAt: nowIso()
-  });
-
-  requestStore[authContextKey] = {
-    session,
-    actorUser,
-    effectiveUser,
-    isAuthenticated: true,
-    isImpersonating: Boolean(session.impersonatedUserId && session.impersonatedUserId !== session.userId),
-    anonymousViewerId,
-    subjectId: buildUserSubjectId(effectiveUser.id)
   };
-  next();
+
+  try {
+    const token = parseSessionToken(req);
+
+    if (!token) {
+      setAnonymousContext();
+      next();
+      return;
+    }
+
+    const session = await loadSessionByTokenHash(hashValue(token));
+    if (!session || Date.parse(session.expiresAt) <= Date.now()) {
+      if (session) {
+        await deleteSession(session.id);
+      }
+      setAnonymousContext();
+      next();
+      return;
+    }
+
+    const actorUser = await loadUserById(session.userId);
+    const effectiveUser = session.impersonatedUserId ? await loadUserById(session.impersonatedUserId) : actorUser;
+    if (!actorUser || !effectiveUser) {
+      await deleteSession(session.id);
+      setAnonymousContext();
+      next();
+      return;
+    }
+
+    await saveSession({
+      ...session,
+      lastSeenAt: nowIso()
+    });
+
+    requestStore[authContextKey] = {
+      session,
+      actorUser,
+      effectiveUser,
+      isAuthenticated: true,
+      isImpersonating: Boolean(session.impersonatedUserId && session.impersonatedUserId !== session.userId),
+      anonymousViewerId,
+      subjectId: buildUserSubjectId(effectiveUser.id)
+    };
+    next();
+  } catch (error) {
+    console.error('Auth context degraded to anonymous mode:', error);
+    setAnonymousContext();
+    next();
+  }
 }
 
 export function getAuthContext(req: Request): AuthContext {
