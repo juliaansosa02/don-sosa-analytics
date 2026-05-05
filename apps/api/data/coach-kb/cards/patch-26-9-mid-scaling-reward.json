@@ -1,0 +1,28 @@
+{
+  "id": "patch-26-9-mid-scaling-reward",
+  "title": "Mid lane now has a clearer scaling reward after quest completion",
+  "language": "en",
+  "role": "MIDDLE",
+  "champion": null,
+  "matchup": null,
+  "phase": "mid_game",
+  "concept": "mid_role_quest_scaling_reward_26_9",
+  "skillLevel": "all",
+  "patchSensitivity": "system_sensitive",
+  "patch": "26.9",
+  "validFromPatch": "26.9",
+  "validToPatch": null,
+  "tags": ["mid lane", "role quests", "scaling", "item spike", "bonus AD", "bonus AP"],
+  "body": "Patch 26.9 replaces mid's empowered recall reward with a 6% bonus AD and AP reward. Mid coaching should care more about clean quest completion into item spikes and less about the old recall tempo reward.",
+  "actionables": [
+    "Review whether the mid laner completes quest without throwing away lane stability for low-value roams.",
+    "After quest completion, judge fights around item-spike timing because bonus AD/AP makes purchases more valuable.",
+    "Do not reuse old mid advice that assumes empowered recall is the reward pattern."
+  ],
+  "source": {
+    "coach": "Riot Games",
+    "title": "League of Legends Patch 26.9 Notes",
+    "url": "https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-26-9-notes/",
+    "notes": "Derived from the Role Quest reward changes for mid lane in Patch 26.9."
+  }
+}

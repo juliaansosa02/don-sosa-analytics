@@ -1,0 +1,28 @@
+{
+  "id": "patch-26-9-minion-wave-stacking",
+  "title": "Account for more durable waves when judging resets and roams",
+  "language": "en",
+  "role": "ALL",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "durable_wave_roam_reset_windows_26_9",
+  "skillLevel": "all",
+  "patchSensitivity": "system_sensitive",
+  "patch": "26.9",
+  "validFromPatch": "26.9",
+  "validToPatch": null,
+  "tags": ["waves", "wave stacking", "roam", "reset timing", "side lane", "macro"],
+  "body": "Patch 26.9 moderately increases minion wave durability around mid and late laning phase. That can make stacked waves build for longer and slightly widen windows where a player can reset, move, or hover before the wave fully collapses.",
+  "actionables": [
+    "Review reset mistakes by checking whether the player used the larger wave timer or left before creating one.",
+    "When a roam succeeds, verify whether wave durability and stacking made the move low-cost rather than assuming it was free in every patch.",
+    "Teach players to create the wave state first, then move; the patch rewards planned tempo more than random wandering."
+  ],
+  "source": {
+    "coach": "Riot Games",
+    "title": "League of Legends Patch 26.9 Notes",
+    "url": "https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-26-9-notes/",
+    "notes": "Derived from the Game Systems / Minion Waves changes in Patch 26.9."
+  }
+}

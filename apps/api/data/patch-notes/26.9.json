@@ -1,0 +1,142 @@
+{
+  "patch": "26.9",
+  "publishedAt": "2026-04-28T18:00:00.000Z",
+  "sourceUrl": "https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-26-9-notes/",
+  "summary": [
+    "Patch 26.9 launches 2026 Season 2 with broad changes to champions, items, systems, and runes; coaching should treat it as a real system patch, not a small balance patch.",
+    "Role Quests are less punishing for late-laning movement, mid receives a scaling AD/AP reward, top shifts away from pure XP amplification, and bot takedown gold is slightly reduced.",
+    "Rune and item reads changed meaningfully: Deathfire Touch and Stormraider's Surge enter the Sorcery keystone space, Phase Rush is removed, new Doran starts exist, and Statikk Shiv plus Voltaic Cyclosword were reworked."
+  ],
+  "championUpdates": [
+    {
+      "championName": "Ambessa",
+      "changeType": "nerf",
+      "roles": ["TOP"],
+      "summary": "Ambessa's R cast time was increased from 0.55 to 0.70 seconds, giving opponents clearer reaction windows.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Briar",
+      "changeType": "nerf",
+      "roles": ["JUNGLE"],
+      "summary": "Briar lost health growth, trimming survivability while keeping her kill threat mostly intact.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Ezreal",
+      "changeType": "buff",
+      "roles": ["BOTTOM"],
+      "summary": "Ezreal gained large AP ratio buffs on Q, W, and R, reopening AP and hybrid experimentation.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Gragas",
+      "changeType": "buff",
+      "roles": ["TOP", "JUNGLE", "MIDDLE"],
+      "summary": "Gragas W damage reduction now scales higher by rank, especially helping late-game frontline durability after Phase Rush removal.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Kennen",
+      "changeType": "buff",
+      "roles": ["TOP"],
+      "summary": "Kennen gained critical strike hooks on W and E to support AD or crit-oriented side builds.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Shyvana",
+      "changeType": "adjustment",
+      "roles": ["JUNGLE", "TOP"],
+      "summary": "Shyvana received high-impact build differentiation: AD/bruiser builds get more sustained combat hooks while AP leans harder into R and E burst patterns.",
+      "impactLevel": "high"
+    },
+    {
+      "championName": "Tahm Kench",
+      "changeType": "buff",
+      "roles": ["UTILITY", "TOP"],
+      "summary": "Tahm Kench received support-focused E and ally-devour movement speed buffs after the prior adjustment landed slightly weak.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Taliyah",
+      "changeType": "adjustment",
+      "roles": ["MIDDLE", "JUNGLE"],
+      "summary": "Taliyah Q champion damage was partially restored while bonus monster damage was reduced to avoid overly fast jungle clears.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Teemo",
+      "changeType": "buff",
+      "roles": ["TOP"],
+      "summary": "Teemo E gained bonus AD ratios, creating more room for on-hit and hybrid itemization.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Udyr",
+      "changeType": "adjustment",
+      "roles": ["JUNGLE", "TOP"],
+      "summary": "Udyr AD Q power was shifted toward W and E scaling, broadening bruiser builds beyond one-note Q damage.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Warwick",
+      "changeType": "buff",
+      "roles": ["JUNGLE", "TOP"],
+      "summary": "Warwick passive on-hit damage now scales better into later game states.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Xin Zhao",
+      "changeType": "buff",
+      "roles": ["JUNGLE"],
+      "summary": "Xin Zhao gained AP and attack-speed scaling hooks across P, W, and E, reopening AP and on-hit experimentation.",
+      "impactLevel": "medium"
+    },
+    {
+      "championName": "Zeri",
+      "changeType": "adjustment",
+      "roles": ["BOTTOM"],
+      "summary": "Zeri shifted power from burst and late-game DPS toward mobility, early laning, and speed-stacking identity.",
+      "impactLevel": "high"
+    },
+    {
+      "championName": "Zoe",
+      "changeType": "adjustment",
+      "roles": ["MIDDLE"],
+      "summary": "Zoe lost W stat-check damage and gained a Bubble refund mechanic, moving more value into skillful E hits.",
+      "impactLevel": "medium"
+    }
+  ],
+  "systemUpdates": [
+    {
+      "category": "role_quests",
+      "summary": "Role Quest progression now allows broader lane positioning and banked roaming time after level 3; top reward shifts from broad XP to takedown XP plus lower non-champion XP, mid gains 6% bonus AD/AP, and bot bonus takedown gold drops from 50g to 40g.",
+      "impactLevel": "high"
+    },
+    {
+      "category": "minion_waves",
+      "summary": "Minion waves are moderately more durable in mid and late laning, which can increase wave stacking and create slightly larger roam or reset windows.",
+      "impactLevel": "medium"
+    },
+    {
+      "category": "starting_items",
+      "summary": "Doran's Bow and Doran's Helm add new laning-start decisions for auto-attack and resistance-stacking champions.",
+      "impactLevel": "medium"
+    },
+    {
+      "category": "rune_keystones",
+      "summary": "Deathfire Touch and Stormraider's Surge enter Sorcery, Phase Rush is removed, Arcane Comet is refocused away from DoT refund patterns, and Hail of Blades trades attack speed for bonus true damage.",
+      "impactLevel": "high"
+    },
+    {
+      "category": "itemization",
+      "summary": "Opportunity and Trailblazer were removed; Statikk Shiv and Voltaic Cyclosword were reworked; Gluttonous Greaves add offensive sustain boots; Staff of Flowing Water regained ally ability haste.",
+      "impactLevel": "high"
+    },
+    {
+      "category": "ranked_season_2",
+      "summary": "Summoner's Rift Ranked Season 2 starts at noon on April 29 local server time, Victorious Ranked Mission progress resets, and Apex players in selected regions reset to Master 0 LP.",
+      "impactLevel": "medium"
+    }
+  ]
+}

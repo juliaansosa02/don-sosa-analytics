@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "npm run build -w @don-sosa/core && tsx watch src/server.ts",
     "collect": "npm run build -w @don-sosa/core && tsx src/services/runCollection.ts",
+    "db:migrate:fallback-json": "tsx src/scripts/migrateJsonFallbackToPostgres.ts",
     "coach:knowledge:audit": "tsx src/services/runKnowledgeAudit.ts",
     "coach:patch:audit": "tsx src/services/runPatchNotesAudit.ts",
     "coach:patch:scaffold": "tsx src/services/runPatchNotesScaffold.ts",

@@ -50,18 +50,31 @@ type LatestPatchEntry = {
 
 const championRoleMap: Record<string, string[]> = {
   ahri: ['MIDDLE'],
+  ambessa: ['TOP'],
   azir: ['MIDDLE'],
+  briar: ['JUNGLE'],
   cassiopeia: ['MIDDLE'],
+  ezreal: ['BOTTOM'],
+  gragas: ['TOP', 'JUNGLE', 'MIDDLE'],
   graves: ['JUNGLE'],
   kalista: ['BOTTOM'],
   karma: ['UTILITY', 'MIDDLE'],
+  kennen: ['TOP'],
   lissandra: ['MIDDLE'],
   nami: ['UTILITY'],
   ornn: ['TOP'],
   pyke: ['UTILITY'],
   rell: ['UTILITY', 'JUNGLE'],
   shen: ['TOP'],
-  shyvana: ['JUNGLE', 'TOP']
+  shyvana: ['JUNGLE', 'TOP'],
+  tahmkench: ['UTILITY', 'TOP'],
+  taliyah: ['MIDDLE', 'JUNGLE'],
+  teemo: ['TOP'],
+  udyr: ['JUNGLE', 'TOP'],
+  warwick: ['JUNGLE', 'TOP'],
+  xinzhao: ['JUNGLE'],
+  zeri: ['BOTTOM'],
+  zoe: ['MIDDLE']
 };
 
 function parsePatchParts(patch?: string | null) {
@@ -84,7 +97,7 @@ function comparePatch(left?: string | null, right?: string | null) {
 }
 
 function normalizeChampionName(name?: string | null) {
-  return name?.trim().toLowerCase() ?? '';
+  return name?.trim().toLowerCase().replace(/[^a-z0-9]/g, '') ?? '';
 }
 
 function decodeHtmlEntities(input: string) {
@@ -421,7 +434,7 @@ function localizeChampionUpdate(update: PatchChampionUpdate, locale: 'es' | 'en'
 
   return {
     ...update,
-    summary: `${update.championName} recibió ${changeTypeText} ${impactText} en el parche ${patch}.`
+    summary: `${update.championName} recibio ${changeTypeText} ${impactText} en el parche ${patch}. Detalle: ${update.summary}`
   };
 }
 
@@ -437,7 +450,7 @@ function localizeSystemUpdate(update: PatchSystemUpdate, locale: 'es' | 'en', pa
 
   return {
     ...update,
-    summary: `Se detectó una actualización sistémica vinculada a ${categoryLabel} con ${impactText} en el parche ${patch}.`
+    summary: `Parche ${patch}, ${categoryLabel} (${impactText}): ${update.summary}`
   };
 }
 

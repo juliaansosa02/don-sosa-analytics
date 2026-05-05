@@ -1,0 +1,28 @@
+{
+  "id": "patch-26-9-role-quest-roam-windows",
+  "title": "Re-check roam timing under the Season 2 Role Quest rules",
+  "language": "en",
+  "role": "ALL",
+  "champion": null,
+  "matchup": null,
+  "phase": "macro",
+  "concept": "role_quest_roam_windows_26_9",
+  "skillLevel": "all",
+  "patchSensitivity": "system_sensitive",
+  "patch": "26.9",
+  "validFromPatch": "26.9",
+  "validToPatch": null,
+  "tags": ["role quests", "roam", "lane assignment", "tempo", "reset timing", "macro"],
+  "body": "Patch 26.9 makes Role Quest progress less punishing when a laner leaves toward the end of lane phase. After level 3, time spent in lane can bank a moderate amount of roaming time, so coaching should no longer treat every short roam away from the assigned lane as automatically damaging to quest progress.",
+  "actionables": [
+    "When reviewing a roam, check whether the player had first banked lane time and whether the roam created real map value.",
+    "Do not punish late-laning movement purely because the player left the wave; judge the wave state, recall timing, and quest context together.",
+    "For mid and support reviews, separate useful tempo roams from empty movement that still costs waves, plates, or reset quality."
+  ],
+  "source": {
+    "coach": "Riot Games",
+    "title": "League of Legends Patch 26.9 Notes",
+    "url": "https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-26-9-notes/",
+    "notes": "Derived from the Role Quests progression changes in Patch 26.9."
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "patch-26-9-shyvana-build-identity",
+  "title": "Judge Shyvana by her chosen 26.9 damage pattern",
+  "language": "en",
+  "role": "JUNGLE",
+  "champion": "Shyvana",
+  "matchup": null,
+  "phase": "draft",
+  "concept": "shyvana_ad_ap_identity_26_9",
+  "skillLevel": "all",
+  "patchSensitivity": "meta_sensitive",
+  "patch": "26.9",
+  "validFromPatch": "26.9",
+  "validToPatch": null,
+  "tags": ["Shyvana", "champion identity execution", "itemization read", "bruiser", "AP", "jungle"],
+  "body": "Patch 26.9 deliberately separates Shyvana's AD/bruiser and AP identities. AD Shyvana should be reviewed around sustained combat, autos, Q value, W sustain and stickiness. AP Shyvana should be reviewed around R and E damage windows, spacing, and weaving in and out rather than permanent melee uptime.",
+  "actionables": [
+    "When reviewing Shyvana, identify AD/bruiser or AP identity before judging fights.",
+    "For AD/bruiser builds, look for whether she stayed in combat long enough to cash Q, W, and health-based durability.",
+    "For AP builds, look for whether she saved R/E windows for meaningful targets instead of drifting into low-value melee brawls."
+  ],
+  "source": {
+    "coach": "Riot Games",
+    "title": "League of Legends Patch 26.9 Notes",
+    "url": "https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-26-9-notes/",
+    "notes": "Derived from the Shyvana champion changes in Patch 26.9."
+  }
+}

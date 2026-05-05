@@ -1,0 +1,28 @@
+{
+  "id": "patch-26-9-rune-item-read-refresh",
+  "title": "Refresh rune and item assumptions before blaming execution",
+  "language": "en",
+  "role": "ALL",
+  "champion": null,
+  "matchup": null,
+  "phase": "review",
+  "concept": "rune_item_read_refresh_26_9",
+  "skillLevel": "all",
+  "patchSensitivity": "system_sensitive",
+  "patch": "26.9",
+  "validFromPatch": "26.9",
+  "validToPatch": null,
+  "tags": ["rune setup read", "itemization read", "Deathfire Touch", "Stormraider's Surge", "Phase Rush", "Statikk Shiv", "Voltaic Cyclosword"],
+  "body": "Patch 26.9 changes enough rune and item foundations that some old build assumptions are stale. Deathfire Touch supports sustained damage casters, Stormraider's Surge replaces the mobility-keystone space left by Phase Rush, Hail of Blades changes shape, and several items were added, removed, or reworked.",
+  "actionables": [
+    "Before calling a build mistake, check whether the champion's old keystone or core item was changed or removed in 26.9.",
+    "For repeated losses, compare whether the player is still using a pre-26.9 rune/item identity on a champion whose supported pattern changed.",
+    "Separate mechanical failure from outdated setup: if the rune/item page no longer matches the champion's best fight pattern, fix setup first."
+  ],
+  "source": {
+    "coach": "Riot Games",
+    "title": "League of Legends Patch 26.9 Notes",
+    "url": "https://www.leagueoflegends.com/en-us/news/game-updates/league-of-legends-patch-26-9-notes/",
+    "notes": "Derived from the Runes and Items sections in Patch 26.9."
+  }
+}

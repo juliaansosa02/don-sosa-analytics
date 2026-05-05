@@ -1,0 +1,11 @@
+{
+  "patch": "26.9",
+  "updatedAt": "2026-04-28T18:00:00.000Z",
+  "status": "scaffold_only",
+  "summary": {
+    "en": "Official Riot patch context is loaded for 26.9 Season 2. No independent tier/build/rune performance feed has been curated yet, so use this layer for system awareness rather than hard meta rankings.",
+    "es": "El contexto oficial de Riot para el parche 26.9 Season 2 ya esta cargado. Todavia no hay un feed independiente curado de tiers/builds/runas, asi que esta capa debe usarse para awareness de sistemas y no como ranking duro de meta."
+  },
+  "roleHighlights": [],
+  "championBuilds": []
+}
