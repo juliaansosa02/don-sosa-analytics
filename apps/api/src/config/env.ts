@@ -1,6 +1,23 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
+const booleanish = z
+  .union([z.boolean(), z.string(), z.number()])
+  .transform((value, ctx) => {
+    if (typeof value === 'boolean') return value;
+    if (typeof value === 'number') return value !== 0;
+
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'y', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'n', 'off', ''].includes(normalized)) return false;
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Invalid boolean value: ${value}`
+    });
+    return z.NEVER;
+  });
+
 const envSchema = z.object({
   RIOT_API_KEY: z.string().min(1),
   RIOT_PLATFORM: z.string().default('LA2'),
@@ -21,10 +38,10 @@ const envSchema = z.object({
   AI_COACH_PREMIUM_MIN_VISIBLE_MATCHES: z.coerce.number().default(12),
   AI_COACH_PREMIUM_MIN_REMAINING_BUDGET_USD: z.coerce.number().default(0.5),
   CURRENT_LOL_PATCH: z.string().optional(),
-  PATCH_NOTES_AUTO_SYNC: z.coerce.boolean().default(true),
+  PATCH_NOTES_AUTO_SYNC: booleanish.default(true),
   PATCH_NOTES_SYNC_INTERVAL_HOURS: z.coerce.number().default(12),
   PATCH_NOTES_TAG_URL: z.string().default('https://www.leagueoflegends.com/en-us/news/tags/patch-notes/'),
-  MEMBERSHIP_DEV_TOOLS: z.coerce.boolean().default(process.env.NODE_ENV !== 'production'),
+  MEMBERSHIP_DEV_TOOLS: booleanish.default(process.env.NODE_ENV !== 'production'),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
@@ -34,7 +51,7 @@ const envSchema = z.object({
   SESSION_COOKIE_NAME: z.string().default('don_sosa_session'),
   SESSION_TTL_DAYS: z.coerce.number().default(30),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().default(30),
-  DEV_EXPOSE_RESET_TOKEN: z.coerce.boolean().default(process.env.NODE_ENV !== 'production'),
+  DEV_EXPOSE_RESET_TOKEN: booleanish.default(process.env.NODE_ENV !== 'production'),
   ADMIN_1_EMAIL: z.string().optional(),
   ADMIN_1_PASSWORD: z.string().optional(),
   ADMIN_1_NAME: z.string().optional(),
