@@ -11,6 +11,7 @@ const pool = env.DATABASE_URL ? new Pool({ connectionString: env.DATABASE_URL })
 let tableReady: Promise<void> | null = null;
 let syncPromise: Promise<PatchNotesFile | null> | null = null;
 let lastSyncAttemptAt = 0;
+let schedulerStarted = false;
 
 const championUpdateSchema = z.object({
   championName: z.string().min(1),
@@ -519,6 +520,19 @@ export async function refreshPatchNotesFromOfficialSource(force = false) {
     });
 
   return syncPromise;
+}
+
+export function startPatchNotesAutoSyncScheduler() {
+  if (schedulerStarted || !env.PATCH_NOTES_AUTO_SYNC) return;
+  schedulerStarted = true;
+
+  const interval = setInterval(() => {
+    void refreshPatchNotesFromOfficialSource(false).catch((error) => {
+      console.error('Patch notes scheduled refresh failed:', error);
+    });
+  }, syncIntervalMs());
+
+  interval.unref?.();
 }
 
 export async function getCurrentPatchNotes() {

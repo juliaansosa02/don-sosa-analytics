@@ -41,6 +41,7 @@ const envSchema = z.object({
   PATCH_NOTES_AUTO_SYNC: booleanish.default(true),
   PATCH_NOTES_SYNC_INTERVAL_HOURS: z.coerce.number().default(12),
   PATCH_NOTES_TAG_URL: z.string().default('https://www.leagueoflegends.com/en-us/news/tags/patch-notes/'),
+  PATCH_SYNC_SECRET: z.string().optional(),
   MEMBERSHIP_DEV_TOOLS: booleanish.default(process.env.NODE_ENV !== 'production'),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_PUBLISHABLE_KEY: z.string().optional(),

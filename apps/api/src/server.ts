@@ -7,10 +7,11 @@ import { env } from './config/env.js';
 import { healthRouter } from './routes/health.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { aiCoachRouter } from './routes/aiCoach.js';
+import { internalRouter } from './routes/internal.js';
 import { membershipRouter } from './routes/membership.js';
 import { authRouter, adminRouter, coachRouter } from './routes/auth.js';
 import { billingRouter, stripeWebhookRouter } from './routes/billing.js';
-import { refreshPatchNotesFromOfficialSource } from './services/patchNotes.js';
+import { refreshPatchNotesFromOfficialSource, startPatchNotesAutoSyncScheduler } from './services/patchNotes.js';
 import { readCookies } from './lib/cookies.js';
 import { attachAuthContext, bootstrapAdminAccounts } from './services/authService.js';
 
@@ -35,6 +36,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(attachAuthContext);
 
 app.use('/api/health', healthRouter);
+app.use('/api/internal', internalRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/coach', coachRouter);
@@ -123,7 +125,7 @@ if (env.BETA_ACCESS_CODE) {
   });
 
   app.use((req, res, next) => {
-    if (req.path === '/beta-access' || req.path.startsWith('/api/health') || req.path.startsWith('/api/billing/webhook/stripe')) {
+    if (req.path === '/beta-access' || req.path.startsWith('/api/health') || req.path.startsWith('/api/internal/') || req.path.startsWith('/api/billing/webhook/stripe')) {
       next();
       return;
     }
@@ -160,4 +162,5 @@ app.listen(env.PORT, () => {
   void refreshPatchNotesFromOfficialSource(false).catch((error) => {
     console.error('Patch notes refresh skipped during startup:', error);
   });
+  startPatchNotesAutoSyncScheduler();
 });

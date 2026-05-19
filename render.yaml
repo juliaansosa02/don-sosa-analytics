@@ -18,10 +18,16 @@ services:
         value: americas
       - key: MATCH_COUNT
         value: "100"
+      - key: PATCH_NOTES_AUTO_SYNC
+        value: "true"
+      - key: PATCH_NOTES_SYNC_INTERVAL_HOURS
+        value: "6"
       - key: RIOT_REQUEST_DELAY_MS
         value: "700"
       - key: RIOT_MAX_RETRIES
         value: "4"
+      - key: PATCH_SYNC_SECRET
+        sync: false
       - key: MEMBERSHIP_DEV_TOOLS
         value: "false"
       - key: DEV_EXPOSE_RESET_TOKEN

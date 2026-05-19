@@ -1,0 +1,57 @@
+name: Patch Sync
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Validate required secrets
+        env:
+          PATCH_SYNC_URL: ${{ secrets.PATCH_SYNC_URL }}
+          PATCH_SYNC_SECRET: ${{ secrets.PATCH_SYNC_SECRET }}
+        run: |
+          test -n "$PATCH_SYNC_URL" || (echo "PATCH_SYNC_URL is missing" && exit 1)
+          test -n "$PATCH_SYNC_SECRET" || (echo "PATCH_SYNC_SECRET is missing" && exit 1)
+
+      - name: Trigger patch sync
+        env:
+          PATCH_SYNC_URL: ${{ secrets.PATCH_SYNC_URL }}
+          PATCH_SYNC_SECRET: ${{ secrets.PATCH_SYNC_SECRET }}
+        run: |
+          response_file="$(mktemp)"
+          http_code="$(curl --silent --show-error \
+            --retry 5 \
+            --retry-all-errors \
+            --connect-timeout 20 \
+            --max-time 120 \
+            --write-out "%{http_code}" \
+            --output "$response_file" \
+            -X POST \
+            -H "x-patch-sync-secret: ${PATCH_SYNC_SECRET}" \
+            "${PATCH_SYNC_URL}")"
+
+          cat "$response_file"
+
+          if [ "$http_code" -lt 200 ] || [ "$http_code" -ge 300 ]; then
+            echo "Patch sync failed with HTTP $http_code"
+            exit 1
+          fi
+
+      - name: Check patch status
+        env:
+          PATCH_SYNC_URL: ${{ secrets.PATCH_SYNC_URL }}
+          PATCH_SYNC_SECRET: ${{ secrets.PATCH_SYNC_SECRET }}
+        run: |
+          status_url="${PATCH_SYNC_URL%/sync}/status"
+          curl --silent --show-error \
+            --retry 5 \
+            --retry-all-errors \
+            --connect-timeout 20 \
+            --max-time 120 \
+            -H "x-patch-sync-secret: ${PATCH_SYNC_SECRET}" \
+            "$status_url"
