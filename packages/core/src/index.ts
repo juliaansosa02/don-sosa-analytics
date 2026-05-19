@@ -1,4 +1,13 @@
 export type MatchOutcome = 'WIN' | 'LOSS';
+export type {
+  ChampionIntelligenceProfile,
+  ChampionMatchupPlan,
+  ChampionReadAtom,
+  ChampionReadConfidence,
+  ChampionReviewTrigger,
+  ChampionSetupVariant
+} from './championIntelligence.js';
+export { championIntelligenceCatalog } from './championIntelligence.js';
 
 export interface RuneSelection {
   perk: number;

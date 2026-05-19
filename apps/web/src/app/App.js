@@ -14,7 +14,7 @@ const tabs = [
     { id: 'matchups', label: { es: 'Cruces', en: 'Matchups' } },
     { id: 'runes', label: { es: 'Runas', en: 'Runes' } },
     { id: 'builds', label: { es: 'Builds / Items', en: 'Builds / Items' } },
-    { id: 'champions', label: { es: 'Campeones', en: 'Champions' } },
+    { id: 'champions', label: { es: 'Champion IQ', en: 'Champion IQ' } },
     { id: 'matches', label: { es: 'Partidas', en: 'Matches' } }
 ];
 const CoachPremiumWorkspace = lazy(async () => {
@@ -45,9 +45,9 @@ const BuildsTab = lazy(async () => {
     const module = await import('../features/builds/BuildsTab');
     return { default: module.BuildsTab };
 });
-const ChampionPoolTab = lazy(async () => {
-    const module = await import('../features/champion-pool/ChampionPoolTab');
-    return { default: module.ChampionPoolTab };
+const ChampionIntelligenceTab = lazy(async () => {
+    const module = await import('../features/champion-intelligence/ChampionIntelligenceTab');
+    return { default: module.ChampionIntelligenceTab };
 });
 const MatchesTab = lazy(async () => {
     const module = await import('../features/matches/MatchesTab');
@@ -1421,7 +1421,7 @@ function AppShell() {
             case 'builds':
                 return _jsx(BuildsTab, { dataset: viewDataset, locale: locale });
             case 'champions':
-                return _jsx(ChampionPoolTab, { dataset: viewDataset, locale: locale });
+                return _jsx(ChampionIntelligenceTab, { dataset: viewDataset, locale: locale });
             case 'matches':
                 return _jsx(MatchesTab, { dataset: viewDataset, locale: locale });
         }
