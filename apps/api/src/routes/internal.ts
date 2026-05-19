@@ -3,6 +3,7 @@ import type { Request } from 'express';
 import { env } from '../config/env.js';
 import { analyzeCurrentPatchImpact, getCurrentPatchImpactReport } from '../services/patchImpact.js';
 import { getCurrentPatchNotes, refreshPatchNotesFromOfficialSource } from '../services/patchNotes.js';
+import { getLatestSkillCappedMetaSnapshot, syncSkillCappedMetaSnapshot } from '../services/skillCappedMeta.js';
 
 export const internalRouter = Router();
 
@@ -20,7 +21,7 @@ function isPatchSyncAuthorized(req: Request) {
   return extractSyncSecret(req) === env.PATCH_SYNC_SECRET;
 }
 
-internalRouter.use('/patch', (req, res, next) => {
+internalRouter.use((req, res, next) => {
   if (!env.PATCH_SYNC_SECRET) {
     res.status(503).json({
       error: 'PATCH_SYNC_SECRET is not configured'
@@ -107,6 +108,44 @@ internalRouter.post('/patch/impact/analyze', async (_req, res) => {
       generatedAt: report.generatedAt,
       signals: report.signals.length,
       summary: report.summary
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+internalRouter.get('/meta/skill-capped/status', async (_req, res) => {
+  try {
+    const snapshot = await getLatestSkillCappedMetaSnapshot();
+    res.json({
+      ok: true,
+      patch: snapshot?.patch ?? null,
+      updatedLabel: snapshot?.updatedLabel ?? null,
+      fetchedAt: snapshot?.fetchedAt ?? null,
+      totalMatchesAnalyzed: snapshot?.totalMatchesAnalyzed ?? 0,
+      champions: snapshot?.champions.length ?? 0,
+      sourceUrl: snapshot?.sourceUrl ?? null
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+internalRouter.post('/meta/skill-capped/sync', async (_req, res) => {
+  try {
+    const snapshot = await syncSkillCappedMetaSnapshot(true);
+    res.json({
+      ok: true,
+      patch: snapshot.patch,
+      updatedLabel: snapshot.updatedLabel,
+      fetchedAt: snapshot.fetchedAt,
+      totalMatchesAnalyzed: snapshot.totalMatchesAnalyzed,
+      champions: snapshot.champions.length,
+      sourceUrl: snapshot.sourceUrl
     });
   } catch (error) {
     res.status(500).json({

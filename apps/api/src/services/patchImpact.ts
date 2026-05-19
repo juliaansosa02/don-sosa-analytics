@@ -4,6 +4,7 @@ import { Pool } from 'pg';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import { getCurrentPatchNotes } from './patchNotes.js';
+import { getLatestSkillCappedMetaSnapshot } from './skillCappedMeta.js';
 import { ensureWrite } from '../utils/fs.js';
 
 const patchImpactDir = fileURLToPath(new URL('../../data/patch-impact', import.meta.url));
@@ -66,6 +67,12 @@ const interactionRuleSchema = z.object({
 type PatchImpactSignal = z.infer<typeof patchImpactSignalSchema>;
 type PatchImpactReport = z.infer<typeof patchImpactReportSchema>;
 type InteractionRule = z.infer<typeof interactionRuleSchema>;
+
+const itemNameToIdMap: Record<string, number[]> = {
+  blackcleaver: [3071],
+  'gluttonousgreavesimmortalpath': [3047],
+  gluttonousgreaves: [3047]
+};
 
 function decodeHtmlEntities(input: string) {
   return input
@@ -330,6 +337,101 @@ function buildInteractionSignals(
   return signals;
 }
 
+function normalizeCompact(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function highTier(tier: string) {
+  return tier === 'OP' || tier === 'S' || tier === 'A';
+}
+
+function buildSkillCappedChampionSignals(
+  patch: string,
+  snapshot: Awaited<ReturnType<typeof getLatestSkillCappedMetaSnapshot>>,
+  championUpdates: Array<{ championName: string }>
+) {
+  if (!snapshot || snapshot.patch !== patch) return [] as PatchImpactSignal[];
+
+  const updatedChampions = new Set(championUpdates.map((entry) => normalizeCompact(entry.championName)));
+  return snapshot.champions
+    .filter((row) => updatedChampions.has(normalizeCompact(row.championName)) && highTier(row.tier))
+    .slice(0, 6)
+    .map((row) =>
+      patchImpactSignalSchema.parse({
+        id: `skill-capped-${patch}-${normalizeCompact(row.championName)}-${row.role.toLowerCase()}`,
+        kind: 'champion',
+        title: {
+          en: `Skill-Capped still rates ${row.championName} ${row.role} highly`,
+          es: `Skill-Capped sigue valorando alto a ${row.championName} ${row.role}`
+        },
+        summary: {
+          en: `${row.championName} ${row.role} is currently ${row.tier} on Skill-Capped with ${row.winRate.toFixed(2)}% WR across ${row.matches.toLocaleString('en-US')} tracked games. Treat this as external confirmation that the pick stayed live after the patch hit.`,
+          es: `${row.championName} ${row.role} aparece ${row.tier} en Skill-Capped con ${row.winRate.toFixed(2)}% WR sobre ${row.matches.toLocaleString('es-AR')} partidas medidas. Tomalo como confirmación externa de que el pick siguió vivo después del parche.`
+        },
+        confidence: 'derived',
+        priority: row.tier === 'OP' ? 'high' : 'medium',
+        champions: [row.championName],
+        items: [],
+        runes: [],
+        sources: [snapshot.sourceUrl]
+      })
+    );
+}
+
+function buildSkillCappedSynergySignals(
+  patch: string,
+  snapshot: Awaited<ReturnType<typeof getLatestSkillCappedMetaSnapshot>>,
+  rules: InteractionRule[],
+  championUpdates: Array<{ championName: string; summary: string }>
+) {
+  if (!snapshot || snapshot.patch !== patch) return [] as PatchImpactSignal[];
+
+  const signals: PatchImpactSignal[] = [];
+
+  for (const rule of rules) {
+    const requiredItemIds = rule.requiresItems.flatMap((name) => itemNameToIdMap[normalizeCompact(name)] ?? []);
+    if (!requiredItemIds.length || !rule.candidateChampions.length) continue;
+
+    const matchedRows = snapshot.champions.filter((row) =>
+      rule.candidateChampions.some((championName) => normalizeCompact(championName) === normalizeCompact(row.championName))
+      && row.coreItemIds.some((itemId) => requiredItemIds.includes(itemId))
+      && highTier(row.tier)
+    );
+
+    if (!matchedRows.length) continue;
+
+    const championTouched = rule.triggersOnChampionNotes.length
+      ? championUpdates.some((update) => rule.triggersOnChampionNotes.some((name) => normalizeCompact(name) === normalizeCompact(update.championName)))
+      : true;
+
+    if (!championTouched) continue;
+
+    const matchedChampionLabels = matchedRows.map((row) => `${row.championName} ${row.role} (${row.tier}, ${row.winRate.toFixed(2)}% WR)`);
+    signals.push(
+      patchImpactSignalSchema.parse({
+        id: `skill-capped-synergy-${patch}-${rule.id}`,
+        kind: 'synergy',
+        title: {
+          en: `${rule.title.en} is already showing live adoption`,
+          es: `${rule.title.es} ya muestra adopción en vivo`
+        },
+        summary: {
+          en: `Skill-Capped currently shows ${matchedChampionLabels.join(', ')} with the relevant core item shell. That is not proof of long-term correctness, but it is a strong signal that this interaction is live and should be treated as patch-volatile instead of solved.`,
+          es: `Skill-Capped muestra hoy a ${matchedChampionLabels.join(', ')} con el shell de item relevante. Eso no prueba corrección de largo plazo, pero sí marca que esta interacción está viva y conviene tratarla como patch-volatile en vez de resuelta.`
+        },
+        confidence: 'derived',
+        priority: rule.priority,
+        champions: matchedRows.map((row) => row.championName),
+        items: rule.requiresItems,
+        runes: rule.requiresRunes,
+        sources: [snapshot.sourceUrl]
+      })
+    );
+  }
+
+  return signals;
+}
+
 function buildSummary(patch: string, signals: PatchImpactSignal[]) {
   const highPriority = signals.filter((signal) => signal.priority === 'high').length;
   const synergyCount = signals.filter((signal) => signal.kind === 'synergy').length;
@@ -352,13 +454,16 @@ export async function analyzeCurrentPatchImpact(force = false) {
   const itemEntries = extractNamedSectionEntries(lines, 'Items', ['Runes', 'Game Systems', 'Arena']);
   const runeEntries = extractNamedSectionEntries(lines, 'Runes', ['Game Systems', 'Arena']);
   const rules = await loadInteractionRules();
+  const skillCappedSnapshot = await getLatestSkillCappedMetaSnapshot();
 
   const signals = [
     ...buildChampionSignals(currentPatch.patch, currentPatch.sourceUrl, currentPatch.championUpdates),
     ...buildSectionSignals(currentPatch.patch, currentPatch.sourceUrl, itemEntries, 'item'),
     ...buildSectionSignals(currentPatch.patch, currentPatch.sourceUrl, runeEntries, 'rune'),
     ...buildSystemSignals(currentPatch.patch, currentPatch.sourceUrl, currentPatch.systemUpdates),
-    ...buildInteractionSignals(currentPatch.patch, currentPatch.sourceUrl, rules, runeEntries, itemEntries, currentPatch.championUpdates)
+    ...buildInteractionSignals(currentPatch.patch, currentPatch.sourceUrl, rules, runeEntries, itemEntries, currentPatch.championUpdates),
+    ...buildSkillCappedChampionSignals(currentPatch.patch, skillCappedSnapshot, currentPatch.championUpdates),
+    ...buildSkillCappedSynergySignals(currentPatch.patch, skillCappedSnapshot, rules, currentPatch.championUpdates)
   ];
 
   const report = patchImpactReportSchema.parse({
