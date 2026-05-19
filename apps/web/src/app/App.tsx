@@ -122,6 +122,8 @@ interface SavedProfileRecord {
 
 const savedProfilesStorageKey = 'don-sosa:saved-profiles';
 const initialMatchOptions = [20, 30, 50, 100];
+const datasetStoragePrefix = 'don-sosa:dataset:';
+const datasetCacheFallbackLimits = [50, 30, 20, 10];
 
 function legacyDatasetStorageKey(gameName: string, tagLine: string) {
   return `don-sosa:dataset:${gameName}#${tagLine}`.toLowerCase();
@@ -166,6 +168,57 @@ function readCachedDataset(gameName: string, tagLine: string, platform?: string 
 function removeCachedDataset(gameName: string, tagLine: string, platform?: string | null) {
   window.localStorage.removeItem(datasetStorageKey(gameName, tagLine, platform));
   window.localStorage.removeItem(legacyDatasetStorageKey(gameName, tagLine));
+}
+
+function isStorageQuotaError(error: unknown) {
+  return error instanceof DOMException
+    && (error.name === 'QuotaExceededError'
+      || error.name === 'NS_ERROR_DOM_QUOTA_REACHED'
+      || error.code === 22
+      || error.code === 1014);
+}
+
+function pruneDatasetStorage(activeKey: string) {
+  for (let index = window.localStorage.length - 1; index >= 0; index -= 1) {
+    const key = window.localStorage.key(index);
+    if (key?.startsWith(datasetStoragePrefix) && key !== activeKey) {
+      window.localStorage.removeItem(key);
+    }
+  }
+}
+
+function buildDatasetCacheCandidates(dataset: Dataset, preferredMatchLimit: number, locale: Locale) {
+  const preferredLimit = Math.min(preferredMatchLimit, dataset.matches.length);
+  const limits = [
+    preferredLimit,
+    ...datasetCacheFallbackLimits.filter((limit) => limit < preferredLimit)
+  ];
+  const uniqueLimits = [...new Set(limits.filter((limit) => limit > 0 && limit <= dataset.matches.length))];
+  return uniqueLimits.map((limit) => limitDatasetMatches(dataset, limit, locale));
+}
+
+function persistCachedDataset(dataset: Dataset, preferredMatchLimit: number, locale: Locale) {
+  const key = datasetStorageKey(dataset.player, dataset.tagLine, dataset.summary.platform);
+  const legacyKey = legacyDatasetStorageKey(dataset.player, dataset.tagLine);
+
+  for (const candidate of buildDatasetCacheCandidates(dataset, preferredMatchLimit, locale)) {
+    try {
+      window.localStorage.setItem(key, JSON.stringify(candidate));
+      if (legacyKey !== key) {
+        window.localStorage.removeItem(legacyKey);
+      }
+      return true;
+    } catch (err) {
+      if (!isStorageQuotaError(err)) return false;
+      window.localStorage.removeItem(key);
+      if (legacyKey !== key) {
+        window.localStorage.removeItem(legacyKey);
+      }
+      pruneDatasetStorage(key);
+    }
+  }
+
+  return false;
 }
 
 type CoachRosterDatasetMap = Record<string, Dataset | null>;
@@ -661,10 +714,7 @@ function AppShell() {
         try {
           const serverDataset = await fetchCachedProfile(entry.profile.gameName, entry.profile.tagLine, entry.profile.platform, locale);
           if (serverDataset) {
-            window.localStorage.setItem(
-              datasetStorageKey(serverDataset.player, serverDataset.tagLine, serverDataset.summary.platform),
-              JSON.stringify(serverDataset)
-            );
+            persistCachedDataset(serverDataset, serverDataset.matches.length, locale);
           }
           return [entry.assignmentId, serverDataset] as const;
         } catch {
@@ -702,7 +752,7 @@ function AppShell() {
       setDataset(serverDataset);
       setPlatform((serverDataset.summary.platform as RiotPlatform) ?? (platformValue as RiotPlatform));
       setShowAccountControls(false);
-      window.localStorage.setItem(datasetStorageKey(gameNameValue, tagLineValue, serverDataset.summary.platform), JSON.stringify(serverDataset));
+      persistCachedDataset(serverDataset, matchCount, locale);
       window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({
         gameName: gameNameValue,
         tagLine: tagLineValue,
@@ -832,7 +882,7 @@ function AppShell() {
     if (dataset.matches.length <= planEntitlements.maxStoredMatchesPerProfile) return;
     const limited = limitDatasetMatches(dataset, planEntitlements.maxStoredMatchesPerProfile, locale);
     setDataset(limited);
-    window.localStorage.setItem(datasetStorageKey(limited.player, limited.tagLine, limited.summary.platform), JSON.stringify(limited));
+    persistCachedDataset(limited, planEntitlements.maxStoredMatchesPerProfile, locale);
     persistSavedProfile(limited, Math.min(matchCount, planEntitlements.maxStoredMatchesPerProfile));
   }, [dataset, planEntitlements, locale, matchCount]);
 
@@ -1182,10 +1232,7 @@ function AppShell() {
       setDataset(limitedDataset);
       setCoachRoles(buildDefaultCoachRoles(limitedDataset));
       setCoachRosterDatasets((current) => ({ ...current, [player.assignmentId]: limitedDataset }));
-      window.localStorage.setItem(
-        datasetStorageKey(limitedDataset.player, limitedDataset.tagLine, limitedDataset.summary.platform),
-        JSON.stringify(limitedDataset)
-      );
+      persistCachedDataset(limitedDataset, targetMatches, locale);
       window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({
         gameName: limitedDataset.player,
         tagLine: limitedDataset.tagLine,
@@ -1253,7 +1300,7 @@ function AppShell() {
       setMatchCount(cappedRequestedCount);
       setPlatform((mergedDataset.summary.platform as RiotPlatform) ?? platform);
       window.localStorage.setItem('don-sosa:last-profile', JSON.stringify({ gameName, tagLine, platform: mergedDataset.summary.platform, matchCount: cappedRequestedCount }));
-      window.localStorage.setItem(datasetStorageKey(gameName, tagLine, mergedDataset.summary.platform), JSON.stringify(mergedDataset));
+      persistCachedDataset(mergedDataset, cappedRequestedCount, locale);
       persistSavedProfile(mergedDataset, cappedRequestedCount);
       await refreshIdentity();
     } catch (err) {
