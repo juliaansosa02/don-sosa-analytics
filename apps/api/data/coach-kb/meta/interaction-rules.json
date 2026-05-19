@@ -1,0 +1,62 @@
+[
+  {
+    "id": "deathfire-touch-black-cleaver-physical-tickers",
+    "requiresRunes": ["Deathfire Touch"],
+    "requiresItems": ["Black Cleaver"],
+    "candidateChampions": ["Smolder", "Senna"],
+    "triggersOnChampionNotes": ["Smolder"],
+    "title": {
+      "en": "Deathfire Touch + Black Cleaver physical proc shell",
+      "es": "Shell de proc físico entre Deathfire Touch y Black Cleaver"
+    },
+    "officialSummary": {
+      "en": "Riot explicitly says Smolder kept climbing after players adapted builds, and that the Black Cleaver + Deathfire Touch interaction is being changed next patch.",
+      "es": "Riot dice explícitamente que Smolder siguió subiendo después de que los jugadores adaptaron builds, y que la interacción entre Black Cleaver y Deathfire Touch va a cambiar en el próximo parche."
+    },
+    "derivedSummary": {
+      "en": "That means any ranged AD pattern that values repeated physical hits and long armor-shred uptime should be re-checked immediately instead of being treated as stable. Smolder is the direct priority; Senna is a candidate monitor because she can also convert repeated ranged physical instances into Cleaver value.",
+      "es": "Eso significa que cualquier patrón de AD a rango que valore golpes físicos repetidos y uptime largo de armor shred debe re-chequearse de inmediato en vez de tratarse como estable. Smolder es la prioridad directa; Senna queda como candidata a monitorear porque también puede convertir instancias físicas repetidas en valor para Cleaver."
+    },
+    "priority": "high"
+  },
+  {
+    "id": "stormraider-surge-mobility-shell",
+    "requiresRunes": ["Stormraider's Surge"],
+    "requiresItems": [],
+    "candidateChampions": ["Ahri", "Graves", "Sylas"],
+    "triggersOnChampionNotes": [],
+    "title": {
+      "en": "Stormraider mobility re-check",
+      "es": "Re-chequeo de movilidad con Stormraider"
+    },
+    "officialSummary": {
+      "en": "Riot buffed Stormraider's Surge duration and movement speed because the rune was underperforming on most users.",
+      "es": "Riot buffeó la duración y velocidad de movimiento de Stormraider's Surge porque la runa estaba rindiendo por debajo de lo esperado en la mayoría de sus usuarios."
+    },
+    "derivedSummary": {
+      "en": "This does not automatically make it best-in-slot, but it does justify re-testing champions whose pattern improves sharply when they get longer reposition windows after proc.",
+      "es": "Eso no la convierte automáticamente en la mejor opción, pero sí justifica re-testear campeones cuyo patrón mejora mucho cuando ganan más ventana de reposicionamiento tras el proc."
+    },
+    "priority": "medium"
+  },
+  {
+    "id": "gluttonous-greaves-hybrid-damage-check",
+    "requiresRunes": [],
+    "requiresItems": ["Gluttonous Greaves / Immortal Path"],
+    "candidateChampions": ["Sylas", "Naafiri", "Smolder"],
+    "triggersOnChampionNotes": [],
+    "title": {
+      "en": "Gluttonous Greaves value compression",
+      "es": "Compresión de valor en Gluttonous Greaves"
+    },
+    "officialSummary": {
+      "en": "Riot increased the cost and reduced stack omnivamp growth of the Gluttonous Greaves line after it was over-adopted.",
+      "es": "Riot aumentó el costo y redujo el crecimiento de omnivamp por stack de la línea Gluttonous Greaves después de que se adoptara demasiado."
+    },
+    "derivedSummary": {
+      "en": "Any guide that was leaning on these boots as an early all-purpose spike now needs a more skeptical timing read, especially on champions whose build path was already tight.",
+      "es": "Cualquier guía que descansara demasiado en estas botas como spike temprano todoterreno ahora necesita una lectura de timing más escéptica, especialmente en campeones cuyo build path ya era ajustado."
+    },
+    "priority": "medium"
+  }
+]

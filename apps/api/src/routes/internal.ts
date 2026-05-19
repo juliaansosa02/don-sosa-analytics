@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request } from 'express';
 import { env } from '../config/env.js';
+import { analyzeCurrentPatchImpact, getCurrentPatchImpactReport } from '../services/patchImpact.js';
 import { getCurrentPatchNotes, refreshPatchNotesFromOfficialSource } from '../services/patchNotes.js';
 
 export const internalRouter = Router();
@@ -67,6 +68,45 @@ internalRouter.post('/patch/sync', async (_req, res) => {
       refreshedPatch: refreshedPatch?.patch ?? null,
       sourceUrl: currentPatch?.sourceUrl ?? env.PATCH_NOTES_TAG_URL,
       detectedAt: currentPatch?.detectedAt ?? refreshedPatch?.detectedAt ?? null
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+internalRouter.get('/patch/impact/status', async (_req, res) => {
+  try {
+    const report = await getCurrentPatchImpactReport();
+    res.json({
+      ok: true,
+      patch: report?.patch ?? null,
+      generatedAt: report?.generatedAt ?? null,
+      signals: report?.signals.length ?? 0,
+      summary: report?.summary ?? null
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+internalRouter.post('/patch/impact/analyze', async (_req, res) => {
+  try {
+    const report = await analyzeCurrentPatchImpact(true);
+    if (!report) {
+      res.status(404).json({ error: 'No patch impact report could be generated' });
+      return;
+    }
+
+    res.json({
+      ok: true,
+      patch: report.patch,
+      generatedAt: report.generatedAt,
+      signals: report.signals.length,
+      summary: report.summary
     });
   } catch (error) {
     res.status(500).json({

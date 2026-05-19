@@ -8,6 +8,7 @@ This project can keep Riot patch context updated automatically without manual in
 - Patch summary ingestion used by coaching
 - Champion and system update snippets used by patch-aware reads
 - Current live patch context returned by the API
+- Automatic patch impact reports for changed runes, items, systems, and flagged synergies
 
 ## Architecture
 
@@ -20,6 +21,7 @@ There are now two layers:
    - A scheduled GitHub Actions workflow runs every 6 hours.
    - It calls the internal sync endpoint on Render.
    - This wakes the free Render service if it is sleeping and forces a patch refresh.
+   - It then triggers a patch impact analysis report.
 
 This combination avoids depending on a paid Render cron job.
 
@@ -46,6 +48,10 @@ Add these repository secrets:
   - Requires header `x-patch-sync-secret`
 - `GET /api/internal/patch/status`
   - Requires header `x-patch-sync-secret`
+- `POST /api/internal/patch/impact/analyze`
+  - Requires header `x-patch-sync-secret`
+- `GET /api/internal/patch/impact/status`
+  - Requires header `x-patch-sync-secret`
 
 You can also use `Authorization: Bearer <secret>` instead of the custom header.
 
@@ -67,6 +73,14 @@ curl \
   https://don-sosa.onrender.com/api/internal/patch/status
 ```
 
+And optionally:
+
+```bash
+curl -X POST \
+  -H "x-patch-sync-secret: YOUR_SECRET" \
+  https://don-sosa.onrender.com/api/internal/patch/impact/analyze
+```
+
 ## Important limitation
 
 This automation keeps patch context fresh automatically.
@@ -80,3 +94,21 @@ What the system *does* update automatically:
 - detected champion updates
 - detected system updates
 - patch-aware emphasis in coaching context
+- machine-generated impact signals for items, runes, systems, and flagged synergy shells
+
+## Example of the deeper layer
+
+If Riot changes a rune like Deathfire Touch and the patch note explicitly mentions a follow-up interaction such as Black Cleaver + Deathfire Touch on Smolder, the impact report can:
+
+- mark the rune change as official
+- mark the item change context as official
+- generate a derived synergy signal
+- flag candidate champions that should be re-checked instead of treated as stable
+
+This is meant to make the system say:
+
+- “this interaction is unstable right now”
+
+instead of pretending:
+
+- “this build is still solved”
