@@ -56,12 +56,12 @@ jobs:
             -H "x-patch-sync-secret: ${PATCH_SYNC_SECRET}" \
             "$status_url"
 
-      - name: Sync Skill-Capped meta snapshot
+      - name: Sync external live meta snapshot
         env:
           PATCH_SYNC_URL: ${{ secrets.PATCH_SYNC_URL }}
           PATCH_SYNC_SECRET: ${{ secrets.PATCH_SYNC_SECRET }}
         run: |
-          meta_url="${PATCH_SYNC_URL%/patch/sync}/meta/skill-capped/sync"
+          meta_url="${PATCH_SYNC_URL%/patch/sync}/meta/external/sync"
           curl --silent --show-error \
             --retry 5 \
             --retry-all-errors \

@@ -358,15 +358,15 @@ function buildSkillCappedChampionSignals(
     .slice(0, 6)
     .map((row) =>
       patchImpactSignalSchema.parse({
-        id: `skill-capped-${patch}-${normalizeCompact(row.championName)}-${row.role.toLowerCase()}`,
+        id: `external-meta-${patch}-${normalizeCompact(row.championName)}-${row.role.toLowerCase()}`,
         kind: 'champion',
         title: {
-          en: `Skill-Capped still rates ${row.championName} ${row.role} highly`,
-          es: `Skill-Capped sigue valorando alto a ${row.championName} ${row.role}`
+          en: `External live meta still rates ${row.championName} ${row.role} highly`,
+          es: `La referencia externa live sigue valorando alto a ${row.championName} ${row.role}`
         },
         summary: {
-          en: `${row.championName} ${row.role} is currently ${row.tier} on Skill-Capped with ${row.winRate.toFixed(2)}% WR across ${row.matches.toLocaleString('en-US')} tracked games. Treat this as external confirmation that the pick stayed live after the patch hit.`,
-          es: `${row.championName} ${row.role} aparece ${row.tier} en Skill-Capped con ${row.winRate.toFixed(2)}% WR sobre ${row.matches.toLocaleString('es-AR')} partidas medidas. Tomalo como confirmación externa de que el pick siguió vivo después del parche.`
+          en: `${row.championName} ${row.role} is currently ${row.tier} in an external live-meta reference with ${row.winRate.toFixed(2)}% WR across ${row.matches.toLocaleString('en-US')} tracked games. Treat this as outside confirmation that the pick stayed live after the patch hit.`,
+          es: `${row.championName} ${row.role} aparece ${row.tier} en una referencia externa de meta live con ${row.winRate.toFixed(2)}% WR sobre ${row.matches.toLocaleString('es-AR')} partidas medidas. Tomalo como confirmación externa de que el pick siguió vivo después del parche.`
         },
         confidence: 'derived',
         priority: row.tier === 'OP' ? 'high' : 'medium',
@@ -409,15 +409,15 @@ function buildSkillCappedSynergySignals(
     const matchedChampionLabels = matchedRows.map((row) => `${row.championName} ${row.role} (${row.tier}, ${row.winRate.toFixed(2)}% WR)`);
     signals.push(
       patchImpactSignalSchema.parse({
-        id: `skill-capped-synergy-${patch}-${rule.id}`,
+        id: `external-meta-synergy-${patch}-${rule.id}`,
         kind: 'synergy',
         title: {
-          en: `${rule.title.en} is already showing live adoption`,
-          es: `${rule.title.es} ya muestra adopción en vivo`
+          en: `${rule.title.en} is already showing live external adoption`,
+          es: `${rule.title.es} ya muestra adopción externa en vivo`
         },
         summary: {
-          en: `Skill-Capped currently shows ${matchedChampionLabels.join(', ')} with the relevant core item shell. That is not proof of long-term correctness, but it is a strong signal that this interaction is live and should be treated as patch-volatile instead of solved.`,
-          es: `Skill-Capped muestra hoy a ${matchedChampionLabels.join(', ')} con el shell de item relevante. Eso no prueba corrección de largo plazo, pero sí marca que esta interacción está viva y conviene tratarla como patch-volatile en vez de resuelta.`
+          en: `An external live-meta reference currently shows ${matchedChampionLabels.join(', ')} with the relevant core item shell. That is not proof of long-term correctness, but it is a strong signal that this interaction is live and should be treated as patch-volatile instead of solved.`,
+          es: `Una referencia externa de meta live muestra hoy a ${matchedChampionLabels.join(', ')} con el shell de item relevante. Eso no prueba corrección de largo plazo, pero sí marca que esta interacción está viva y conviene tratarla como patch-volatile en vez de resuelta.`
         },
         confidence: 'derived',
         priority: rule.priority,

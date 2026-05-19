@@ -116,11 +116,12 @@ internalRouter.post('/patch/impact/analyze', async (_req, res) => {
   }
 });
 
-internalRouter.get('/meta/skill-capped/status', async (_req, res) => {
+internalRouter.get('/meta/external/status', async (_req, res) => {
   try {
     const snapshot = await getLatestSkillCappedMetaSnapshot();
     res.json({
       ok: true,
+      provider: 'external_live_meta',
       patch: snapshot?.patch ?? null,
       updatedLabel: snapshot?.updatedLabel ?? null,
       fetchedAt: snapshot?.fetchedAt ?? null,
@@ -135,11 +136,12 @@ internalRouter.get('/meta/skill-capped/status', async (_req, res) => {
   }
 });
 
-internalRouter.post('/meta/skill-capped/sync', async (_req, res) => {
+internalRouter.post('/meta/external/sync', async (_req, res) => {
   try {
     const snapshot = await syncSkillCappedMetaSnapshot(true);
     res.json({
       ok: true,
+      provider: 'external_live_meta',
       patch: snapshot.patch,
       updatedLabel: snapshot.updatedLabel,
       fetchedAt: snapshot.fetchedAt,

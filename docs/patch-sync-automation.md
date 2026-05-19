@@ -95,7 +95,7 @@ What the system *does* update automatically:
 - detected system updates
 - patch-aware emphasis in coaching context
 - machine-generated impact signals for items, runes, systems, and flagged synergy shells
-- external corroboration from Skill-Capped stats when a live patch already shows fast adoption on affected picks
+- external corroboration from a live meta reference when a patch already shows fast adoption on affected picks
 
 ## Example of the deeper layer
 
@@ -116,12 +116,12 @@ instead of pretending:
 
 ## External meta corroboration
 
-The scheduled workflow also syncs a Skill-Capped stats snapshot.
+The scheduled workflow also syncs an external live-meta snapshot.
 
 It is used as a **secondary** source:
 
 - Riot patch notes remain the primary source for official change detection
-- Skill-Capped helps confirm rapid live adoption, tier shifts, and suspicious item shells
+- the external live-meta layer helps confirm rapid live adoption, tier shifts, and suspicious item shells
 
 This layer should be used to say:
 
@@ -130,4 +130,4 @@ This layer should be used to say:
 
 It should **not** be used to say:
 
-- “Skill-Capped says it, therefore it is final truth”
+- “the external feed says it, therefore it is final truth”
