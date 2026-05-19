@@ -15,7 +15,7 @@ export function Shell({ sidebar, children }: PropsWithChildren<{ sidebar?: React
 
 export function Card({ title, subtitle, children }: PropsWithChildren<{ title: string; subtitle?: string }>) {
   return (
-    <section style={{ display: 'grid', alignContent: 'start', gap: 18, height: '100%', background: 'linear-gradient(180deg, rgba(8,12,20,0.98), rgba(5,8,14,0.98))', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 22, padding: 22, boxShadow: '0 22px 56px rgba(0,0,0,0.2)' }}>
+    <section style={{ display: 'grid', alignContent: 'start', gap: 16, height: '100%', background: 'rgba(8,12,20,0.94)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 16, padding: 20, boxShadow: '0 16px 42px rgba(0,0,0,0.16)' }}>
       <div style={{ display: 'grid', gap: 8 }}>
         <h3 style={{ margin: 0, fontSize: 18, letterSpacing: '-0.02em' }}>{title}</h3>
         {subtitle ? <p style={{ margin: 0, color: '#7f8898', lineHeight: 1.6 }}>{subtitle}</p> : null}
@@ -67,7 +67,7 @@ export function Badge({ children, tone = 'default' }: PropsWithChildren<{ tone?:
     low: { background: 'rgba(126,245,199,.14)', color: '#9ff0cf' }
   } as const;
 
-  return <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '7px 11px', borderRadius: 999, background: tones[tone].background, color: tones[tone].color, fontSize: 12, fontWeight: 700, letterSpacing: '0.02em', lineHeight: 1.1, textAlign: 'center', border: '1px solid rgba(255,255,255,0.05)' }}>{children}</span>;
+  return <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '5px 8px', borderRadius: 999, background: tones[tone].background, color: tones[tone].color, fontSize: 11, fontWeight: 700, letterSpacing: 0, lineHeight: 1.2, textAlign: 'center', border: '1px solid rgba(255,255,255,0.045)' }}>{children}</span>;
 }
 
 export function ChampionAvatar({

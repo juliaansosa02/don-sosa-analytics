@@ -42,9 +42,6 @@ function computeLaneControlScore(match) {
         - safeNumber(match.timeline.laneDeathsPre10) * 20
         - Math.max(0, safeNumber(match.timeline.deathsPre14) - 1) * 8);
 }
-function MiniMeta({ label, value }) {
-    return (_jsxs("div", { style: rosterMetricStyle, children: [_jsx("div", { style: coachMetaLabelStyle, children: label }), _jsx("div", { style: rosterMetricValueStyle, children: value })] }));
-}
 function RosterMetric({ label, value }) {
     return (_jsxs("div", { style: rosterMetricStyle, children: [_jsx("div", { style: coachMetaLabelStyle, children: label }), _jsx("div", { style: { ...rosterMetricValueStyle, fontSize: 13 }, children: value })] }));
 }
@@ -68,11 +65,11 @@ function BenchmarkDeltaPill({ delta, inverted, locale }) {
 const coachWorkspaceShellStyle = {
     display: 'grid',
     gap: 16,
-    padding: '22px 22px',
-    borderRadius: 26,
-    background: 'radial-gradient(circle at top left, rgba(36, 79, 122, 0.32), transparent 34%), linear-gradient(180deg, rgba(9, 14, 22, 0.99), rgba(4, 7, 12, 0.99))',
-    border: '1px solid rgba(255,255,255,0.08)',
-    boxShadow: '0 28px 72px rgba(0,0,0,0.24)'
+    padding: '20px 20px',
+    borderRadius: 18,
+    background: 'linear-gradient(180deg, rgba(9, 14, 22, 0.99), rgba(4, 7, 12, 0.99))',
+    border: '1px solid rgba(255,255,255,0.07)',
+    boxShadow: '0 18px 52px rgba(0,0,0,0.18)'
 };
 const coachEyebrowStyle = {
     color: '#8fb5da',
@@ -83,12 +80,12 @@ const coachEyebrowStyle = {
 };
 const coachHeroCardStyle = {
     display: 'grid',
-    gap: 12,
+    gap: 10,
     alignContent: 'start',
-    minHeight: 174,
+    minHeight: 142,
     padding: '16px 16px',
-    borderRadius: 20,
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))',
+    borderRadius: 14,
+    background: 'rgba(255,255,255,0.025)',
     border: '1px solid rgba(255,255,255,0.06)'
 };
 const coachMetaLabelStyle = {
@@ -99,15 +96,15 @@ const coachMetaLabelStyle = {
 };
 const workspaceButtonStyle = {
     border: '1px solid rgba(255,255,255,0.08)',
-    padding: '11px 14px',
-    borderRadius: 14,
+    padding: '9px 12px',
+    borderRadius: 12,
     background: 'rgba(255,255,255,0.03)',
     color: '#dce6f6',
     fontWeight: 700,
     cursor: 'pointer'
 };
 const activeWorkspaceButtonStyle = {
-    background: 'linear-gradient(180deg, rgba(216,253,241,0.14), rgba(29,42,54,0.96))',
+    background: 'rgba(216,253,241,0.12)',
     borderColor: 'rgba(216,253,241,0.24)',
     color: '#ffffff'
 };
@@ -645,7 +642,6 @@ export function CoachPremiumWorkspace({ dataset, locale = 'es', rosterPlayers = 
     const coachKpis = useMemo(() => buildCoachKPIs(dataset, locale), [dataset, locale]);
     const loadedRosterPlayer = rosterPlayers.find((player) => player.isLoaded) ?? null;
     const loadedChampion = dataset.summary.championPool[0];
-    const syncedRosterPlayers = rosterPlayers.filter((player) => player.localProfile);
     const roadmapNotes = buildRoadmapNotes(locale);
     const dominantPattern = patterns[0] ?? null;
     const weakestSignal = [...signals].sort((a, b) => a.value - b.value)[0] ?? null;
@@ -682,11 +678,15 @@ export function CoachPremiumWorkspace({ dataset, locale = 'es', rosterPlayers = 
         }
     };
     const viewOrder = ['desk', 'player', 'review', 'benchmarks'];
-    return (_jsxs("div", { style: { display: 'grid', gap: 16 }, children: [_jsx("section", { style: coachWorkspaceShellStyle, children: _jsxs("div", { style: { display: 'grid', gap: 14 }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'start' }, children: [_jsxs("div", { style: { display: 'grid', gap: 8, maxWidth: 900 }, children: [_jsx("div", { style: coachEyebrowStyle, children: t(locale, 'Coach command desk', 'Coach command desk') }), _jsx("div", { style: { color: '#eef4ff', fontSize: 32, fontWeight: 800, letterSpacing: '-0.05em', lineHeight: 1.02 }, children: t(locale, 'Una superficie de staff para preparar intervención, review y seguimiento.', 'A staff surface to prepare intervention, review and follow-up.') }), _jsx("div", { style: { color: '#99a8bd', lineHeight: 1.75, maxWidth: 860 }, children: staffBrief })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }, children: [_jsx(Badge, { children: t(locale, `${dataset.summary.matches} partidas en el bloque`, `${dataset.summary.matches} matches in the block`) }), canManageRoster ? _jsx(Badge, { tone: "low", children: t(locale, `${rosterPlayers.length} jugadores en roster`, `${rosterPlayers.length} players in roster`) }) : null, _jsx(Badge, { tone: "medium", children: t(locale, 'Staff lens', 'Staff lens') })] })] }), _jsxs("div", { className: "coach-workspace-hero-grid", style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }, children: [_jsxs("div", { style: coachHeroCardStyle, children: [_jsxs("div", { style: { display: 'grid', gridTemplateColumns: profileIconUrl ? '54px minmax(0, 1fr)' : '1fr', gap: 12, alignItems: 'center' }, children: [profileIconUrl ? _jsx("img", { src: profileIconUrl, alt: dataset.player, width: 54, height: 54, style: { width: 54, height: 54, borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)' } }) : null, _jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: coachMetaLabelStyle, children: t(locale, 'Jugador cargado', 'Loaded player') }), _jsx("div", { style: { color: '#eef4ff', fontSize: 20, fontWeight: 800, lineHeight: 1.08 }, children: `${dataset.player}#${dataset.tagLine}` }), _jsx("div", { style: { color: '#8fa0b7', fontSize: 13, lineHeight: 1.5 }, children: loadedRosterPlayer
-                                                                ? t(locale, 'Está dentro del roster del coach y ya se está leyendo como cliente activo.', 'This player is inside the coach roster and is already being read as the active client.')
-                                                                : t(locale, 'Se está leyendo como bloque activo. Si querés seguimiento continuo, conviene dejarlo dentro del roster.', 'This is being read as the active block. If you want continuous follow-up, it should live inside the coach roster.') })] })] }), _jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [headerChampionName ? _jsx(Badge, { tone: "low", children: headerChampionName }) : null, dataset.summary.primaryRole && dataset.summary.primaryRole !== 'ALL' ? _jsx(Badge, { children: dataset.summary.primaryRole }) : null, loadedRosterPlayer ? _jsx(Badge, { tone: "default", children: t(locale, 'Roster activo', 'Active roster') }) : null] })] }), _jsxs("div", { style: coachHeroCardStyle, children: [_jsx("div", { style: coachMetaLabelStyle, children: t(locale, 'Pulso de roster', 'Roster pulse') }), _jsx("div", { style: { color: '#eef4ff', fontSize: 26, fontWeight: 800, lineHeight: 1.05 }, children: `${syncedRosterPlayers.length}/${Math.max(rosterPlayers.length, 1)}` }), _jsx("div", { style: { color: '#9aa8bb', lineHeight: 1.65 }, children: rosterPlayers.length
-                                                ? t(locale, 'con perfil local listo para seguimiento, comparativa y refresh rápido.', 'with a local profile ready for follow-up, comparison and quick refresh.')
-                                                : t(locale, 'Todavía no hay roster cargado desde cuenta coach.', 'There is no coach roster loaded yet from the account.') }), _jsxs("div", { style: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }, children: [_jsx(MiniMeta, { label: t(locale, 'Con sync', 'Synced'), value: String(syncedRosterPlayers.length) }), _jsx(MiniMeta, { label: t(locale, 'Sin cache', 'No cache'), value: String(Math.max(0, rosterPlayers.length - syncedRosterPlayers.length)) })] })] }), _jsxs("div", { style: coachHeroCardStyle, children: [_jsx("div", { style: coachMetaLabelStyle, children: t(locale, 'Colapso dominante', 'Dominant collapse') }), _jsx("div", { style: { color: '#eef4ff', fontSize: 22, fontWeight: 800, lineHeight: 1.08 }, children: dominantPattern?.label ?? t(locale, 'Sin patrón firme', 'No firm pattern') }), _jsx("div", { style: { color: '#9aa8bb', lineHeight: 1.65 }, children: dominantPattern?.reason ?? t(locale, 'Todavía falta muestra para una lectura de colapso dominante.', 'There is still not enough sample for a dominant collapse read.') }), dominantPattern ? (_jsxs("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: [_jsx(Badge, { tone: "high", children: t(locale, `${formatDecimal(dominantPattern.rate)}% del problema`, `${formatDecimal(dominantPattern.rate)}% of the problem`) }), _jsx(Badge, { tone: "medium", children: t(locale, `${dominantPattern.count} partidas`, `${dominantPattern.count} matches`) })] })) : null] }), _jsxs("div", { style: coachHeroCardStyle, children: [_jsx("div", { style: coachMetaLabelStyle, children: t(locale, 'Proxy competitiva', 'Competitive proxy') }), _jsx("div", { style: { color: '#eef4ff', fontSize: 22, fontWeight: 800, lineHeight: 1.08 }, children: performanceBandProxy.label }), _jsx("div", { style: { color: '#9aa8bb', lineHeight: 1.65 }, children: performanceBandProxy.summary }), _jsx("div", { style: { color: '#74859a', fontSize: 12, lineHeight: 1.55 }, children: performanceBandProxy.note })] })] }), _jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: coachMetaLabelStyle, children: activeViewMeta[activeView].label }), _jsx("div", { style: { color: '#90a0b5', lineHeight: 1.6 }, children: activeViewMeta[activeView].summary })] }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: viewOrder.map((view) => (_jsx("button", { type: "button", onClick: () => setActiveView(view), style: {
+    return (_jsxs("div", { style: { display: 'grid', gap: 16 }, children: [_jsx("section", { style: coachWorkspaceShellStyle, children: _jsxs("div", { style: { display: 'grid', gap: 14 }, children: [_jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'start' }, children: [_jsxs("div", { style: { display: 'grid', gap: 8, maxWidth: 780 }, children: [_jsx("div", { style: coachEyebrowStyle, children: t(locale, 'Coach command desk', 'Coach command desk') }), _jsx("div", { style: { color: '#eef4ff', fontSize: 30, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.04 }, children: t(locale, 'Prioridad, roster y review en una sola mesa.', 'Priority, roster and review on one desk.') }), _jsx("div", { style: { color: '#99a8bd', lineHeight: 1.65, maxWidth: 760 }, children: staffBrief })] }), _jsx("div", { style: { color: '#8fa0b6', fontSize: 13, lineHeight: 1.5, textAlign: 'right' }, children: canManageRoster
+                                        ? t(locale, `${dataset.summary.matches} partidas · ${rosterPlayers.length} en roster`, `${dataset.summary.matches} matches · ${rosterPlayers.length} in roster`)
+                                        : t(locale, `${dataset.summary.matches} partidas en el bloque`, `${dataset.summary.matches} matches in the block`) })] }), _jsxs("div", { className: "coach-workspace-hero-grid", style: { display: 'grid', gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.05fr)', gap: 12 }, children: [_jsx("div", { style: coachHeroCardStyle, children: _jsxs("div", { style: { display: 'grid', gridTemplateColumns: profileIconUrl ? '54px minmax(0, 1fr)' : '1fr', gap: 12, alignItems: 'center' }, children: [profileIconUrl ? _jsx("img", { src: profileIconUrl, alt: dataset.player, width: 54, height: 54, style: { width: 54, height: 54, borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)' } }) : null, _jsxs("div", { style: { display: 'grid', gap: 5 }, children: [_jsx("div", { style: coachMetaLabelStyle, children: t(locale, 'Jugador cargado', 'Loaded player') }), _jsx("div", { style: { color: '#eef4ff', fontSize: 20, fontWeight: 800, lineHeight: 1.08 }, children: `${dataset.player}#${dataset.tagLine}` }), _jsx("div", { style: { color: '#8fa0b7', fontSize: 13, lineHeight: 1.5 }, children: [
+                                                            headerChampionName,
+                                                            dataset.summary.primaryRole && dataset.summary.primaryRole !== 'ALL' ? dataset.summary.primaryRole : null,
+                                                            loadedRosterPlayer ? t(locale, 'roster activo', 'active roster') : null
+                                                        ].filter(Boolean).join(' · ') || t(locale, 'Bloque activo para coaching.', 'Active block for coaching.') })] })] }) }), _jsxs("div", { style: coachHeroCardStyle, children: [_jsx("div", { style: coachMetaLabelStyle, children: t(locale, 'Prioridad actual', 'Current priority') }), _jsx("div", { style: { color: '#eef4ff', fontSize: 22, fontWeight: 800, lineHeight: 1.08 }, children: dominantPattern?.label ?? performanceBandProxy.label }), _jsx("div", { style: { color: '#9aa8bb', lineHeight: 1.6 }, children: dominantPattern?.reason ?? performanceBandProxy.summary }), _jsx("div", { style: { color: '#74859a', fontSize: 12, lineHeight: 1.5 }, children: dominantPattern
+                                                ? t(locale, `${formatDecimal(dominantPattern.rate)}% del problema en ${dominantPattern.count} partidas.`, `${formatDecimal(dominantPattern.rate)}% of the problem across ${dominantPattern.count} matches.`)
+                                                : performanceBandProxy.note })] })] }), _jsxs("div", { style: { display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }, children: [_jsxs("div", { style: { display: 'grid', gap: 4 }, children: [_jsx("div", { style: coachMetaLabelStyle, children: activeViewMeta[activeView].label }), _jsx("div", { style: { color: '#90a0b5', lineHeight: 1.6 }, children: activeViewMeta[activeView].summary })] }), _jsx("div", { style: { display: 'flex', gap: 8, flexWrap: 'wrap' }, children: viewOrder.map((view) => (_jsx("button", { type: "button", onClick: () => setActiveView(view), style: {
                                             ...workspaceButtonStyle,
                                             ...(activeView === view ? activeWorkspaceButtonStyle : {})
                                         }, children: activeViewMeta[view].label }, view))) })] })] }) }), activeView === 'desk' ? (_jsxs("div", { style: { display: 'grid', gap: 16 }, children: [_jsx(Card, { title: t(locale, 'KPIs de seguimiento', 'Follow-up KPIs'), subtitle: t(locale, 'Cuatro números para saber rápido si el bloque mejora, se rompe antes o llega mejor a objetivos.', 'Four numbers to know quickly whether the block is improving, breaking earlier or arriving better to objectives.'), children: _jsx("div", { className: "coach-kpi-grid", style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }, children: coachKpis.map((kpi) => (_jsx(KPI, { label: kpi.label, value: kpi.value, hint: kpi.hint, trend: kpi.trend }, kpi.label))) }) }), _jsxs("div", { className: "coach-desk-grid", style: { display: 'grid', gridTemplateColumns: 'minmax(280px, 0.92fr) minmax(0, 1.08fr)', gap: 16 }, children: [_jsx(Card, { title: t(locale, 'Dashboard de jugadores', 'Player dashboard'), subtitle: t(locale, 'Quién está listo para seguimiento real y quién todavía necesita quedar cacheado o actualizado.', 'Who is ready for real follow-up and who still needs to be cached or refreshed.'), children: rosterPlayers.length ? (_jsx("div", { style: { display: 'grid', gap: 10 }, children: rosterPlayers.map((player) => {

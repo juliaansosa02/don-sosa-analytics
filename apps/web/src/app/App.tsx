@@ -242,13 +242,6 @@ function getSavedProfileReadinessLabel(profile: SavedProfileRecord, locale: Loca
   return locale === 'en' ? 'Needs more depth' : 'Le falta profundidad';
 }
 
-function getSavedProfileReadinessTone(profile: SavedProfileRecord) {
-  const completion = profile.matches / Math.max(profile.matchCount, 1);
-  if (completion >= 1) return 'low';
-  if (completion >= 0.6) return 'default';
-  return 'medium';
-}
-
 function buildDefaultCoachRoles(dataset: Dataset) {
   const roleCounts = new Map<string, number>();
 
@@ -1592,20 +1585,20 @@ function AppShell() {
   const accountHubTitle = !dataset
     ? (locale === 'en' ? 'Load your next competitive profile' : 'Cargá tu próximo perfil competitivo')
     : showAccountControls
-      ? (locale === 'en' ? 'Switch, recover or add another profile' : 'Cambiar, recuperar o sumar otro perfil')
-      : (locale === 'en' ? 'Active improvement base' : 'Base activa de mejora');
+      ? (locale === 'en' ? 'Switch profile' : 'Cambiar perfil')
+      : (locale === 'en' ? 'Update base' : 'Actualizar base');
 
   const accountHubSubtitle = !dataset
     ? (locale === 'en'
-      ? 'Bring in the Riot profile you want to turn into a stable coaching base and choose how deep the first block should be.'
-      : 'Traé el perfil de Riot que querés convertir en una base estable de coaching y elegí qué tan profundo querés el primer bloque.')
+      ? 'Choose a Riot ID and the first sample size.'
+      : 'Elegí un Riot ID y el tamaño de la primera muestra.')
     : showAccountControls
       ? (locale === 'en'
-        ? 'Your live base stays pinned while you search another Riot ID, recover an old one or jump between saved profiles.'
-        : 'Tu base activa queda fija mientras buscás otro Riot ID, recuperás uno anterior o saltás entre perfiles guardados.')
+        ? 'Search a Riot ID or reopen a saved profile.'
+        : 'Buscá otro Riot ID o reabrí un perfil guardado.')
       : (locale === 'en'
-        ? 'This profile is the live base for your dashboard, coaching and review decisions. Refresh only what is missing.'
-        : 'Este perfil es la base activa para tu dashboard, tu coaching y tus decisiones de review. Refrescá solo lo que falte.');
+        ? 'Refresh only what the current block needs.'
+        : 'Refrescá solo lo que necesita el bloque actual.');
 
   const savedProfilesPanel = savedProfiles.length ? (
     <div style={savedProfilesSectionStyle}>
@@ -1629,7 +1622,6 @@ function AppShell() {
           const profileIcon = getProfileIconUrl(profile.profileIconId, profile.ddragonVersion ?? dataset?.ddragonVersion);
           const savedPlatformInfo = getRiotPlatformInfo(profile.platform);
           const readinessLabel = getSavedProfileReadinessLabel(profile, locale);
-          const readinessTone = getSavedProfileReadinessTone(profile);
           const freshnessLabel = formatRelativeSyncTime(profile.lastSyncedAt, locale);
           const coverageLabel = formatSavedProfileCoverage(profile, locale);
           return (
@@ -1642,57 +1634,32 @@ function AppShell() {
                 ...(isActive ? activeSavedProfileCardStyle : {})
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'start' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: profileIcon ? '56px minmax(0, 1fr)' : '1fr', gap: 12, alignItems: 'center', textAlign: 'left', minWidth: 0 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: profileIcon ? '48px minmax(0, 1fr)' : '1fr', gap: 12, alignItems: 'center', textAlign: 'left', minWidth: 0 }}>
                   {profileIcon ? (
                     <img
                       src={profileIcon}
                       alt={profile.gameName}
-                      width={56}
-                      height={56}
-                      style={{ ...profileIconStyle, width: 56, height: 56, objectFit: 'cover', borderRadius: 14 }}
+                      width={48}
+                      height={48}
+                      style={{ ...profileIconStyle, width: 48, height: 48, objectFit: 'cover', borderRadius: 12 }}
                     />
                   ) : null}
                   <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
-                    <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                      <div style={{ color: '#edf2ff', fontWeight: 800 }}>{profile.gameName}<span style={{ color: '#8592a8' }}>#{profile.tagLine}</span></div>
+                      <div style={{ color: isActive ? '#9ff0cf' : '#8da0ba', fontSize: 12, fontWeight: 800 }}>
+                        {isActive ? (locale === 'en' ? 'Active' : 'Activa') : (locale === 'en' ? 'Open' : 'Abrir')}
+                      </div>
+                    </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
                       {rankTier ? <RankEmblem tier={rankTier} label={profile.rankLabel ?? ''} size={74} /> : null}
                       <div style={{ color: '#8390a6', fontSize: 12 }}>{profile.rankLabel ?? (locale === 'en' ? 'No visible rank' : 'Sin rango visible')}</div>
                     </div>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                      {savedPlatformInfo ? <Badge tone="default">{`${savedPlatformInfo.platform} · ${savedPlatformInfo.shortLabel}`}</Badge> : null}
-                      <Badge tone={isActive ? 'low' : readinessTone}>{isActive ? (locale === 'en' ? 'Live base' : 'Base activa') : readinessLabel}</Badge>
+                    <div style={{ color: '#748198', fontSize: 12, lineHeight: 1.45 }}>
+                      {[savedPlatformInfo ? `${savedPlatformInfo.platform} · ${savedPlatformInfo.shortLabel}` : null, coverageLabel, freshnessLabel, isActive ? null : readinessLabel].filter(Boolean).join(' · ')}
                     </div>
                   </div>
                 </div>
-                <Badge tone={isActive ? 'low' : 'default'}>{isActive ? (locale === 'en' ? 'Active' : 'Activa') : (locale === 'en' ? 'Open' : 'Abrir')}</Badge>
-              </div>
-              <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 8, textAlign: 'left' }}>
-                <div style={savedProfileMetaStatStyle}>
-                  <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Coverage' : 'Cobertura'}</div>
-                  <div style={savedProfileMetaValueStyle}>{coverageLabel}</div>
-                </div>
-                <div style={savedProfileMetaStatStyle}>
-                  <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Freshness' : 'Actualización'}</div>
-                  <div style={savedProfileMetaValueStyle}>{freshnessLabel}</div>
-                </div>
-                <div style={savedProfileMetaStatStyle}>
-                  <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Target block' : 'Bloque objetivo'}</div>
-                  <div style={savedProfileMetaValueStyle}>{locale === 'en' ? `${profile.matchCount} target` : `${profile.matchCount} objetivo`}</div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                <div style={{ color: '#748198', fontSize: 12, textAlign: 'left' }}>
-                  {locale === 'en' ? 'Last full sync' : 'Última sync completa'} {new Date(profile.lastSyncedAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'es-AR')}
-                </div>
-                <div style={{ color: '#d8e6f7', fontSize: 12, fontWeight: 700 }}>
-                  {isActive
-                    ? (locale === 'en' ? 'Currently driving your dashboard' : 'Ahora está manejando tu dashboard')
-                    : locale === 'en'
-                      ? 'Tap to switch the live base'
-                      : 'Tocá para cambiar la base activa'}
-                </div>
-              </div>
             </button>
           );
         })}
@@ -1712,53 +1679,28 @@ function AppShell() {
           </div>
           <div style={accountAccessStyle}>
             {authUser ? (
-              <>
-                <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
-                  <div style={{ color: '#7f90a8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    {locale === 'en' ? 'Product account' : 'Cuenta del producto'}
-                  </div>
-                  <div style={{ color: '#eef4ff', fontSize: 14, fontWeight: 800 }}>
-                    {authUser.displayName}
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    {authMe?.isImpersonating ? <Badge tone="medium">{locale === 'en' ? 'Impersonating' : 'Suplantando'}</Badge> : null}
-                    {actorUser ? <Badge tone={actorUser.role === 'admin' ? 'medium' : actorUser.role === 'coach' ? 'default' : 'low'}>{actorUser.role.toUpperCase()}</Badge> : null}
-                    {currentPlan ? <Badge tone="default">{currentPlan.name}</Badge> : null}
-                  </div>
-                </div>
-                <button type="button" style={accountTriggerStyle} onClick={() => openAccountPanel()}>
-                  <span style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
-                    <span style={accountAvatarStyle}>{(authUser.displayName || authUser.email || 'D').slice(0, 1).toUpperCase()}</span>
-                    <span style={{ display: 'grid', gap: 2, minWidth: 0, textAlign: 'left' }}>
-                      <span style={{ color: '#eef4ff', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis' }}>{authUser.displayName}</span>
-                      <span style={{ color: '#8692a7', fontSize: 11 }}>
-                        {locale === 'en'
-                          ? `${linkedProfilesCount} saved profiles · ${currentPlan?.name ?? 'Account'}`
-                          : `${linkedProfilesCount} perfiles guardados · ${currentPlan?.name ?? 'Cuenta'}`}
-                      </span>
+              <button type="button" style={accountTriggerStyle} onClick={() => openAccountPanel()}>
+                <span style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
+                  <span style={accountAvatarStyle}>{(authUser.displayName || authUser.email || 'D').slice(0, 1).toUpperCase()}</span>
+                  <span style={{ display: 'grid', gap: 2, minWidth: 0, textAlign: 'left' }}>
+                    <span style={{ color: '#eef4ff', fontWeight: 800, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis' }}>{authUser.displayName}</span>
+                    <span style={{ color: '#8692a7', fontSize: 11 }}>
+                      {locale === 'en'
+                        ? `${linkedProfilesCount} profiles · ${currentPlan?.name ?? 'Account'}`
+                        : `${linkedProfilesCount} perfiles · ${currentPlan?.name ?? 'Cuenta'}`}
                     </span>
                   </span>
-                  <span style={accountTriggerMetaStyle}>{locale === 'en' ? 'Open hub' : 'Abrir hub'}</span>
-                </button>
-              </>
+                </span>
+                <span style={accountTriggerMetaStyle}>{authMe?.isImpersonating ? (locale === 'en' ? 'Impersonating' : 'Suplantando') : (locale === 'en' ? 'Account' : 'Cuenta')}</span>
+              </button>
             ) : (
               <>
-                <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
-                  <div style={{ color: '#7f90a8', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    {locale === 'en' ? 'Product account' : 'Cuenta del producto'}
-                  </div>
-                  <div style={{ color: '#95a4b8', fontSize: 13, lineHeight: 1.55, maxWidth: 220 }}>
-                    {locale === 'en' ? 'Save your base and open the full account hub from here.' : 'Guardá tu base y abrí desde acá el hub completo de cuenta.'}
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  <button type="button" style={secondaryButtonStyle} onClick={() => { setAuthMode('login'); openAccountPanel('auth'); }}>
-                    {locale === 'en' ? 'Login' : 'Ingresar'}
-                  </button>
-                  <button type="button" style={buttonStyle} onClick={() => { setAuthMode('signup'); openAccountPanel('auth'); }}>
-                    {locale === 'en' ? 'Create account' : 'Crear cuenta'}
-                  </button>
-                </div>
+                <button type="button" style={secondaryButtonStyle} onClick={() => { setAuthMode('login'); openAccountPanel('auth'); }}>
+                  {locale === 'en' ? 'Login' : 'Ingresar'}
+                </button>
+                <button type="button" style={buttonStyle} onClick={() => { setAuthMode('signup'); openAccountPanel('auth'); }}>
+                  {locale === 'en' ? 'Create account' : 'Crear cuenta'}
+                </button>
               </>
             )}
           </div>
@@ -1833,7 +1775,7 @@ function AppShell() {
         ) : null}
 
 
-        <section style={heroGridStyle}>
+        <section className="app-hero-grid" style={heroGridStyle}>
           {!dataset ? (
             <div style={heroIntroPanelStyle}>
               <div style={{ display: 'grid', gap: 12 }}>
@@ -1848,35 +1790,6 @@ function AppShell() {
                     ? 'Clear diagnosis, actionable decisions and an organized view of matchups, runes, champions and review. First you understand what to fix, then you go deeper.'
                     : 'Diagnóstico claro, decisiones accionables y una vista ordenada de matchups, runas, campeones y revisión. Primero entendés qué corregir; después entrás al detalle.'}
                 </p>
-                {!loading ? (
-                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12 }}>
-                    {[
-                      {
-                        title: locale === 'en' ? 'Coaching by role and live patch' : 'Coaching por rol y parche live',
-                        body: locale === 'en'
-                          ? 'The product reads your account through role scope, champion context and the current Riot patch instead of recycling generic league advice.'
-                          : 'El producto lee tu cuenta a través del alcance por rol, el contexto del campeón y el parche actual de Riot en vez de reciclar consejos genéricos.'
-                      },
-                      {
-                        title: locale === 'en' ? 'One saved account, evolving reads' : 'Una cuenta guardada, lecturas que evolucionan',
-                        body: locale === 'en'
-                          ? 'Snapshots, continuity and cached coaching keep the analysis stable while new matches update the story without wasting tokens.'
-                          : 'Snapshots, continuidad y coaching cacheado mantienen el análisis estable mientras las partidas nuevas actualizan la historia sin gastar tokens de más.'
-                      },
-                      {
-                        title: locale === 'en' ? 'Built for players and coaches' : 'Hecho para jugadores y coaches',
-                        body: locale === 'en'
-                          ? 'A serious player gets a cleaner improvement loop, and a coach gets the base to manage players, review progress and scale feedback.'
-                          : 'Un jugador serio consigue un loop de mejora más claro, y un coach tiene la base para gestionar jugadores, revisar progreso y escalar feedback.'
-                      }
-                    ].map((item) => (
-                      <div key={item.title} style={softPanelStyle}>
-                        <div style={{ color: '#eef4ff', fontWeight: 800 }}>{item.title}</div>
-                        <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.65 }}>{item.body}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : null}
               </div>
             </div>
           ) : (
@@ -1885,14 +1798,8 @@ function AppShell() {
                 <div style={profileHeroPanelStyle}>
                   <div className="profile-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.18fr) minmax(300px, 0.82fr)', gap: 20, alignItems: 'start' }}>
                     <div style={{ display: 'grid', gap: 14 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>
-                          {locale === 'en' ? 'Live improvement base' : 'Base activa de mejora'}
-                        </div>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <Badge tone="low">{locale === 'en' ? 'Saved competitive base' : 'Base competitiva guardada'}</Badge>
-                          {activeProfileFreshnessLabel ? <Badge tone="default">{locale === 'en' ? `Synced ${activeProfileFreshnessLabel}` : `Sync ${activeProfileFreshnessLabel}`}</Badge> : null}
-                        </div>
+                      <div style={{ color: '#8b94a4', textTransform: 'uppercase', letterSpacing: '0.14em', fontSize: 12 }}>
+                        {locale === 'en' ? 'Active player' : 'Jugador activo'}
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: profileIconUrl ? '104px minmax(0, 1fr)' : '1fr', gap: 18, alignItems: 'start' }}>
                         {profileIconUrl ? (
@@ -1908,24 +1815,19 @@ function AppShell() {
                           <h1 style={{ margin: 0, fontSize: 38, letterSpacing: '-0.05em', lineHeight: 1.02 }}>
                             {dataset.player}<span style={{ color: '#8894ab' }}>#{dataset.tagLine}</span>
                           </h1>
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                            {dataset.profile ? <Badge>{locale === 'en' ? `Level ${dataset.profile.summonerLevel}` : `Nivel ${dataset.profile.summonerLevel}`}</Badge> : null}
-                            {currentPlatformInfo ? <Badge tone="default">{`${currentPlatformInfo.platform} · ${currentPlatformInfo.shortLabel}`}</Badge> : null}
+                          <div style={{ color: '#8d98ad', fontSize: 13 }}>
+                            {[
+                              dataset.profile ? (locale === 'en' ? `Level ${dataset.profile.summonerLevel}` : `Nivel ${dataset.profile.summonerLevel}`) : null,
+                              currentPlatformInfo ? `${currentPlatformInfo.platform} · ${currentPlatformInfo.shortLabel}` : null,
+                              activeProfileFreshnessLabel ? (locale === 'en' ? `Synced ${activeProfileFreshnessLabel}` : `Sync ${activeProfileFreshnessLabel}`) : null
+                            ].filter(Boolean).join(' · ')}
                           </div>
-                          <p style={{ margin: 0, color: '#96a1b4', maxWidth: 620, lineHeight: 1.62 }}>
+                          <p style={{ margin: 0, color: '#96a1b4', maxWidth: 620, lineHeight: 1.55 }}>
                             {locale === 'en'
-                              ? 'This is the profile your dashboard, coaching queue and review priorities are anchored to. You can move across the product without losing the main competitive read.'
-                              : 'Este es el perfil sobre el que se anclan tu dashboard, la cola de coaching y las prioridades de review. Podés moverte por el producto sin perder la lectura competitiva principal.'}
+                              ? `Coaching base: ${activeProfileCoverageLabel}. Focus: ${coachScopeLabel}.`
+                              : `Base de coaching: ${activeProfileCoverageLabel}. Foco: ${coachScopeLabel}.`}
+                            {coachScopeDirty ? ` ${locale === 'en' ? 'Refresh pending.' : 'Refresh pendiente.'}` : ''}
                           </p>
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            <Badge tone="default">{activeProfileCoverageLabel}</Badge>
-                            {activeProfileReadinessLabel ? <Badge tone="low">{activeProfileReadinessLabel}</Badge> : null}
-                            <Badge tone={coachScopeDirty ? 'medium' : 'default'}>
-                              {coachScopeDirty
-                                ? (locale === 'en' ? 'Focus changed, refresh pending' : 'El foco cambió, falta refresh')
-                                : (locale === 'en' ? 'Focus locked for coaching' : 'Foco fijado para coaching')}
-                            </Badge>
-                          </div>
                           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                             <button type="button" style={secondaryButtonStyle} onClick={() => setShowAccountControls(true)}>
                               {locale === 'en' ? 'Switch profile' : 'Cambiar perfil'}
@@ -1955,7 +1857,7 @@ function AppShell() {
                       )}
                     </div>
                   </div>
-                  <div className="four-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
+                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 }}>
                     <div style={profileMetaCardStyle}>
                       <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Competitive block' : 'Bloque competitivo'}</div>
                       <div style={heroMetaValueStyle}>{coachDataset?.summary.matches ?? dataset.summary.matches}</div>
@@ -1971,11 +1873,6 @@ function AppShell() {
                       <div style={heroMetaValueStyle}>{coachDataset?.summary.avgPerformanceScore ?? dataset.summary.avgPerformanceScore}</div>
                       <div style={heroMetaSubtleStyle}>{`CS@15 ${coachDataset?.summary.avgCsAt15 ?? dataset.summary.avgCsAt15} · Gold@15 ${coachDataset?.summary.avgGoldAt15 ?? dataset.summary.avgGoldAt15}`}</div>
                     </div>
-                    <div style={profileMetaCardStyle}>
-                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Ranked context' : 'Contexto ranked'}</div>
-                      <div style={{ ...heroMetaValueStyle, fontSize: 18 }}>{formatQueueSummary(dataset, locale)}</div>
-                      <div style={heroMetaSubtleStyle}>{locale === 'en' ? 'The queue mix behind this base' : 'La mezcla de colas detrás de esta base'}</div>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1983,14 +1880,10 @@ function AppShell() {
               <Card
                 title={locale === 'en' ? 'Improvement focus' : 'Foco de mejora'}
                 subtitle={locale === 'en'
-                  ? 'Choose the one or two roles you actually want to improve next. This focus changes the main coaching read, not your saved match history.'
-                  : 'Elegí el o los dos roles que realmente querés mejorar ahora. Este foco cambia la lectura principal del coaching, no tu historial guardado de partidas.'}
+                  ? 'Pick the role scope for the main coaching read.'
+                  : 'Elegí el alcance para la lectura principal de coaching.'}
               >
-                <div style={{ display: 'grid', gap: 14 }}>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Badge tone="low">{locale === 'en' ? 'Shapes the main coaching read' : 'Moldea la lectura principal del coaching'}</Badge>
-                    <Badge tone="default">{locale === 'en' ? 'Stats, matchups and profile history stay intact' : 'Stats, matchups e historial del perfil quedan intactos'}</Badge>
-                  </div>
+                <div style={{ display: 'grid', gap: 12 }}>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     {coachRoleOptions.map((role) => {
                       const selected = coachRoles.includes(role);
@@ -2014,7 +1907,7 @@ function AppShell() {
                       );
                     })}
                   </div>
-                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr repeat(2, minmax(0, 1fr))', gap: 12 }}>
+                  <div className="three-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.2fr repeat(2, minmax(0, 1fr))', gap: 10 }}>
                     <div style={scopeMetaCardStyle}>
                       <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Current focus' : 'Foco actual'}</div>
                       <div style={{ ...heroMetaValueStyle, fontSize: 20 }}>{coachScopeLabel}</div>
@@ -2027,16 +1920,16 @@ function AppShell() {
                       </div>
                     </div>
                     <div style={scopeMetaCardStyle}>
-                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Refresh behavior' : 'Comportamiento del refresh'}</div>
-                      <div style={{ ...heroMetaValueStyle, fontSize: 20 }}>{locale === 'en' ? 'You decide when' : 'Lo decidís vos'}</div>
+                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Refresh' : 'Refresh'}</div>
+                      <div style={{ ...heroMetaValueStyle, fontSize: 20 }}>{coachScopeDirty ? (locale === 'en' ? 'Pending' : 'Pendiente') : (locale === 'en' ? 'Ready' : 'Listo')}</div>
                       <div style={heroMetaSubtleStyle}>
-                        {locale === 'en' ? 'Changing this focus does not regenerate coaching until you run a refresh.' : 'Cambiar este foco no regenera el coaching hasta que corras un refresh.'}
+                        {locale === 'en' ? 'Only changes when you run analysis.' : 'Solo cambia cuando corrés análisis.'}
                       </div>
                     </div>
                     <div style={scopeMetaCardStyle}>
-                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Saved queue context' : 'Contexto guardado de colas'}</div>
+                      <div style={heroMetaLabelStyle}>{locale === 'en' ? 'Queue' : 'Cola'}</div>
                       <div style={{ ...heroMetaValueStyle, fontSize: 20 }}>{formatQueueSummary(dataset, locale)}</div>
-                      <div style={heroMetaSubtleStyle}>{locale === 'en' ? 'The ranked environment behind this coaching read' : 'El entorno ranked detrás de esta lectura de coaching'}</div>
+                      <div style={heroMetaSubtleStyle}>{locale === 'en' ? 'Saved match context' : 'Contexto de la muestra'}</div>
                     </div>
                   </div>
                   {coachScopeDirty ? (
@@ -2129,53 +2022,14 @@ function AppShell() {
                   </div>
                 </div>
                 {savedProfilesPanel}
-                <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
-                  <div style={softPanelStyle}>
-                    <div style={{ color: '#eef4ff', fontWeight: 700 }}>
-                      {locale === 'en' ? 'Server route' : 'Ruta del servidor'}
-                    </div>
-                    <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
-                      {currentPlatformInfo
-                        ? (locale === 'en'
-                          ? `${currentPlatformInfo.label} uses Riot regional route ${currentPlatformInfo.regionalRoute}. This only changes where we fetch the profile from, not the product language.`
-                          : `${currentPlatformInfo.label} usa el regional route ${currentPlatformInfo.regionalRoute} de Riot. Esto solo cambia desde dónde traemos el perfil, no el idioma del producto.`)
-                        : (locale === 'en'
-                          ? 'Choose the Riot platform where this player actually queues.'
-                          : 'Elegí la platform de Riot donde este jugador realmente hace cola.')}
-                    </div>
-                  </div>
-                  <div style={softPanelStyle}>
-                    <div style={{ display: 'grid', gap: 4 }}>
-                      <div style={{ color: '#eef4ff', fontWeight: 700 }}>
-                        {locale === 'en' ? 'How deep to start' : 'Qué tan profundo arrancar'}
-                      </div>
-                      <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
-                        {matchCount >= 100
-                          ? (locale === 'en' ? `A ${Math.min(100, planEntitlements?.maxStoredMatchesPerProfile ?? 100)}-match baseline gives the cleanest first read, but it may take longer because of Riot rate limits.` : `Una base de ${Math.min(100, planEntitlements?.maxStoredMatchesPerProfile ?? 100)} partidas da la lectura inicial más limpia, pero puede tardar más por los límites de Riot.`)
-                          : (locale === 'en' ? 'Start lighter if you want speed, then deepen the block when you want a more stable reference frame.' : 'Empezá más liviano si querés velocidad y profundizá el bloque cuando quieras un marco de referencia más estable.')}
-                      </div>
-                    </div>
-                    {!dataset && gameName && tagLine ? (
-                      <div style={{ color: '#a5b2c6', fontSize: 13, lineHeight: 1.6 }}>
-                        {locale === 'en'
-                          ? 'Once loaded, this profile stays saved here and later refreshes only fill what is missing instead of starting from zero.'
-                          : 'Una vez cargado, este perfil queda guardado acá y los refreshes siguientes solo completan lo que falta en vez de empezar de cero.'}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Badge tone="default">{locale === 'en' ? `${matchCount} match target` : `Objetivo de ${matchCount} partidas`}</Badge>
-                    {planEntitlements ? <Badge tone="low">{locale === 'en' ? `Plan cap ${planEntitlements.maxStoredMatchesPerProfile}` : `Tope del plan ${planEntitlements.maxStoredMatchesPerProfile}`}</Badge> : null}
-                    <Badge tone="low">{locale === 'en' ? 'Improvement focus is chosen after the profile loads' : 'El foco de mejora se elige después de cargar el perfil'}</Badge>
-                  </div>
-                  <div style={{ color: '#8f9bad', fontSize: 13 }}>
-                    {locale === 'en'
-                      ? 'You can search any supported Riot platform without changing the product language.'
-                      : 'Podés buscar cualquier platform soportada de Riot sin cambiar el idioma del producto.'}
-                  </div>
+                <div style={{ color: '#8f9bad', fontSize: 13, lineHeight: 1.6 }}>
+                  {currentPlatformInfo
+                    ? (locale === 'en'
+                      ? `${currentPlatformInfo.shortLabel} · ${matchCount} match first read.`
+                      : `${currentPlatformInfo.shortLabel} · primera lectura de ${matchCount} partidas.`)
+                    : (locale === 'en'
+                      ? 'Choose the platform and sample size to start.'
+                      : 'Elegí platform y muestra para empezar.')}
                 </div>
               </form>
             ) : (
@@ -2186,41 +2040,32 @@ function AppShell() {
                   </div>
                   <div style={{ color: '#8a95a8', fontSize: 13, lineHeight: 1.6 }}>
                     {locale === 'en'
-                      ? `Saved block: ${dataset.matches.length} matches. Decide whether you want to top it up lightly, deepen it or complete the whole baseline.`
-                      : `Bloque guardado: ${dataset.matches.length} partidas. Decidí si querés completarlo un poco, profundizarlo o cerrar toda la base.`}
+                      ? `${dataset.matches.length} matches saved · ${currentPlatformInfo?.platform ?? platform}`
+                      : `${dataset.matches.length} partidas guardadas · ${currentPlatformInfo?.platform ?? platform}`}
                   </div>
-                  {currentPlatformInfo ? (
-                    <div style={{ color: '#748198', fontSize: 12 }}>
-                      {locale === 'en'
-                        ? `Platform ${currentPlatformInfo.platform} · ${currentPlatformInfo.label}`
-                        : `Platform ${currentPlatformInfo.platform} · ${currentPlatformInfo.label}`}
-                    </div>
-                  ) : null}
                 </div>
                 {syncMessage ? <div style={syncMessageStyle}>{syncMessage}</div> : null}
-                <div style={{ display: 'grid', gap: 10 }}>
-                  {quickRefreshActions.length ? (
-                    <div style={{ display: 'grid', gap: 8 }}>
-                      <div style={fieldLabelStyle}>{locale === 'en' ? 'Quick top-up' : 'Carga rápida'}</div>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        {quickRefreshActions.map((action) => (
-                          <button
-                            key={action.id}
-                            type="button"
-                            style={secondaryButtonStyle}
-                            onClick={() => void runAnalysis(action.target)}
-                            disabled={loading}
-                          >
-                            {action.id === 'complete'
-                              ? (locale === 'en' ? `Complete to ${action.target}` : `Completar a ${action.target}`)
-                              : `${action.label} ${locale === 'en' ? 'match' : 'partida'}${action.label === '+1' ? '' : 's'}`}
-                          </button>
-                        ))}
-                      </div>
+                {quickRefreshActions.length ? (
+                  <div style={{ display: 'grid', gap: 8 }}>
+                    <div style={fieldLabelStyle}>{locale === 'en' ? 'Quick top-up' : 'Carga rápida'}</div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      {quickRefreshActions.slice(0, 3).map((action) => (
+                        <button
+                          key={action.id}
+                          type="button"
+                          style={secondaryButtonStyle}
+                          onClick={() => void runAnalysis(action.target)}
+                          disabled={loading}
+                        >
+                          {action.id === 'complete'
+                            ? (locale === 'en' ? `To ${action.target}` : `A ${action.target}`)
+                            : action.label}
+                        </button>
+                      ))}
                     </div>
-                  ) : null}
-                </div>
-                <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr .9fr', gap: 12 }}>
+                  </div>
+                ) : null}
+                <div style={{ display: 'grid', gap: 12 }}>
                   <div style={{ display: 'grid', gap: 6 }}>
                     <div style={fieldLabelStyle}>{locale === 'en' ? 'Target block' : 'Bloque objetivo'}</div>
                     <select value={matchCount} onChange={(e) => setMatchCount(Number(e.target.value))} style={selectStyle}>
@@ -2229,20 +2074,12 @@ function AppShell() {
                       ))}
                     </select>
                   </div>
-                  <div style={{ display: 'grid', gap: 6 }}>
-                    <div style={fieldLabelStyle}>{locale === 'en' ? 'Coaching scope' : 'Alcance del coaching'}</div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <Badge tone="default">{coachScopeLabel}</Badge>
-                      {dataset?.remakesExcluded ? <Badge tone="medium">{locale === 'en' ? `${dataset.remakesExcluded} remakes excluded` : `${dataset.remakesExcluded} remakes excluidos`}</Badge> : null}
-                      {needsSampleBackfill
-                        ? <Badge tone="medium">{locale === 'en' ? `${missingMatchesToTarget} matches left to complete the base` : `Faltan ${missingMatchesToTarget} partidas para completar la base`}</Badge>
-                        : <Badge tone="low">{locale === 'en' ? 'Base already complete' : 'Base ya completa'}</Badge>}
-                      {needsBuildRehydration
-                        ? <Badge tone="medium">{locale === 'en' ? 'Build timelines need refresh' : 'Las timelines de build necesitan refresh'}</Badge>
-                        : null}
-                      {currentPlatformInfo ? <Badge tone="default">{currentPlatformInfo.platform}</Badge> : null}
-                      {planEntitlements ? <Badge tone="default">{`${dataset.matches.length}/${planEntitlements.maxStoredMatchesPerProfile}`}</Badge> : null}
-                    </div>
+                  <div style={{ color: '#8390a6', fontSize: 13, lineHeight: 1.55 }}>
+                    {needsSampleBackfill
+                      ? (locale === 'en' ? `${missingMatchesToTarget} matches left to complete this baseline.` : `Faltan ${missingMatchesToTarget} partidas para completar esta base.`)
+                      : (locale === 'en' ? 'Baseline complete. Refresh only when new matches matter.' : 'Base completa. Refrescá solo cuando importen las nuevas partidas.')}
+                    {dataset?.remakesExcluded ? ` ${locale === 'en' ? `${dataset.remakesExcluded} remakes excluded.` : `${dataset.remakesExcluded} remakes excluidos.`}` : ''}
+                    {needsBuildRehydration ? ` ${locale === 'en' ? 'Build timelines need refresh.' : 'Las timelines de build necesitan refresh.'}` : ''}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -2263,17 +2100,18 @@ function AppShell() {
           </Card>
         </section>
 
-        <section style={{ display: 'grid', gap: 12 }}>
-          {viewDataset && activeTab !== 'coach' ? (
+        {viewDataset ? (
+          <section style={{ display: 'grid', gap: 12 }}>
+            {activeTab !== 'coach' ? (
             <div style={roleFilterPanelStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'end', flexWrap: 'wrap' }}>
                 <div style={{ display: 'grid', gap: 3 }}>
-                  <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Exploration scope' : 'Scope de exploración'}</div>
-                <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>{locale === 'en' ? 'Inspect the exact slice without touching the main coaching read' : 'Inspeccioná el recorte exacto sin tocar la lectura principal del coaching'}</div>
-                <div style={{ color: '#8793a8', fontSize: 13 }}>{locale === 'en' ? 'These filters affect stats, matchups, runes, champions and match review only. Coaching keeps using its own saved role scope.' : 'Estos filtros afectan solo métricas, cruces, runas, campeones y review de partidas. El coaching sigue usando su propio scope guardado de roles.'}</div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <Badge tone="default">{locale === 'en' ? 'Affects: stats, matchups, runes, builds, champions, matches' : 'Afecta: stats, matchups, runas, builds, campeones y partidas'}</Badge>
-                <Badge tone="low">{locale === 'en' ? `Coaching keeps ${coachScopeLabel}` : `El coaching sigue en ${coachScopeLabel}`}</Badge>
+                  <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Explore' : 'Explorar'}</div>
+                  <div style={{ color: '#eef4ff', fontSize: 16, fontWeight: 800 }}>{locale === 'en' ? 'Slice the data when you need detail' : 'Recortá la data cuando necesitás detalle'}</div>
+                </div>
+                <div style={{ color: '#8793a8', fontSize: 13 }}>
+                  {locale === 'en' ? `${viewDataset.summary.matches} visible matches` : `${viewDataset.summary.matches} partidas visibles`}
+                </div>
               </div>
               <div className="role-pill-grid" style={rolePillGridStyle}>
                 {preferredRoles.map((role) => (
@@ -2340,7 +2178,7 @@ function AppShell() {
                   </div>
                 </div>
                 <div style={contextGroupStyle}>
-                  <div style={contextLabelStyle}>{locale === 'en' ? 'Current exploration slice' : 'Recorte actual de exploración'}</div>
+                  <div style={contextLabelStyle}>{locale === 'en' ? 'Current slice' : 'Recorte actual'}</div>
                   <div style={{ color: '#dce7f9', fontSize: 13, lineHeight: 1.5 }}>
                     {locale === 'en'
                       ? `${translateRole(roleFilter, 'en')} · ${queueFilter === 'ALL' ? 'all queues' : queueFilter === 'RANKED' ? 'ranked queues' : queueFilter === 'RANKED_SOLO' ? 'solo/duo' : queueFilter === 'RANKED_FLEX' ? 'flex' : 'other queues'}`
@@ -2354,46 +2192,39 @@ function AppShell() {
                 </div>
               </div>
             </div>
-          ) : null}
+            ) : null}
 
-          <div style={navigationPanelStyle}>
-              <div style={{ display: 'grid', gap: 3 }}>
-              <div style={{ color: '#8da0ba', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{locale === 'en' ? 'Product navigation' : 'Navegación del producto'}</div>
-              <div style={{ color: '#eef4ff', fontSize: 15, fontWeight: 800 }}>{locale === 'en' ? 'One coaching scope, several exploration layers' : 'Un scope de coaching, varias capas de exploración'}</div>
-            </div>
-            <div className="tab-grid" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  style={{
-                    ...tabStyle,
-                    ...(activeTab === tab.id ? activeTabStyle : {})
-                  }}
-                >
-                  {tab.label[locale]}
-                </button>
-              ))}
-            </div>
-            {viewDataset ? (
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div style={navigationPanelStyle}>
+              <div className="tab-grid" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    style={{
+                      ...tabStyle,
+                      ...(activeTab === tab.id ? activeTabStyle : {})
+                    }}
+                  >
+                    {tab.label[locale]}
+                  </button>
+                ))}
+              </div>
+              <div style={{ color: '#8793a8', fontSize: 13, lineHeight: 1.5 }}>
                 {activeTab === 'coach' ? (
-                  <>
-                    <Badge>{locale === 'en' ? `${coachDataset?.summary.matches ?? 0} matches in coaching scope` : `${coachDataset?.summary.matches ?? 0} partidas en el scope de coaching`}</Badge>
-                    <Badge>{coachScopeLabel}</Badge>
-                    <Badge tone="low">{locale === 'en' ? 'AI uses only this saved role scope' : 'La IA usa solo este scope guardado de roles'}</Badge>
-                  </>
+                  locale === 'en'
+                    ? `${coachDataset?.summary.matches ?? 0} matches in coaching scope · ${coachScopeLabel}`
+                    : `${coachDataset?.summary.matches ?? 0} partidas en scope de coaching · ${coachScopeLabel}`
                 ) : (
-                  <>
-                    <Badge>{locale === 'en' ? `${viewDataset.summary.matches} visible matches` : `${viewDataset.summary.matches} partidas visibles`}</Badge>
-                    {viewDataset.matches[0] ? <Badge>{getQueueLabel(viewDataset.matches[0].queueId)}</Badge> : null}
-                    <Badge tone="default">{locale === 'en' ? translateRole(roleFilter, 'en') : getRoleLabel(roleFilter)}</Badge>
-                  </>
+                  [
+                    locale === 'en' ? `${viewDataset.summary.matches} visible matches` : `${viewDataset.summary.matches} partidas visibles`,
+                    viewDataset.matches[0] ? getQueueLabel(viewDataset.matches[0].queueId) : null,
+                    locale === 'en' ? translateRole(roleFilter, 'en') : getRoleLabel(roleFilter)
+                  ].filter(Boolean).join(' · ')
                 )}
               </div>
-            ) : null}
-          </div>
-        </section>
+            </div>
+          </section>
+        ) : null}
 
         {error ? <Card title={locale === 'en' ? 'Error' : 'Error'}>{error}</Card> : null}
 
@@ -2403,48 +2234,18 @@ function AppShell() {
               <Card
                 title={locale === 'en' ? 'Loading workspace' : 'Cargando espacio'}
                 subtitle={locale === 'en'
-                  ? 'Preparing the selected view without blocking the rest of the dashboard.'
-                  : 'Preparando la vista elegida sin bloquear el resto del dashboard.'}
+                  ? 'Preparing the selected view.'
+                  : 'Preparando la vista elegida.'}
               >
-                <div style={{ display: 'grid', gap: 10, color: '#90a0b4', lineHeight: 1.6 }}>
-                  <div>
-                    {locale === 'en'
-                      ? 'The app is loading that module on demand so one heavy section does not break the whole product.'
-                      : 'La app está cargando ese módulo bajo demanda para que una sección pesada no rompa todo el producto.'}
-                  </div>
+                <div style={{ color: '#90a0b4', lineHeight: 1.6 }}>
+                  {locale === 'en' ? 'One moment.' : 'Un momento.'}
                 </div>
               </Card>
             }
           >
             {renderedTab}
           </Suspense>
-        ) : (
-          <Card title={locale === 'en' ? 'Waiting for analysis' : 'Esperando análisis'} subtitle={locale === 'en' ? 'The goal is for the product to feel more like a premium personal account than a technical dashboard' : 'La idea es que el producto se sienta más cuenta personal premium que panel técnico'}>
-            <div style={{ display: 'grid', gap: 12, color: '#c7d4ea', lineHeight: 1.7 }}>
-              {locale === 'en' ? (
-                <>
-                  <div><strong>Overview:</strong> live pulse of the block, spotlight matches and what to review first.</div>
-                  <div><strong>Coach:</strong> main blocker, evidence, impact and active plan.</div>
-                  <div><strong>Stats:</strong> aggregated metrics and recent evolution.</div>
-                  <div><strong>Matchups:</strong> real performance into direct opponents.</div>
-                  <div><strong>Runes:</strong> same-champion micro-variants, keystone families and evidence tiers.</div>
-                  <div><strong>Builds / items:</strong> build families, timings, item leverage and comp-fit watchpoints.</div>
-                  <div><strong>Champions:</strong> tactical read with more visual context.</div>
-                </>
-              ) : (
-                <>
-                  <div><strong>Overview:</strong> pulso vivo del bloque, partidas spotlight y qué revisar primero.</div>
-                  <div><strong>Coach:</strong> problema principal, evidencia, impacto y plan activo.</div>
-                  <div><strong>Stats:</strong> métricas agregadas y evolución.</div>
-                  <div><strong>Matchups:</strong> rendimiento real frente a rivales directos.</div>
-                  <div><strong>Runas:</strong> microvariantes del mismo campeón, familias de keystone y tiers de evidencia.</div>
-                  <div><strong>Builds / items:</strong> familias de build, timings, leverage por item y watchpoints de comp-fit.</div>
-                  <div><strong>Campeones:</strong> lectura táctica con más contexto visual.</div>
-                </>
-              )}
-            </div>
-          </Card>
-        )}
+        ) : null}
 
         <footer style={footerStyle}>
           <div style={{ color: '#7f8ca1', fontSize: 13 }}>
@@ -2511,42 +2312,36 @@ export default function App() {
 const topBarStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
-  gap: 16,
+  gap: 14,
   alignItems: 'center',
   flexWrap: 'wrap',
-  padding: '4px 2px 0'
+  padding: '2px 2px 0'
 };
 
 const accountAccessStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1fr) auto',
-  gap: 10,
+  display: 'flex',
+  gap: 8,
   alignItems: 'center',
-  padding: '10px 12px',
-  borderRadius: 20,
-  background: 'radial-gradient(circle at top left, rgba(78, 128, 176, 0.12), transparent 34%), linear-gradient(180deg, rgba(14,18,28,0.97), rgba(8,11,18,0.98))',
-  border: '1px solid rgba(255,255,255,0.08)',
-  width: 'min(100%, 420px)',
-  minHeight: 72,
-  boxShadow: '0 16px 34px rgba(0,0,0,0.16)'
+  justifyContent: 'flex-end',
+  flexWrap: 'wrap'
 };
 
 const accountTriggerStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
-  gap: 14,
+  gap: 12,
   alignItems: 'center',
-  minWidth: 238,
-  padding: '11px 13px',
-  borderRadius: 18,
+  minWidth: 224,
+  padding: '9px 10px',
+  borderRadius: 14,
   border: '1px solid rgba(255,255,255,0.08)',
-  background: 'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))',
+  background: 'rgba(255,255,255,0.025)',
   color: '#eef4ff'
 };
 
 const accountAvatarStyle: CSSProperties = {
-  width: 38,
-  height: 38,
+  width: 34,
+  height: 34,
   borderRadius: 999,
   display: 'inline-grid',
   placeItems: 'center',
@@ -2574,65 +2369,26 @@ const accountPanelStyle: CSSProperties = {
 };
 
 
-const topBarGhostButtonStyle: CSSProperties = {
-  border: '1px solid rgba(255,255,255,0.08)',
-  padding: '10px 12px',
-  borderRadius: 12,
-  background: 'rgba(255,255,255,0.02)',
-  color: '#8996aa',
-  fontWeight: 700,
-  cursor: 'not-allowed'
-};
-
-const topBarPrimaryButtonStyle: CSSProperties = {
-  border: '1px solid rgba(216,253,241,0.18)',
-  padding: '10px 12px',
-  borderRadius: 12,
-  background: 'rgba(216,253,241,0.08)',
-  color: '#d7f9ea',
-  fontWeight: 800,
-  cursor: 'not-allowed'
-};
-
 const heroGridStyle: CSSProperties = {
   display: 'grid',
-  gridTemplateColumns: 'minmax(0, 1.05fr) minmax(380px, 0.95fr)',
-  gap: 20,
+  gridTemplateColumns: 'minmax(0, 1.18fr) minmax(360px, 0.82fr)',
+  gap: 16,
   alignItems: 'start'
 };
 
 const heroIntroPanelStyle: CSSProperties = {
   display: 'grid',
   gap: 12,
-  padding: 24,
-  borderRadius: 28,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'radial-gradient(circle at top left, rgba(79, 56, 146, 0.34), transparent 42%), linear-gradient(180deg, rgba(17,20,31,0.96), rgba(7,10,16,0.98))',
-  boxShadow: '0 28px 80px rgba(0,0,0,0.22)'
-};
-
-const accountCardStyle: CSSProperties = {
-  display: 'grid',
-  gap: 14,
-  padding: '20px 22px',
+  padding: 22,
   borderRadius: 20,
-  background: 'linear-gradient(180deg, rgba(16,20,30,0.98), rgba(8,11,18,0.98))',
-  border: '1px solid rgba(255,255,255,0.07)'
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'linear-gradient(180deg, rgba(15,19,29,0.98), rgba(7,10,16,0.98))',
+  boxShadow: '0 18px 52px rgba(0,0,0,0.18)'
 };
 
 const profileIconStyle: CSSProperties = {
   borderRadius: 16,
   border: '1px solid rgba(255,255,255,0.08)'
-};
-
-const inputStyle: CSSProperties = {
-  width: '100%',
-  padding: '13px 14px',
-  borderRadius: 14,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(7,11,18,0.92)',
-  color: '#edf2ff',
-  boxShadow: '0 0 0 1px rgba(255,255,255,0.02) inset'
 };
 
 const riotSearchShellStyle: CSSProperties = {
@@ -2710,29 +2466,13 @@ const activeTabStyle: CSSProperties = {
   color: '#ffffff'
 };
 
-const accountMetaRowStyle: CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-  gap: 8
-};
-
-const recordPillStyle: CSSProperties = {
-  display: 'grid',
-  gap: 4,
-  padding: '10px 12px',
-  borderRadius: 12,
-  background: '#080d15',
-  border: '1px solid rgba(255,255,255,0.05)'
-};
-
 const roleFilterPanelStyle: CSSProperties = {
   display: 'grid',
-  gap: 14,
-  padding: '16px 18px',
-  borderRadius: 18,
-  background: 'linear-gradient(180deg, rgba(13,18,28,0.98), rgba(7,10,16,0.98))',
-  border: '1px solid rgba(216,253,241,0.1)',
-  boxShadow: '0 18px 46px rgba(0,0,0,0.16)'
+  gap: 12,
+  padding: '14px 16px',
+  borderRadius: 16,
+  background: 'rgba(8,12,19,0.92)',
+  border: '1px solid rgba(255,255,255,0.06)'
 };
 
 const rolePillGridStyle: CSSProperties = {
@@ -2802,13 +2542,15 @@ const syncMessageStyle: CSSProperties = {
 };
 
 const navigationPanelStyle: CSSProperties = {
-  display: 'grid',
+  display: 'flex',
+  justifyContent: 'space-between',
   gap: 12,
-  padding: '16px 18px',
-  borderRadius: 18,
-  background: '#060a10',
-  border: '1px solid rgba(255,255,255,0.06)',
-  boxShadow: '0 18px 46px rgba(0,0,0,0.14)'
+  alignItems: 'center',
+  flexWrap: 'wrap',
+  padding: '10px 12px',
+  borderRadius: 16,
+  background: 'rgba(6,10,16,0.82)',
+  border: '1px solid rgba(255,255,255,0.06)'
 };
 
 const savedProfilesSectionStyle: CSSProperties = {
@@ -2847,23 +2589,6 @@ const savedProfileCardStyle: CSSProperties = {
 const activeSavedProfileCardStyle: CSSProperties = {
   background: 'radial-gradient(circle at top left, rgba(216,253,241,0.12), transparent 42%), linear-gradient(180deg, rgba(216,253,241,0.08), rgba(24,35,44,0.96))',
   borderColor: 'rgba(216,253,241,0.24)'
-};
-
-const savedProfileMetaStatStyle: CSSProperties = {
-  display: 'grid',
-  gap: 4,
-  padding: '10px 11px',
-  borderRadius: 14,
-  background: 'rgba(255,255,255,0.03)',
-  border: '1px solid rgba(255,255,255,0.05)',
-  alignContent: 'start'
-};
-
-const savedProfileMetaValueStyle: CSSProperties = {
-  color: '#eaf1fd',
-  fontSize: 12,
-  fontWeight: 700,
-  lineHeight: 1.45
 };
 
 const adminUserCardStyle: CSSProperties = {
@@ -2969,10 +2694,10 @@ const profileRankEmptyStyle: CSSProperties = {
 
 const profileMetaCardStyle: CSSProperties = {
   ...heroMetaChipStyle,
-  gap: 6,
-  minHeight: 92,
-  padding: '14px 14px',
-  background: 'linear-gradient(180deg, rgba(10,15,23,0.9), rgba(7,11,18,0.82))',
+  gap: 5,
+  minHeight: 84,
+  padding: '12px 13px',
+  background: 'rgba(9,14,22,0.78)',
   alignContent: 'start'
 };
 
@@ -2992,8 +2717,8 @@ const rankQueuePillStyle: CSSProperties = {
 const scopeMetaCardStyle: CSSProperties = {
   ...heroMetaChipStyle,
   gap: 6,
-  minHeight: 92,
-  background: 'linear-gradient(180deg, rgba(10,15,23,0.92), rgba(8,12,20,0.86))',
+  minHeight: 82,
+  background: 'rgba(9,14,22,0.78)',
   alignContent: 'start'
 };
 

@@ -91,15 +91,6 @@ function computeLaneControlScore(match: MatchEntry) {
   );
 }
 
-function MiniMeta({ label, value }: { label: string; value: string }) {
-  return (
-    <div style={rosterMetricStyle}>
-      <div style={coachMetaLabelStyle}>{label}</div>
-      <div style={rosterMetricValueStyle}>{value}</div>
-    </div>
-  );
-}
-
 function RosterMetric({ label, value }: { label: string; value: string }) {
   return (
     <div style={rosterMetricStyle}>
@@ -184,11 +175,11 @@ function BenchmarkDeltaPill({
 const coachWorkspaceShellStyle = {
   display: 'grid',
   gap: 16,
-  padding: '22px 22px',
-  borderRadius: 26,
-  background: 'radial-gradient(circle at top left, rgba(36, 79, 122, 0.32), transparent 34%), linear-gradient(180deg, rgba(9, 14, 22, 0.99), rgba(4, 7, 12, 0.99))',
-  border: '1px solid rgba(255,255,255,0.08)',
-  boxShadow: '0 28px 72px rgba(0,0,0,0.24)'
+  padding: '20px 20px',
+  borderRadius: 18,
+  background: 'linear-gradient(180deg, rgba(9, 14, 22, 0.99), rgba(4, 7, 12, 0.99))',
+  border: '1px solid rgba(255,255,255,0.07)',
+  boxShadow: '0 18px 52px rgba(0,0,0,0.18)'
 } as const;
 
 const coachEyebrowStyle = {
@@ -201,12 +192,12 @@ const coachEyebrowStyle = {
 
 const coachHeroCardStyle = {
   display: 'grid',
-  gap: 12,
+  gap: 10,
   alignContent: 'start',
-  minHeight: 174,
+  minHeight: 142,
   padding: '16px 16px',
-  borderRadius: 20,
-  background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015))',
+  borderRadius: 14,
+  background: 'rgba(255,255,255,0.025)',
   border: '1px solid rgba(255,255,255,0.06)'
 } as const;
 
@@ -219,8 +210,8 @@ const coachMetaLabelStyle = {
 
 const workspaceButtonStyle = {
   border: '1px solid rgba(255,255,255,0.08)',
-  padding: '11px 14px',
-  borderRadius: 14,
+  padding: '9px 12px',
+  borderRadius: 12,
   background: 'rgba(255,255,255,0.03)',
   color: '#dce6f6',
   fontWeight: 700,
@@ -228,7 +219,7 @@ const workspaceButtonStyle = {
 } as const;
 
 const activeWorkspaceButtonStyle = {
-  background: 'linear-gradient(180deg, rgba(216,253,241,0.14), rgba(29,42,54,0.96))',
+  background: 'rgba(216,253,241,0.12)',
   borderColor: 'rgba(216,253,241,0.24)',
   color: '#ffffff'
 } as const;
@@ -841,7 +832,6 @@ export function CoachPremiumWorkspace({
   const coachKpis = useMemo(() => buildCoachKPIs(dataset, locale), [dataset, locale]);
   const loadedRosterPlayer = rosterPlayers.find((player) => player.isLoaded) ?? null;
   const loadedChampion = dataset.summary.championPool[0];
-  const syncedRosterPlayers = rosterPlayers.filter((player) => player.localProfile);
   const roadmapNotes = buildRoadmapNotes(locale);
   const dominantPattern = patterns[0] ?? null;
   const weakestSignal = [...signals].sort((a, b) => a.value - b.value)[0] ?? null;
@@ -886,20 +876,20 @@ export function CoachPremiumWorkspace({
       <section style={coachWorkspaceShellStyle}>
         <div style={{ display: 'grid', gap: 14 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap', alignItems: 'start' }}>
-            <div style={{ display: 'grid', gap: 8, maxWidth: 900 }}>
+            <div style={{ display: 'grid', gap: 8, maxWidth: 780 }}>
               <div style={coachEyebrowStyle}>{t(locale, 'Coach command desk', 'Coach command desk')}</div>
-              <div style={{ color: '#eef4ff', fontSize: 32, fontWeight: 800, letterSpacing: '-0.05em', lineHeight: 1.02 }}>
-                {t(locale, 'Una superficie de staff para preparar intervención, review y seguimiento.', 'A staff surface to prepare intervention, review and follow-up.')}
+              <div style={{ color: '#eef4ff', fontSize: 30, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.04 }}>
+                {t(locale, 'Prioridad, roster y review en una sola mesa.', 'Priority, roster and review on one desk.')}
               </div>
-              <div style={{ color: '#99a8bd', lineHeight: 1.75, maxWidth: 860 }}>{staffBrief}</div>
+              <div style={{ color: '#99a8bd', lineHeight: 1.65, maxWidth: 760 }}>{staffBrief}</div>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              <Badge>{t(locale, `${dataset.summary.matches} partidas en el bloque`, `${dataset.summary.matches} matches in the block`)}</Badge>
-              {canManageRoster ? <Badge tone="low">{t(locale, `${rosterPlayers.length} jugadores en roster`, `${rosterPlayers.length} players in roster`)}</Badge> : null}
-              <Badge tone="medium">{t(locale, 'Staff lens', 'Staff lens')}</Badge>
+            <div style={{ color: '#8fa0b6', fontSize: 13, lineHeight: 1.5, textAlign: 'right' }}>
+              {canManageRoster
+                ? t(locale, `${dataset.summary.matches} partidas · ${rosterPlayers.length} en roster`, `${dataset.summary.matches} matches · ${rosterPlayers.length} in roster`)
+                : t(locale, `${dataset.summary.matches} partidas en el bloque`, `${dataset.summary.matches} matches in the block`)}
             </div>
           </div>
-          <div className="coach-workspace-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+          <div className="coach-workspace-hero-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 0.95fr) minmax(0, 1.05fr)', gap: 12 }}>
             <div style={coachHeroCardStyle}>
               <div style={{ display: 'grid', gridTemplateColumns: profileIconUrl ? '54px minmax(0, 1fr)' : '1fr', gap: 12, alignItems: 'center' }}>
                 {profileIconUrl ? <img src={profileIconUrl} alt={dataset.player} width={54} height={54} style={{ width: 54, height: 54, borderRadius: 16, border: '1px solid rgba(255,255,255,0.08)' }} /> : null}
@@ -907,47 +897,26 @@ export function CoachPremiumWorkspace({
                   <div style={coachMetaLabelStyle}>{t(locale, 'Jugador cargado', 'Loaded player')}</div>
                   <div style={{ color: '#eef4ff', fontSize: 20, fontWeight: 800, lineHeight: 1.08 }}>{`${dataset.player}#${dataset.tagLine}`}</div>
                   <div style={{ color: '#8fa0b7', fontSize: 13, lineHeight: 1.5 }}>
-                    {loadedRosterPlayer
-                      ? t(locale, 'Está dentro del roster del coach y ya se está leyendo como cliente activo.', 'This player is inside the coach roster and is already being read as the active client.')
-                      : t(locale, 'Se está leyendo como bloque activo. Si querés seguimiento continuo, conviene dejarlo dentro del roster.', 'This is being read as the active block. If you want continuous follow-up, it should live inside the coach roster.')}
+                    {[
+                      headerChampionName,
+                      dataset.summary.primaryRole && dataset.summary.primaryRole !== 'ALL' ? dataset.summary.primaryRole : null,
+                      loadedRosterPlayer ? t(locale, 'roster activo', 'active roster') : null
+                    ].filter(Boolean).join(' · ') || t(locale, 'Bloque activo para coaching.', 'Active block for coaching.')}
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {headerChampionName ? <Badge tone="low">{headerChampionName}</Badge> : null}
-                {dataset.summary.primaryRole && dataset.summary.primaryRole !== 'ALL' ? <Badge>{dataset.summary.primaryRole}</Badge> : null}
-                {loadedRosterPlayer ? <Badge tone="default">{t(locale, 'Roster activo', 'Active roster')}</Badge> : null}
-              </div>
             </div>
             <div style={coachHeroCardStyle}>
-              <div style={coachMetaLabelStyle}>{t(locale, 'Pulso de roster', 'Roster pulse')}</div>
-              <div style={{ color: '#eef4ff', fontSize: 26, fontWeight: 800, lineHeight: 1.05 }}>{`${syncedRosterPlayers.length}/${Math.max(rosterPlayers.length, 1)}`}</div>
-              <div style={{ color: '#9aa8bb', lineHeight: 1.65 }}>
-                {rosterPlayers.length
-                  ? t(locale, 'con perfil local listo para seguimiento, comparativa y refresh rápido.', 'with a local profile ready for follow-up, comparison and quick refresh.')
-                  : t(locale, 'Todavía no hay roster cargado desde cuenta coach.', 'There is no coach roster loaded yet from the account.')}
+              <div style={coachMetaLabelStyle}>{t(locale, 'Prioridad actual', 'Current priority')}</div>
+              <div style={{ color: '#eef4ff', fontSize: 22, fontWeight: 800, lineHeight: 1.08 }}>{dominantPattern?.label ?? performanceBandProxy.label}</div>
+              <div style={{ color: '#9aa8bb', lineHeight: 1.6 }}>
+                {dominantPattern?.reason ?? performanceBandProxy.summary}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
-                <MiniMeta label={t(locale, 'Con sync', 'Synced')} value={String(syncedRosterPlayers.length)} />
-                <MiniMeta label={t(locale, 'Sin cache', 'No cache')} value={String(Math.max(0, rosterPlayers.length - syncedRosterPlayers.length))} />
+              <div style={{ color: '#74859a', fontSize: 12, lineHeight: 1.5 }}>
+                {dominantPattern
+                  ? t(locale, `${formatDecimal(dominantPattern.rate)}% del problema en ${dominantPattern.count} partidas.`, `${formatDecimal(dominantPattern.rate)}% of the problem across ${dominantPattern.count} matches.`)
+                  : performanceBandProxy.note}
               </div>
-            </div>
-            <div style={coachHeroCardStyle}>
-              <div style={coachMetaLabelStyle}>{t(locale, 'Colapso dominante', 'Dominant collapse')}</div>
-              <div style={{ color: '#eef4ff', fontSize: 22, fontWeight: 800, lineHeight: 1.08 }}>{dominantPattern?.label ?? t(locale, 'Sin patrón firme', 'No firm pattern')}</div>
-              <div style={{ color: '#9aa8bb', lineHeight: 1.65 }}>{dominantPattern?.reason ?? t(locale, 'Todavía falta muestra para una lectura de colapso dominante.', 'There is still not enough sample for a dominant collapse read.')}</div>
-              {dominantPattern ? (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <Badge tone="high">{t(locale, `${formatDecimal(dominantPattern.rate)}% del problema`, `${formatDecimal(dominantPattern.rate)}% of the problem`)}</Badge>
-                  <Badge tone="medium">{t(locale, `${dominantPattern.count} partidas`, `${dominantPattern.count} matches`)}</Badge>
-                </div>
-              ) : null}
-            </div>
-            <div style={coachHeroCardStyle}>
-              <div style={coachMetaLabelStyle}>{t(locale, 'Proxy competitiva', 'Competitive proxy')}</div>
-              <div style={{ color: '#eef4ff', fontSize: 22, fontWeight: 800, lineHeight: 1.08 }}>{performanceBandProxy.label}</div>
-              <div style={{ color: '#9aa8bb', lineHeight: 1.65 }}>{performanceBandProxy.summary}</div>
-              <div style={{ color: '#74859a', fontSize: 12, lineHeight: 1.55 }}>{performanceBandProxy.note}</div>
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
